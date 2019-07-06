@@ -1,0 +1,15 @@
+# This file is where you define your pipelines. You can define multiple.
+# For more information on multiple pipelines, see the documentation:
+#   https://www.elastic.co/guide/en/logstash/current/multiple-pipelines.html
+# node.name: echee_dev_logstash
+# log.level: debug
+# config.debug: true
+  
+- pipeline.id: main
+  path.config: "/usr/share/logstash/pipeline/logstash.conf"
+- pipeline.id: scalyr
+  pipeline.batch.size: 100
+  pipeline.batch.delay: 50
+  pipeline.workers: 3
+  queue.type: persisted
+  path.config: "/usr/share/logstash/pipeline/scalyr.conf"

@@ -1,4 +1,164 @@
-# logstash-output-scalyr
-Scalyr Logstash Plugin
 
+[![CircleCI](https://circleci.com/gh/scalyr/logstash-output-scalyr.svg?style=svg)](https://circleci.com/gh/scalyr/logstash-output-scalyr)
+
+# [Scalyr output plugin for Logstash (WORK IN PROGRESS)]
+
+# Overview
+
+This plugin implements a Logstash output plugin that uploads data to [Scalyr](http://www.scalyr.com).
+
+## Persistence
+
+Logstash itself supports [Persistent Queues](https://www.elastic.co/guide/en/logstash/current/persistent-queues.html) with at-least-once delivery semantics.  It expects output plugins to retry uploads until success or else to write failures into a Dead-Letter Queue (DLQ). Since Logstash offers Persistent Queues, the Scalyr plugin does not perform its own buffering or persistence.  More specifically, invocation of `multi_receive` is synchronously retried until success or written to the DLQ upon failure.  Note: the `multi_receive` interface does not provide a feedback mechanism (outcome codes etc).
+
+## Concurrency
+
+The plugin does not manage its own internal concurrency - no threads are started to increase parallelism.  Instead, the plugin synchronously uploads data to Scalyr.  Horizontal scale-out through Logstash's worker-thread model is supported whereby users may increase the number of workers assigned to the Logstash pipeline that invokes the Scalyr plugin.
+
+The plugin's `multi_receive` method is thread-safe.  Each worker thread invokes the plugin's `multi_receive`method, passing it a list of events which are transformed and upload to Scalyr.
+
+## Data model
+
+Logstash Events are arbitrary nested JSON.  Scalyr, however, supports a flat key-value model.  Users are encouraged to pay attention to the mapping of Logstash Events to Scalyr key-values.
+
+### Special fields
+
+Scalyr assigns semantics to certain fields. These semantics allow Scalyr to know which field contains the main message, and also facilitates searching of data. For example, a user may restrict searches to specific combination of `origin` and `logfile` in the [Scalyr UI](https://www.scalyr.com/help/log-overview), whereby these 2 fields have dedicated input widgets in the UI.
+
+Mapping/renaming of Logstash event fields to these special fields an important configuration step. For example, if the main message is contained in a field named `text_msg`, then you should configure the plugin's `message_field`  parameter to `text_msg`. This instructs the plugin to rename event `text_msg` to `message`, thus enabling the Scalyr backend to correctly receive the main log message.
+
+Here is the Scalyr API data shape and a description of the special fields:
+```
+{
+  "ts": <Time as epoch nanoseconds>
+  "attrs": 
+  {
+    "message": <The main log message>
+    "origin": <The originating source/server for the message>
+    "logfile": <Log file name (at the originating server) for the message>
+    "serverHost": <The aggregator host (i.e. the Logstash aggregator)>
+    <Any other keys / values>
+    ...
+  }
+}
+```
+
+Note: the only required fields above are `ts` and `attrs/message`.  Omitting optional fields such as `origin` or `logfile` merely precludes ability to filter on these fields, but you are still able to search for the log event by any of the event's key/values including the  main message field.
+
+
+### Flattening nested values (WORK IN PROGRESS)
+
+By default, event attribute values that are nested JSON are converted into strings when uploaded to Scalyr.  However, flattening of nested values is supported. For example, the Logstash Event shape might be as follows:
+
+```
+{
+  "message": "Some log line",
+  "k1": "Key 1 value",
+  "k2": {
+    "A": 100,
+    "B": "Some text",
+  }
+}
+```
+
+Without flattening, the event uploads to Scalyr as a log entry with 3 string values as follows:
+```
+{
+  "message": "Some log line",
+  "k1": "Key 1 value",
+  "k2": "{ 'A': 100, 'B': 'Some text' }"  
+  # note: for readibility, single quotes are used here to represent an in-string double quote
+}
+```
+
+Whereas flattening will result in the following data shape:
+```
+{
+  "message": "Some log line",
+  "k1": "Key 1 value",
+  "k2_A": 100,
+  "k2_B": "Some text",
+}
+```
+
+(Notice that multi-level keys are transformed to a flat key by concatenation with a separator.  The default separator is `-`, but is configurable to any character.)
+
+
+## Flattening of nested arrays (WORK IN PROGRESS)
+
+Consider the following event where "key2" has a JSON array as its value:
+
+```
+{
+  "message": "Some log line",
+  "k1": "Key 1 value",
+  "k2": [
+    {
+      "A": 100,
+    }, 
+    {
+      "A": 200,
+      "B": 300,
+    }
+  ] 
+}
+```
+
+Without flattening, the event uploads to Scalyr as a log entry with 3 string values as follows:
+```
+{
+  `message`: `Some log line`,
+  "k1": "Key 1 value",
+  "k2": "[{ 'A': 100 }, { 'A': 200, 'B': 300 }]"
+}
+```
+
+Whereas flattening will result in the following data shape:
+```
+{
+  "message": "Some log line",
+  "k1": "Key 1 value",
+  "k2_0_A: 100,
+  "k2_1_A": 200,
+  "k2_1_B": 300,
+}
+```
+
+# Scalyr Parsers (WORK IN PROGRESS)
 TODO
+
+# Configuration (WORK IN PROGRESS)
+
+The Scalyr output plugin has a number of sensible defaults so the minimum configuration only requires your `scalyr_api_key` for upload access.
+
+Plugin configuration is achieved with a pipline `.conf` file, which contains snippets of Ruby code.  The nested Ruby dictionary keys must be `output:scalyr` as follows: 
+
+```
+scalyr.conf contents:
+
+input {   
+  file {  
+    path => "/var/log/messages"  
+  }  
+}
+
+output {
+ scalyr {
+   api_write_token => 'SCALYR_API_KEY'
+   scalyr_server => 'SCALYR_SERVER'
+   ssl_ca_bundle_path => '/etc/pki/tls/certs/ca-bundle.crt'
+   ssl_verify_peer => true
+   ssl_verify_depth => 5   
+   origin_field => 'host'
+   logfile_field => 'path'
+ }
+}
+```
+
+In the above example,  the Logstash pipeline's input source is a file input which results in `host` and `path`.
+The Scalyr output plugin is then configured to map `host`->`origin` and `path`->`logfile` during upload, thus facilitating filtering in the Scalyr UI.
+
+# Installation
+
+To build the gem, run `gem build logstash-output-scalyr.gemspec` 
+To install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-1.0.0.gem` or follow the latest official instructions on working with plugins from Logstash.
