@@ -3,9 +3,44 @@
 
 # [Scalyr output plugin for Logstash (WORK IN PROGRESS)]
 
-# Overview
-
 This plugin implements a Logstash output plugin that uploads data to [Scalyr](http://www.scalyr.com).
+
+# Quick start
+
+1. Build the gem, run `gem build logstash-output-scalyr.gemspec` 
+2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-1.0.0.gem` or follow the latest official instructions on working with plugins from Logstash.
+3. Configure the output plugin (e.g. add it to a pipeline .conf)
+4. Restart Logstash 
+
+# Configuration (WORK IN PROGRESS)
+
+The Scalyr output plugin has a number of sensible defaults so the minimum configuration only requires your `api_write_token` for upload access.
+
+Plugin configuration is achieved by adding an output section to the appropriate config file for your Logstash event pipeline: 
+
+```
+my_pipeline.conf
+
+input {   
+  file {  
+    path => "/var/log/messages"  
+  }  
+}
+
+output {
+ scalyr {
+   api_write_token => 'SCALYR_API_KEY'
+   origin_field => 'host'
+   logfile_field => 'path'
+ }
+}
+```
+
+In the above example, the Logstash pipeline defines a file input that reads from `/var/log/messages`.  Log events from this source have the `host` and `path` fields.  The pipeline then outputs to the scalyr plugin, which in this example is configured to remap `host`->`origin` and `path`->`logfile`, thus facilitating filtering in the Scalyr UI.
+
+
+# Conceptual Overview
+
 
 ## Persistence
 
@@ -127,38 +162,4 @@ Whereas flattening will result in the following data shape:
 # Scalyr Parsers (WORK IN PROGRESS)
 TODO
 
-# Configuration (WORK IN PROGRESS)
 
-The Scalyr output plugin has a number of sensible defaults so the minimum configuration only requires your `scalyr_api_key` for upload access.
-
-Plugin configuration is achieved with a pipline `.conf` file, which contains snippets of Ruby code.  The nested Ruby dictionary keys must be `output:scalyr` as follows: 
-
-```
-scalyr.conf contents:
-
-input {   
-  file {  
-    path => "/var/log/messages"  
-  }  
-}
-
-output {
- scalyr {
-   api_write_token => 'SCALYR_API_KEY'
-   scalyr_server => 'SCALYR_SERVER'
-   ssl_ca_bundle_path => '/etc/pki/tls/certs/ca-bundle.crt'
-   ssl_verify_peer => true
-   ssl_verify_depth => 5   
-   origin_field => 'host'
-   logfile_field => 'path'
- }
-}
-```
-
-In the above example,  the Logstash pipeline's input source is a file input which results in `host` and `path`.
-The Scalyr output plugin is then configured to map `host`->`origin` and `path`->`logfile` during upload, thus facilitating filtering in the Scalyr UI.
-
-# Installation
-
-To build the gem, run `gem build logstash-output-scalyr.gemspec` 
-To install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-1.0.0.gem` or follow the latest official instructions on working with plugins from Logstash.
