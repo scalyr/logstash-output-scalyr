@@ -162,4 +162,13 @@ Whereas flattening will result in the following data shape:
 # Scalyr Parsers (WORK IN PROGRESS)
 TODO
 
+# Testing
 
+## Smoke test
+
+This repo has been configured to run a smoketest on CircleCI as follows:
+
+1. Build the gem
+2. Configure a logstash docker image with pipeline that has file input & Scalyr output
+3. Launch a lightweight "Uploader" docker container that verifies the plugin is active, then writes to a bind-mounted file.  (The bind-mounted file is configured as the input source to Logstash.)
+4. Launch a lightweight "Verifier" docker container that verifies the plugin is active, then executes queries against Scalyr to verify that the Logstash/Scalyr output plugin had uploaded events from the bind-mounted input file to Scalyr. 
