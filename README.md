@@ -166,7 +166,7 @@ TODO
 
 ## Smoke test
 
-This repo has been configured to run a smoketest on CircleCI as follows:
+This repo has been configured to run a full-cycle smoketest on CircleCI as follows:
 
 1. Build the gem
 2. Configure a logstash docker image with pipeline that has file input & Scalyr output
