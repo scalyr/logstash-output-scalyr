@@ -312,7 +312,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       # Fix message encoding
       if @message_encoding and !record['message'].to_s.empty?
         if @replace_invalid_utf8 and @message_encoding == Encoding::UTF_8
-          record["message"] = record["message"].encode("UTF-8", :invalid => :replace, :undef => :replace, :replace => "<?>").force_encoding('UTF-8')
+          record["message"] = record["message"].encode("UTF-8", :invalid => :replace,
+                                                       :undef => :replace, :replace => "<?>").force_encoding('UTF-8')
         else
           record["message"].force_encoding(@message_encoding)
         end
