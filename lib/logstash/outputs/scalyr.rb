@@ -17,7 +17,9 @@ require 'stringio'
 
 
 
-# Represents a Scalyr server-side error that occurs during upload attempt
+#---------------------------------------------------------------------------------------------------------------------
+# An exception representing a Scalyr server-side error that occurs during upload attempt
+#---------------------------------------------------------------------------------------------------------------------
 class ServerError < StandardError
 
   attr_reader :code, :url, :body
@@ -34,10 +36,16 @@ class ServerError < StandardError
   end
 end
 
+#---------------------------------------------------------------------------------------------------------------------
+# An exception that signifies the Scalyr server received the upload request but dropped it
+#---------------------------------------------------------------------------------------------------------------------
 class RequestDroppedError < ServerError;
-  # Signifies that Scalyr server received the upload request but dropped it
 end
 
+#---------------------------------------------------------------------------------------------------------------------
+# An exception representing failure of the http client to upload data to Scalyr (in contrast to server-side errors
+# where the POST api succeeds, but the Scalyr server then responds with an error)
+#---------------------------------------------------------------------------------------------------------------------
 class ClientError < StandardError
 
   attr_reader :code, :url, :body
@@ -55,17 +63,32 @@ class ClientError < StandardError
 end
 
 
-
+#---------------------------------------------------------------------------------------------------------------------
+# Implements the Scalyr output plugin
+#---------------------------------------------------------------------------------------------------------------------
 class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   config_name "scalyr"
+
+  # The Scalyr API write token.  This is the only compulsory configuration field required for proper upload
   config :api_write_token, :validate => :string, :required => true
+
+  # If your Scalyr backend is located in other geographies (such as Europe), you may need to modify this
   config :scalyr_server, :validate => :string, :default => "https://agent.scalyr.com/"
-  config :server_attributes, :validate => :hash, :default => nil
-  config :use_hostname_for_serverhost, :validate => :boolean, :default => true
+
+  # Path to SSL bundle file.
   config :ssl_ca_bundle_path, :validate => :string, :default =>  "/etc/ssl/certs/ca-bundle.crt"
-  config :ssl_verify_peer, :validate => :boolean, :default => true
-  config :ssl_verify_depth, :validate => :number, :default => 5
+
+  # server_attributes is a dictionary of key value pairs that represents/identifies the logstash aggregator server
+  # (where this plugin is running).  Keys are arbitrary except for the 'serverHost' key which holds special meaning to
+  # Scalyr and is given special treatment in the Scalyr UI.  All of these attributes are optional (not required for logs
+  # to be correctly uploaded)
+  config :server_attributes, :validate => :hash, :default => nil
+
+  # Related to the server_attributes dictionary above, if you do not define the 'serverHost' key in server_attributes,
+  # the plugin will automatically set it, using the aggregator hostname as value.  Set this to false if you do not
+  # wish for this automatic behavior.
+  config :use_hostname_for_serverhost, :validate => :boolean, :default => true
 
   # Field that represents the origin of the log event.  By knowing which field this is, the Scalyr plugin can
   # use this field to create the Scalyr "thread" attribute
@@ -82,7 +105,17 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # (Warning: events with an existing 'message' field, it will be overwritten)
   config :message_field, :validate => :string, :default => "message"
 
-  config :max_request_buffer, :validate => :number, :default => 1024*1024
+  # Initial interval in seconds between bulk retries. Doubled on each retry up to `retry_max_interval`
+  config :retry_initial_interval, :validate => :number, :default => 1
+
+  # Set max interval in seconds between bulk retries.
+  config :retry_max_interval, :validate => :number, :default => 64
+
+  # The following two settings pertain to preventing Man-in-the-middle (MITM) attacks  # echee TODO: eliminate?
+  config :ssl_verify_peer, :validate => :boolean, :default => true
+  config :ssl_verify_depth, :validate => :number, :default => 5
+
+  config :max_request_buffer, :validate => :number, :default => 1024*1024  # echee TODO: eliminate?
   config :force_message_encoding, :validate => :string, :default => nil
   config :replace_invalid_utf8, :validate => :boolean, :default => false
 
@@ -91,12 +124,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   # An int containing the compression level of compression to use, from 1-9. Defaults to 9 (max)
   config :compression_level, :validate => :number, :default => 9
-
-  # Initial interval in seconds between bulk retries. Doubled on each retry up to `retry_max_interval`
-  config :retry_initial_interval, :validate => :number, :default => 1
-
-  # Set max interval in seconds between bulk retries.
-  config :retry_max_interval, :validate => :number, :default => 64
 
   def close
     @running = false
@@ -184,16 +211,17 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   end # def register
 
 
-
-
-  # Receive an array of events and immediately upload them (without buffering)
+  # Receive an array of events and immediately upload them (without buffering).
+  # The Logstash framework will this plugin method whenever there is a list of events to upload to Scalyr.
+  # The plugin is expected to retry until success, or else to write failures to the Dead-letter Queue.
+  # No buffering/queuing is done -- ie a synchronous upload to Scalyr is attempted and retried upon failure.
+  #
+  # If there are any network errors, exponential backoff occurs.
+  #
+  # Also note that event uploads are broken up into batches such that each batch is less than max_request_buffer.
+  # Increasing max_request_buffer beyond 3MB will lead to failed requests.
   public
   def multi_receive(events)
-
-    # Initially we submit the full array of events
-    events_to_send = events
-
-    sleep_interval = @retry_initial_interval
 
     multi_event_request_array = build_multi_event_request_array(events)
     # Loop over all array of multi-event requests, sending each multi-event to Scalyr
@@ -262,11 +290,23 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   end  # def multi_receive
 
 
-
-
-
-  # Builds an array of multi-Scalyr events from LogStash events
+  # Builds an array of multi-event requests from LogStash events
   # Each array element is a request that groups multiple events (to be posted to Scalyr's addEvents endpoint)
+  #
+  # This function also performs data transformations to support special fields and, optionally, flatten JSON values.
+  #
+  # Special fields are those that have special semantics to Scalyr, i.e. 'message' contains the main log message,
+  # 'origin' and 'logfile' have a dedicated search boxes to facilitate filtering.  All Logstash event key/values will
+  # be marshalled into a Scalyr addEvents `attr` key/value unless they are identified as alternate names for special
+  # fields. The special fields ('message', 'origin', 'logfile') may be remapped from other fields (configured by setting
+  # 'message_field', 'origin_field', 'logfile_field')
+  #
+  # Values that are nested JSON may be optionally flattened (See README.md for some examples).
+  #
+  # Certain fields are removed (e.g. @timestamp and @version)
+  #
+  # Tags are either propagated as a comma-separated string, or optionally transposed into key-values where the keys
+  # are tag names and the values are 1 (may be configured.)
   def build_multi_event_request_array(logstash_events)
 
     multi_event_request_array = Array.new
@@ -336,8 +376,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       # Use LogStash event.timestamp as the 'ts' Scalyr timestamp.  Note that this may be overwritten by input
       # filters so may not necessarily reflect the actual originating timestamp.
       scalyr_event = {
-          :ts => (l_event.timestamp.time.to_f * (10**9)).round,
-          :attrs => record
+        :ts => (l_event.timestamp.time.to_f * (10**9)).round,
+        :attrs => record
       }
 
       # Delete unwanted fields from record
@@ -402,6 +442,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
 
 
+  # Helper method that adds a client_timestamp to a batch addEvents request body
   def add_client_timestamp_to_body(body)
     current_time_millis = DateTime.now.strftime('%Q').to_i
     # echee TODO scalyr_agent code suggests this should be "client_time", not "client_timestamp"
@@ -411,16 +452,15 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
 
 
-
   # A request comprises multiple Scalyr Events.  This function creates a request hash for
-  # final upload to Scalyr ()given an Array of events and an optional hash of current threads)
+  # final upload to Scalyr (from an array of events, and an optional hash of current threads)
   # Note: The request body field will be json-encoded.
   def create_multi_event_request(scalyr_events, current_threads)
 
     body = {
-        :session => @session_id,
-        :token => @api_write_token,
-        :events => scalyr_events,
+      :session => @session_id,
+      :token => @api_write_token,
+      :events => scalyr_events,
     }
 
     add_client_timestamp_to_body body
@@ -453,11 +493,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   def send_status
 
     status_event = {
-        :ts => (Time.now.to_f * (10**9)).round,
-        :attrs => {
-            'logfile' => "scalyr_logstash.log",
-            'plugin_id' => self.id,
-        }
+      :ts => (Time.now.to_f * (10**9)).round,
+      :attrs => {
+        'logfile' => "scalyr_logstash.log",
+        'plugin_id' => self.id,
+      }
     }
 
     if !@last_status_transmit_time
@@ -497,14 +537,14 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   end
 
 
+  # Helper method that performs synchronous sleep for a certain time interval
   def sleep_for(sleep_interval)
     Stud.stoppable_sleep(sleep_interval) { @running.false? }
     get_sleep_sec(sleep_interval)
   end
 
 
-
-
+  # Helper method that gets the next sleep time for exponential backoff, capped at a defined maximum
   def get_sleep_sec(current_interval)
     doubled = current_interval * 2
     doubled > @retry_max_interval ? @retry_max_interval : doubled
@@ -512,7 +552,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
 
 
-
+  # Helper method to check if the dead-letter queue is enabled
   def dlq_enabled?
     # echee TODO submit to DLQ
     respond_to?(:execution_context) && execution_context.respond_to?(:dlq_writer) &&
@@ -524,9 +564,10 @@ end
 
 
 
-
+#---------------------------------------------------------------------------------------------------------------------
 # Encapsulates the connection between the agent and the Scalyr server, thus shielding the implementation (which may
 # create a new connection for every post or use a persistent connection)
+#---------------------------------------------------------------------------------------------------------------------
 class ClientSession
 
   def initialize(logger, add_events_uri, compression_type, compression_level,
@@ -539,6 +580,7 @@ class ClientSession
     @ssl_ca_bundle_path = ssl_ca_bundle_path
     @ssl_verify_depth = ssl_verify_depth
 
+    # Request statistics are accumulated across multiple threads and must be accessed through a mutex
     @stats_lock = Mutex.new
     @stats = {
       :total_requests_sent => 0, # The total number of RPC requests sent.
@@ -564,7 +606,7 @@ class ClientSession
 
 
 
-  # Get a clone of current statistics
+  # Get a clone of current statistics hash
   def get_stats
     @stats.clone
   end
@@ -648,7 +690,7 @@ class ClientSession
 
 
 
-
+  # Process responses from Scalyr, raising appropriate exceptions if needed
   def handle_response(response)
     @logger.debug "Response Code: #{response.code}"
     @logger.debug "Response Body: #{response.body}"
