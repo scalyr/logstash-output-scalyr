@@ -16,6 +16,7 @@ require 'zlib'
 require 'stringio'
 
 require 'scalyr/common/client'
+require "scalyr/common/util"
 
 
 #---------------------------------------------------------------------------------------------------------------------
@@ -59,6 +60,16 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # content is contained in a different field, specify it here.  It will be renamed to 'message' before upload.
   # (Warning: events with an existing 'message' field, it will be overwritten)
   config :message_field, :validate => :string, :default => "message"
+
+  # If true, nested values will be flattened (which changes keys to delimiter-separated concatenation of all
+  # nested keys).
+  config :flatten_nested_values, :validate => :boolean, :default => false
+
+  # If true, the 'tags' field will be flattened into key-values where each key is a tag and each value is set to
+  # :flat_tag_value
+  config :flatten_tags, :validate => :boolean, :default => false
+  config :flat_tag_prefix, :validate => :string, :default => 'tag_'
+  config :flat_tag_value, :default => 1
 
   # Initial interval in seconds between bulk retries. Doubled on each retry up to `retry_max_interval`
   config :retry_initial_interval, :validate => :number, :default => 1
@@ -142,8 +153,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     @add_events_uri = URI(@scalyr_server) + "addEvents"
 
     @logger.info "Scalyr LogStash Plugin ID - #{self.id}"
-    @thread_ids = Hash.new #hash of tags -> id
-    @next_id = 1 #incrementing thread id for the session
 
     @session_id = SecureRandom.uuid
     @last_status_transmit_time_lock = Mutex.new
@@ -271,6 +280,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     # Create a Scalyr event object for each record in the chunk
     scalyr_events = Array.new
 
+    thread_ids = Hash.new
+    next_id = 1 #incrementing thread id for the session
+
     logstash_events.each {|l_event|
 
       record = l_event.to_hash
@@ -279,14 +291,15 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       # echee: TODO I don't think threads are necessary.  Too much info?
       # they seem to be a second level of granularity within a logfile
       origin = record.fetch(@origin_field, nil)
+
       if origin
         # get thread id or add a new one if we haven't seen this origin before
-        if @thread_ids.key? origin
-          thread_id = @thread_ids[origin]
+        if thread_ids.key? origin
+          thread_id = thread_ids[origin]
         else
-          thread_id = @next_id
-          @thread_ids[origin] = thread_id
-          @next_id += 1
+          thread_id = next_id
+          thread_ids[origin] = thread_id
+          next_id += 1
         end
         # then update the map of threads for this chunk
         current_threads[origin] = thread_id
@@ -329,16 +342,27 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         record['logfile'] = "/logstash/#{origin}"
       end
 
+      # Delete unwanted fields from record
+      record.delete('@version')
+      record.delete('@timestamp')
+
+      # flatten tags
+      if @flatten_tags and record.key? 'tags'
+        record['tags'].each do |tag|
+          record["#{@flat_tag_prefix}#{tag}"] = @flat_tag_value
+        end
+        record.delete('tags')
+      end
+
+      # flatten record
+      record = Scalyr::Common::Util.flatten(record) if @flatten_nested_values
+
       # Use LogStash event.timestamp as the 'ts' Scalyr timestamp.  Note that this may be overwritten by input
       # filters so may not necessarily reflect the actual originating timestamp.
       scalyr_event = {
         :ts => (l_event.timestamp.time.to_f * (10**9)).round,
         :attrs => record
       }
-
-      # Delete unwanted fields from record
-      record.delete('@version')
-      record.delete('@timestamp')
 
       # optionally set thread
       if origin
