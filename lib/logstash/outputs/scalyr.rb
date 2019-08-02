@@ -184,6 +184,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   #
   # Also note that event uploads are broken up into batches such that each batch is less than max_request_buffer.
   # Increasing max_request_buffer beyond 3MB will lead to failed requests.
+  #
   public
   def multi_receive(events)
 
