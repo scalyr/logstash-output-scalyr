@@ -1,18 +1,18 @@
 
 [![CircleCI](https://circleci.com/gh/scalyr/logstash-output-scalyr.svg?style=svg)](https://circleci.com/gh/scalyr/logstash-output-scalyr)
 
-# [Scalyr output plugin for Logstash (WORK IN PROGRESS)]
+# [Scalyr output plugin for Logstash (Alpha release)]
 
 This plugin implements a Logstash output plugin that uploads data to [Scalyr](http://www.scalyr.com).
 
 # Quick start
 
 1. Build the gem, run `gem build logstash-output-scalyr.gemspec` 
-2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-1.0.0.gem` or follow the latest official instructions on working with plugins from Logstash.
+2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-1.0.0.pre.alpha.gem` or follow the latest official instructions on working with plugins from Logstash.
 3. Configure the output plugin (e.g. add it to a pipeline .conf)
 4. Restart Logstash 
 
-# Configuration (WORK IN PROGRESS)
+# Configuration
 
 The Scalyr output plugin has a number of sensible defaults so the minimum configuration only requires your `api_write_token` for upload access.
 
@@ -81,7 +81,7 @@ Here is the Scalyr API data shape and a description of the special fields:
 Note: the only required fields above are `ts` and `attrs/message`.  Omitting optional fields such as `origin` or `logfile` merely precludes ability to filter on these fields, but you are still able to search for the log event by any of the event's key/values including the  main message field.
 
 
-### Flattening nested values (WORK IN PROGRESS)
+### Flattening nested values
 
 By default, event attribute values that are nested JSON are converted into strings when uploaded to Scalyr.  However, flattening of nested values is supported. For example, the Logstash Event shape might be as follows:
 
@@ -101,8 +101,7 @@ Without flattening, the event uploads to Scalyr as a log entry with 3 string val
 {
   "message": "Some log line",
   "k1": "Key 1 value",
-  "k2": "{ 'A': 100, 'B': 'Some text' }"  
-  # note: for readibility, single quotes are used here to represent an in-string double quote
+  "k2": "{ \"A\": 100, \"B\": \"Some text\" }"  
 }
 ```
 
@@ -119,7 +118,7 @@ Whereas flattening will result in the following data shape:
 (Notice that multi-level keys are transformed to a flat key by concatenation with a separator.  The default separator is `-`, but is configurable to any character.)
 
 
-## Flattening of nested arrays (WORK IN PROGRESS)
+## Flattening of nested arrays
 
 Consider the following event where "key2" has a JSON array as its value:
 
@@ -159,8 +158,8 @@ Whereas flattening will result in the following data shape:
 }
 ```
 
-# Scalyr Parsers (WORK IN PROGRESS)
-TODO
+## Other server attributes
+TODO: Add support for config-based server attributes
 
 # Testing
 
@@ -172,3 +171,6 @@ This repo has been configured to run a full-cycle smoketest on CircleCI as follo
 2. Configure a logstash docker image with pipeline that has file input & Scalyr output
 3. Launch a lightweight "Uploader" docker container that verifies the plugin is active, then writes to a bind-mounted file.  (The bind-mounted file is configured as the input source to Logstash.)
 4. Launch a lightweight "Verifier" docker container that verifies the plugin is active, then executes queries against Scalyr to verify that the Logstash/Scalyr output plugin had uploaded events from the bind-mounted input file to Scalyr. 
+
+## Unit tests
+

@@ -81,7 +81,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   config :ssl_verify_peer, :validate => :boolean, :default => true
   config :ssl_verify_depth, :validate => :number, :default => 5
 
-  config :max_request_buffer, :validate => :number, :default => 1024*1024  # echee TODO: eliminate?
+  config :max_request_buffer, :validate => :number, :default => 5500000  # echee TODO: eliminate?
   config :force_message_encoding, :validate => :string, :default => nil
   config :replace_invalid_utf8, :validate => :boolean, :default => false
 
@@ -99,8 +99,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   public
   def register
 
-    if @max_request_buffer > (1024*1024*3)
-      @logger.warn "Maximum request buffer > 3 MB.  This may result in requests being rejected by Scalyr."
+    if @max_request_buffer > 6000000
+      @logger.warn "Maximum request buffer > 6 MB.  This may result in requests being rejected by Scalyr."
     end
 
     @dlq_writer = dlq_enabled? ? execution_context.dlq_writer : nil
@@ -184,6 +184,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   #
   # Also note that event uploads are broken up into batches such that each batch is less than max_request_buffer.
   # Increasing max_request_buffer beyond 3MB will lead to failed requests.
+  #
   public
   def multi_receive(events)
 
