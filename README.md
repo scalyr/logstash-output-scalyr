@@ -48,9 +48,7 @@ Logstash itself supports [Persistent Queues](https://www.elastic.co/guide/en/log
 
 ## Concurrency
 
-The plugin does not manage its own internal concurrency - no threads are started to increase parallelism.  Instead, the plugin synchronously uploads data to Scalyr.  Horizontal scale-out through Logstash's worker-thread model is supported whereby users may increase the number of workers assigned to the Logstash pipeline that invokes the Scalyr plugin.
-
-The plugin's `multi_receive` method is thread-safe.  Each worker thread invokes the plugin's `multi_receive`method, passing it a list of events which are transformed and upload to Scalyr.
+The plugin does not manage its own internal concurrency - no threads are started to increase parallelism. This plugin does not support multiple workers, to ensure correctness configure the pipeline with `pipeline.workers: 1`.
 
 ## Data model
 
@@ -58,7 +56,7 @@ Logstash Events are arbitrary nested JSON.  Scalyr, however, supports a flat key
 
 ### Special fields
 
-Scalyr assigns semantics to certain fields. These semantics allow Scalyr to know which field contains the main message, and also facilitates searching of data. For example, a user may restrict searches to specific combination of `origin` and `logfile` in the [Scalyr UI](https://www.scalyr.com/help/log-overview), whereby these 2 fields have dedicated input widgets in the UI.
+Scalyr assigns semantics to certain fields. These semantics allow Scalyr to know which field contains the main message, and also facilitates searching of data. For example, a user may restrict searches to specific combination of `serverHost` and `logfile` in the [Scalyr UI](https://www.scalyr.com/help/log-overview), whereby these 2 fields have dedicated input widgets in the UI.
 
 Mapping/renaming of Logstash event fields to these special fields an important configuration step. For example, if the main message is contained in a field named `text_msg`, then you should configure the plugin's `message_field`  parameter to `text_msg`. This instructs the plugin to rename event `text_msg` to `message`, thus enabling the Scalyr backend to correctly receive the main log message.
 
@@ -69,16 +67,15 @@ Here is the Scalyr API data shape and a description of the special fields:
   "attrs": 
   {
     "message": <The main log message>
-    "origin": <The originating source/server for the message>
     "logfile": <Log file name (at the originating server) for the message>
-    "serverHost": <The aggregator host (i.e. the Logstash aggregator)>
+    "serverHost": <The originating source/server for the message>
     <Any other keys / values>
     ...
   }
 }
 ```
 
-Note: the only required fields above are `ts` and `attrs/message`.  Omitting optional fields such as `origin` or `logfile` merely precludes ability to filter on these fields, but you are still able to search for the log event by any of the event's key/values including the  main message field.
+Note: the only required fields above are `ts` and `attrs/message`.  Omitting optional fields such as `serverHost` or `logfile` merely precludes ability to filter on these fields, but you are still able to search for the log event by any of the event's key/values including the main message field.
 
 
 ### Flattening nested values
@@ -158,8 +155,10 @@ Whereas flattening will result in the following data shape:
 }
 ```
 
-## Other server attributes
-TODO: Add support for config-based server attributes
+## Log attributes
+
+If every message that comes from the same `logfile` and `serverHost` has fields that stay constant for that logfile and serverHost you can define this as a log constant. 
+Any fields marked as such will be sent only once per request to scalyr for a serverhost and logfile, which can result in better throughput due to fewer bytes sent.
 
 # Testing
 

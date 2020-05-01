@@ -25,6 +25,11 @@ require "scalyr/common/util"
 class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   config_name "scalyr"
+  concurrency :single
+
+  # For correctness reasons we need to limit this plugin to a single worker, a single worker will be single concurrency
+  # anyway but we should be explicit.
+  # concurrency :single
 
   # The Scalyr API write token.  This is the only compulsory configuration field required for proper upload
   config :api_write_token, :validate => :string, :required => true
@@ -42,13 +47,13 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   config :server_attributes, :validate => :hash, :default => nil
 
   # Related to the server_attributes dictionary above, if you do not define the 'serverHost' key in server_attributes,
-  # the plugin will automatically set it, using the aggregator hostname as value.  Set this to false if you do not
-  # wish for this automatic behavior.
-  config :use_hostname_for_serverhost, :validate => :boolean, :default => true
+  # the plugin will automatically set it, using the aggregator hostname as value, if this value is true.
+  config :use_hostname_for_serverhost, :validate => :boolean, :default => false
 
-  # Field that represents the origin of the log event.  By knowing which field this is, the Scalyr plugin can
-  # use this field to create the Scalyr "thread" attribute
-  config :origin_field, :validate => :string, :default => 'origin'
+  # Field that represents the origin of the log event. Will be combined with the logfile field to extract out logfile
+  # attributes.
+  # (Warning: events with an existing 'serverHost' field, it will be overwritten)
+  config :serverhost_field, :validate => :string, :default => 'host'
 
   # The 'logfile' fieldname has special meaning for the Scalyr UI.  Traditionally, it represents the origin logfile
   # which users can search for in a dedicated widget in the Scalyr UI. If your Events capture this in a different field
@@ -60,6 +65,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # content is contained in a different field, specify it here.  It will be renamed to 'message' before upload.
   # (Warning: events with an existing 'message' field, it will be overwritten)
   config :message_field, :validate => :string, :default => "message"
+
+  # A list of fieldnames that are constant for any logfile. Any fields listed here will be sent to Scalyr as part of
+  # the `logs` array instead of inside every event to save on transmitted bytes. What constitutes a single "logfile"
+  # for correctness is a combination of logfile_field value and serverhost_field value. Only events with a serverHost
+  # value with have fields moved.
+  config :log_constants, :validate => :array, :default => nil
 
   # If true, nested values will be flattened (which changes keys to delimiter-separated concatenation of all
   # nested keys).
@@ -85,8 +96,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   config :force_message_encoding, :validate => :string, :default => nil
   config :replace_invalid_utf8, :validate => :boolean, :default => false
 
-  # Valid options are bz2, deflate or None. Defaults to None.
-  config :compression_type, :validate => :string, :default => 'bz2'
+  # Valid options are bz2, deflate or None.
+  config :compression_type, :validate => :string, :default => 'deflate'
 
   # An int containing the compression level of compression to use, from 1-9. Defaults to 9 (max)
   config :compression_level, :validate => :number, :default => 9
@@ -98,6 +109,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   public
   def register
+
+    if @log_constants and not @log_constants.all? { |x| x.is_a? String }
+      raise LogStash::ConfigurationError, "All elements of 'log_constants' must be strings."
+    end
 
     if @max_request_buffer > 6000000
       @logger.warn "Maximum request buffer > 6 MB.  This may result in requests being rejected by Scalyr."
@@ -176,7 +191,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
 
   # Receive an array of events and immediately upload them (without buffering).
-  # The Logstash framework will this plugin method whenever there is a list of events to upload to Scalyr.
+  # The Logstash framework will call this plugin method whenever there is a list of events to upload to Scalyr.
   # The plugin is expected to retry until success, or else to write failures to the Dead-letter Queue.
   # No buffering/queuing is done -- ie a synchronous upload to Scalyr is attempted and retried upon failure.
   #
@@ -261,10 +276,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # This function also performs data transformations to support special fields and, optionally, flatten JSON values.
   #
   # Special fields are those that have special semantics to Scalyr, i.e. 'message' contains the main log message,
-  # 'origin' and 'logfile' have a dedicated search boxes to facilitate filtering.  All Logstash event key/values will
+  # 'serverHost' and 'logfile' have a dedicated search boxes to facilitate filtering.  All Logstash event key/values will
   # be marshalled into a Scalyr addEvents `attr` key/value unless they are identified as alternate names for special
-  # fields. The special fields ('message', 'origin', 'logfile') may be remapped from other fields (configured by setting
-  # 'message_field', 'origin_field', 'logfile_field')
+  # fields. The special fields ('message', 'serverHost', 'logfile') may be remapped from other fields (configured by setting
+  # 'message_field', 'serverhost_field', 'logfile_field')
   #
   # Values that are nested JSON may be optionally flattened (See README.md for some examples).
   #
@@ -284,6 +299,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     thread_ids = Hash.new
     next_id = 1 #incrementing thread id for the session
 
+    # per-logfile attributes
+    logs = Hash.new
+    logs_ids = Hash.new
+    next_log_id = 1
+
     logstash_events.each {|l_event|
 
       record = l_event.to_hash
@@ -291,7 +311,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       # Create optional threads hash if origin is non-nil
       # echee: TODO I don't think threads are necessary.  Too much info?
       # they seem to be a second level of granularity within a logfile
-      origin = record.fetch(@origin_field, nil)
+      origin = record.fetch(@serverhost_field, nil)
 
       if origin
         # get thread id or add a new one if we haven't seen this origin before
@@ -333,19 +353,58 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         end
       end
 
-      # Rename user-specified origin field -> 'origin'
-      rename.call(@origin_field, 'origin')
+      # Rename user-specified serverHost field -> 'serverHost'
+      rename.call(@serverhost_field, 'serverHost')
+      record.delete(@serverhost_field)
 
       # Rename user-specified logfile field -> 'logfile'
       rename.call(@logfile_field, 'logfile')
+      record.delete(@logfile_field)
       # Set logfile field if empty and origin is supplied
       if record['logfile'].to_s.empty? and origin
         record['logfile'] = "/logstash/#{origin}"
       end
 
+      log_identifier = nil
+      add_log = false
+      if origin
+       log_identifier = origin + record['logfile']
+      end
+      if log_identifier and not logs.key? log_identifier
+        add_log = true
+        logs[log_identifier] = {
+          'id' => next_log_id,
+          'attrs' => Hash.new
+        }
+        if not record['serverHost'].to_s.empty?
+          logs[log_identifier]['attrs']['serverHost'] = record['serverHost']
+          record.delete('serverHost')
+        end
+        if not record['logfile'].to_s.empty?
+          logs[log_identifier]['attrs']['logfile'] = record['logfile']
+          record.delete('logfile')
+        end
+        if @log_constants
+          @log_constants.each {|log_constant|
+            if record.key? log_constant
+              logs[log_identifier]['attrs'][log_constant] = record[log_constant]
+            end
+          }
+        end
+        logs_ids[log_identifier] = next_log_id
+        next_log_id += 1
+      end
+
       # Delete unwanted fields from record
       record.delete('@version')
       record.delete('@timestamp')
+      if log_identifier
+        if @log_constants
+          @log_constants.each {|log_constant|
+            record.delete(log_constant)
+          }
+        end
+      end
 
       # flatten tags
       if @flatten_tags and record.key? 'tags'
@@ -368,11 +427,16 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       # optionally set thread
       if origin
         scalyr_event[:thread] = thread_id.to_s
+        scalyr_event[:log] = logs_ids[log_identifier]
       end
 
       # get json string of event to keep track of how many bytes we are sending
       begin
         event_json = scalyr_event.to_json
+        log_json = nil
+        if add_log
+          log_json = logs[log_identifier].to_json
+        end
       rescue JSON::GeneratorError, Encoding::UndefinedConversionError => e
         @logger.warn "#{e.class}: #{e.message}"
 
@@ -392,17 +456,23 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
       # generate new request if json size of events in the array exceed maximum request buffer size
       append_event = true
-      if total_bytes + event_json.bytesize > @max_request_buffer
+      add_bytes =  event_json.bytesize
+      if log_json
+        test_bytes = add_bytes + log_json.bytesize
+      end
+      if total_bytes + add_bytes > @max_request_buffer
         # make sure we always have at least one event
         if scalyr_events.size == 0
           scalyr_events << scalyr_event
           append_event = false
         end
-        multi_event_request = self.create_multi_event_request(scalyr_events, current_threads)
+        multi_event_request = self.create_multi_event_request(scalyr_events, current_threads, logs)
         multi_event_request_array << multi_event_request
 
         total_bytes = 0
         current_threads = Hash.new
+        logs = Hash.new
+        logs_ids = Hash.new
         scalyr_events = Array.new
       end
 
@@ -410,13 +480,13 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       # add it to the end of our array and keep track of the json bytesize
       if append_event
         scalyr_events << scalyr_event
-        total_bytes += event_json.bytesize
+        total_bytes += add_bytes
       end
 
     }
 
     # create a final request with any left over events
-    multi_event_request = self.create_multi_event_request(scalyr_events, current_threads)
+    multi_event_request = self.create_multi_event_request(scalyr_events, current_threads, logs)
     multi_event_request_array << multi_event_request
     multi_event_request_array
   end
@@ -436,7 +506,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # A request comprises multiple Scalyr Events.  This function creates a request hash for
   # final upload to Scalyr (from an array of events, and an optional hash of current threads)
   # Note: The request body field will be json-encoded.
-  def create_multi_event_request(scalyr_events, current_threads)
+  def create_multi_event_request(scalyr_events, current_threads, current_logs)
 
     body = {
       :session => @session_id,
@@ -453,6 +523,15 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         threads << { :id => id.to_s, :name => "LogStash: #{thread_name}" }
       end
       body[:threads] = threads
+    end
+
+    # build the scalyr thread logs object
+    if current_logs
+      logs = Array.new
+      current_logs.each do |identifier, log|
+        logs << log
+      end
+      body[:logs] = logs
     end
 
     # add serverAttributes
@@ -497,7 +576,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       end
       status_event[:attrs]['message'] = msg
     end
-    multi_event_request = create_multi_event_request([status_event], nil)
+    multi_event_request = create_multi_event_request([status_event], nil, nil)
     @client_session.post_add_events(multi_event_request[:body])
     @last_status_transmit_time = Time.now()
   end
