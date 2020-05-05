@@ -354,7 +354,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       end
 
       # Rename user-specified serverHost field -> 'serverHost'
-      rename.call(@serverhost_field, 'serverHost')
+      rename.call(@serverhost_field, 'origin')
       record.delete(@serverhost_field)
 
       # Rename user-specified logfile field -> 'logfile'
