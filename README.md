@@ -1,6 +1,8 @@
 
 [![CircleCI](https://circleci.com/gh/scalyr/logstash-output-scalyr.svg?style=svg)](https://circleci.com/gh/scalyr/logstash-output-scalyr)
 
+# Test CI change
+
 # [Scalyr output plugin for Logstash (Alpha release)]
 
 This plugin implements a Logstash output plugin that uploads data to [Scalyr](http://www.scalyr.com).
