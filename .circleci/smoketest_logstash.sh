@@ -44,7 +44,7 @@ logstash_docker_context=$4
 
 # Smoketest code (built into smoketest image)
 # smoketest.py must run as root otherwise Uploader doesn't have permissions to write to shared mount /app/xxxx.log
-smoketest_script="source ~/.bashrc && pyenv shell 3.7.3 && sudo -E python3 /tmp/smoketest.py"
+smoketest_script="sudo -E python3 /tmp/smoketest.py"
 
 # container names for all test containers
 # The suffixes MUST be one of (agent, uploader, verifier) to match verify_upload::DOCKER_CONTNAME_SUFFIXES
