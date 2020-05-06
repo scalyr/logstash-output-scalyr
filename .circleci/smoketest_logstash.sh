@@ -113,7 +113,8 @@ bash -c "${smoketest_script} ${contname_uploader} ${max_wait} \
 --scalyr_server ${SCALYR_SERVER} \
 --read_api_key ${READ_API_KEY} \
 --agent_hostname ${agent_hostname} \
---monitored_logfile $monitored_logfile1"
+--monitored_logfile $monitored_logfile1 \
+--debug true"
 
 # Capture uploader short container ID
 uploader_hostname=$(docker ps --format "{{.ID}}" --filter "name=$contname_uploader")
@@ -134,6 +135,7 @@ bash -c "${smoketest_script} ${contname_verifier} ${max_wait} \
 --read_api_key ${READ_API_KEY} \
 --agent_hostname ${agent_hostname} \
 --uploader_hostname ${uploader_hostname} \
---monitored_logfile $monitored_logfile1"
+--monitored_logfile $monitored_logfile1 \
+--debug true"
 
 kill_and_delete_docker_test_containers
