@@ -38,6 +38,116 @@ output {
 
 In the above example, the Logstash pipeline defines a file input that reads from `/var/log/messages`.  Log events from this source have the `host` and `path` fields.  The pipeline then outputs to the scalyr plugin, which in this example is configured to remap `host`->`serverHost` and `path`->`logfile`, thus facilitating filtering in the Scalyr UI.
 
+## Options
+
+- The Scalyr API write token.  This is the only compulsory configuration field required for proper upload
+
+`config :api_write_token, :validate => :string, :required => true`
+
+---
+
+- If your Scalyr backend is located in other geographies (such as Europe), you may need to modify this
+
+`config :scalyr_server, :validate => :string, :default => "https://agent.scalyr.com/"`
+
+---
+
+- Path to SSL bundle file.
+
+`config :ssl_ca_bundle_path, :validate => :string, :default =>  "/etc/ssl/certs/ca-bundle.crt"`
+
+---
+
+- server_attributes is a dictionary of key value pairs that represents/identifies the logstash aggregator server
+ (where this plugin is running).  Keys are arbitrary except for the 'serverHost' key which holds special meaning to
+ Scalyr and is given special treatment in the Scalyr UI.  All of these attributes are optional (not required for logs
+ to be correctly uploaded)
+
+`config :server_attributes, :validate => :hash, :default => nil`
+
+---
+
+- Related to the server_attributes dictionary above, if you do not define the 'serverHost' key in server_attributes,
+ the plugin will automatically set it, using the aggregator hostname as value, if this value is true.
+ 
+`config :use_hostname_for_serverhost, :validate => :boolean, :default => false`
+
+---
+
+- Field that represents the origin of the log event. Will be combined with the logfile field to extract out logfile
+ attributes. (Warning: events with an existing 'serverHost' field, it will be overwritten)
+
+`config :serverhost_field, :validate => :string, :default => 'host'`
+
+---
+
+- The 'logfile' fieldname has special meaning for the Scalyr UI.  Traditionally, it represents the origin logfile
+ which users can search for in a dedicated widget in the Scalyr UI. If your Events capture this in a different field
+ you can specify that fieldname here and the Scalyr Output Plugin will rename it to 'logfile' before upload.
+ (Warning: events with an existing 'logfile' field, it will be overwritten)
+
+`config :logfile_field, :validate => :string, :default => 'logfile'`
+
+---
+
+- The Scalyr Output Plugin expects the main log message to be contained in the Event['message'].  If your main log
+ content is contained in a different field, specify it here.  It will be renamed to 'message' before upload.
+ (Warning: events with an existing 'message' field, it will be overwritten)
+
+`config :message_field, :validate => :string, :default => "message"`
+
+---
+
+- A list of fieldnames that are constant for any logfile. Any fields listed here will be sent to Scalyr as part of
+ the `logs` array instead of inside every event to save on transmitted bytes. What constitutes a single "logfile"
+ for correctness is a combination of logfile_field value and serverhost_field value. Only events with a serverHost
+ value with have fields moved.
+
+`config :log_constants, :validate => :array, :default => nil`
+
+---
+
+- If true, nested values will be flattened (which changes keys to delimiter-separated concatenation of all
+ nested keys).
+
+`config :flatten_nested_values, :validate => :boolean, :default => false`
+
+---
+
+- If true, the 'tags' field will be flattened into key-values where each key is a tag and each value is set to
+ :flat_tag_value
+
+`config :flatten_tags, :validate => :boolean, :default => false`
+
+`config :flat_tag_prefix, :validate => :string, :default => 'tag_'`
+
+`config :flat_tag_value, :default => 1`
+
+---
+
+- Initial interval in seconds between bulk retries. Doubled on each retry up to `retry_max_interval`
+
+`config :retry_initial_interval, :validate => :number, :default => 1`
+
+---
+
+- Set max interval in seconds between bulk retries.
+
+`config :retry_max_interval, :validate => :number, :default => 64`
+
+---
+
+- Valid options are bz2, deflate or None.
+
+`config :compression_type, :validate => :string, :default => 'deflate'`
+
+---
+
+- An int containing the compression level of compression to use, from 1-9. Defaults to 6
+
+`config :compression_level, :validate => :number, :default => 6`
+
+---
 
 # Conceptual Overview
 
