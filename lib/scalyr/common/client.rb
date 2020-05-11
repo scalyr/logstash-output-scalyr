@@ -161,6 +161,7 @@ class ClientSession
 
     post = Net::HTTP::Post.new uri_path
     post.add_field('Content-Type', 'application/json')
+    post.add_field('User-Agent', 'output-logstash-scalyr 1.0.0.pre.alpha')
 
     if @compression_type
       post.add_field('Content-Encoding', encoding)

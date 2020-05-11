@@ -99,8 +99,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Valid options are bz2, deflate or None.
   config :compression_type, :validate => :string, :default => 'deflate'
 
-  # An int containing the compression level of compression to use, from 1-9. Defaults to 9 (max)
-  config :compression_level, :validate => :number, :default => 9
+  # An int containing the compression level of compression to use, from 1-9. Defaults to 6
+  config :compression_level, :validate => :number, :default => 6
 
   def close
     @running = false
@@ -354,7 +354,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       end
 
       # Rename user-specified serverHost field -> 'serverHost'
-      rename.call(@serverhost_field, 'serverHost') #TODO: this is only for testing CI things
+      rename.call(@serverhost_field, 'serverHost')
       record.delete(@serverhost_field)
 
       # Rename user-specified logfile field -> 'logfile'
