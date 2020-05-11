@@ -30,13 +30,13 @@ input {
 output {
  scalyr {
    api_write_token => 'SCALYR_API_KEY'
-   origin_field => 'host'
+   serverhost_field => 'host'
    logfile_field => 'path'
  }
 }
 ```
 
-In the above example, the Logstash pipeline defines a file input that reads from `/var/log/messages`.  Log events from this source have the `host` and `path` fields.  The pipeline then outputs to the scalyr plugin, which in this example is configured to remap `host`->`origin` and `path`->`logfile`, thus facilitating filtering in the Scalyr UI.
+In the above example, the Logstash pipeline defines a file input that reads from `/var/log/messages`.  Log events from this source have the `host` and `path` fields.  The pipeline then outputs to the scalyr plugin, which in this example is configured to remap `host`->`serverHost` and `path`->`logfile`, thus facilitating filtering in the Scalyr UI.
 
 
 # Conceptual Overview
@@ -48,7 +48,7 @@ Logstash itself supports [Persistent Queues](https://www.elastic.co/guide/en/log
 
 ## Concurrency
 
-The plugin does not manage its own internal concurrency - no threads are started to increase parallelism. This plugin does not support multiple workers, to ensure correctness configure the pipeline with `pipeline.workers: 1`.
+The plugin does not manage its own internal concurrency - no threads are started to increase parallelism. To ensure correct ordering of events in Scalyr configure your pipeline with `pipeline.workers: 1`.
 
 ## Data model
 
@@ -173,3 +173,10 @@ This repo has been configured to run a full-cycle smoketest on CircleCI as follo
 
 ## Unit tests
 
+This repo has unit tests that can be run by running:
+
+```
+bundle exec rspec
+```
+
+in the root of the repo.
