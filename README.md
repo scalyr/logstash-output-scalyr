@@ -77,7 +77,7 @@ In the above example, the Logstash pipeline defines a file input that reads from
 - Field that represents the origin of the log event. Will be combined with the logfile field to extract out logfile
  attributes. (Warning: events with an existing 'serverHost' field, it will be overwritten)
 
-`config :serverhost_field, :validate => :string, :default => 'host'`
+`config :serverhost_field, :validate => :string, :default => 'serverHost'`
 
 ---
 
