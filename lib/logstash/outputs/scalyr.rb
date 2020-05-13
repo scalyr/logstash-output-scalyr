@@ -53,7 +53,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Field that represents the origin of the log event. Will be combined with the logfile field to extract out logfile
   # attributes.
   # (Warning: events with an existing 'serverHost' field, it will be overwritten)
-  config :serverhost_field, :validate => :string, :default => 'host'
+  config :serverhost_field, :validate => :string, :default => 'serverHost'
 
   # The 'logfile' fieldname has special meaning for the Scalyr UI.  Traditionally, it represents the origin logfile
   # which users can search for in a dedicated widget in the Scalyr UI. If your Events capture this in a different field
