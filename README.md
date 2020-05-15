@@ -5,6 +5,8 @@
 
 This plugin implements a Logstash output plugin that uploads data to [Scalyr](http://www.scalyr.com).
 
+You can view documentation for this plugin [on the Scalyr website](https://www.scalyr.com/solutions/logstash).
+
 # Quick start
 
 1. Build the gem, run `gem build logstash-output-scalyr.gemspec` 
@@ -40,13 +42,13 @@ In the above example, the Logstash pipeline defines a file input that reads from
 
 ## Options
 
-- The Scalyr API write token.  This is the only compulsory configuration field required for proper upload
+- The Scalyr API write token, these are available at https://www.scalyr.com/keys.  This is the only compulsory configuration field required for proper upload
 
 `config :api_write_token, :validate => :string, :required => true`
 
 ---
 
-- If your Scalyr backend is located in other geographies (such as Europe), you may need to modify this
+- If your Scalyr backend is located in other geographies (such as Europe which would use `https://agent.eu.scalyr.com/`), you may need to modify this
 
 `config :scalyr_server, :validate => :string, :default => "https://agent.scalyr.com/"`
 
@@ -74,8 +76,7 @@ In the above example, the Logstash pipeline defines a file input that reads from
 
 ---
 
-- Field that represents the origin of the log event. Will be combined with the logfile field to extract out logfile
- attributes. (Warning: events with an existing 'serverHost' field, it will be overwritten)
+- Field that represents the origin of the log event. (Warning: events with an existing 'serverHost' field, it will be overwritten)
 
 `config :serverhost_field, :validate => :string, :default => 'serverHost'`
 
@@ -107,7 +108,7 @@ In the above example, the Logstash pipeline defines a file input that reads from
 
 ---
 
-- If true, nested values will be flattened (which changes keys to delimiter-separated concatenation of all
+- If true, nested values will be flattened (which changes keys to underscore-separated concatenation of all
  nested keys).
 
 `config :flatten_nested_values, :validate => :boolean, :default => false`
@@ -137,7 +138,7 @@ In the above example, the Logstash pipeline defines a file input that reads from
 
 ---
 
-- Valid options are bz2, deflate or None.
+- Valid options are bz2, or deflate.
 
 `config :compression_type, :validate => :string, :default => 'deflate'`
 
@@ -179,9 +180,23 @@ Here is the Scalyr API data shape and a description of the special fields:
     "message": <The main log message>
     "logfile": <Log file name (at the originating server) for the message>
     "serverHost": <The originating source/server for the message>
+    "parser": <What Scalyr parser will be used for server side parsing>
     <Any other keys / values>
     ...
   }
+}
+```
+
+You can use the `mutate` filter to add these fields or rename existing fields to them. Here is an example of a filter configuration you can use to add these fields:
+
+```
+filter {
+    mutate {
+        add_field => { "parser" => "logstash_parser" }
+        add_field => { "serverHost" => "my hostname" }
+        rename => { "path" => "logfile" }
+        rename => { "data" => "message" }
+    }
 }
 ```
 

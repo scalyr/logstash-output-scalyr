@@ -24,6 +24,26 @@ describe LogStash::Outputs::Scalyr do
 
   describe "#build_multi_event_request_array" do
 
+    context "when a field is configured as a log attribute" do
+      it "creates logfile from serverHost" do
+        plugin = LogStash::Outputs::Scalyr.new({
+                                                   'api_write_token' => '1234',
+                                                   'serverhost_field' => 'source_host',
+                                                   'log_constants' => ['tags'],
+                                               })
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        result = plugin.build_multi_event_request_array(sample_events)
+        body = JSON.parse(result[0][:body])
+        expect(body['events'].size).to eq(3)
+        attrs2 = body['events'][2]['attrs']
+        logattrs2 = body['logs'][2]['attrs']
+        expect(logattrs2.fetch('serverHost', nil)).to eq('my host 3')
+        expect(logattrs2.fetch('logfile', nil)).to eq('/logstash/my host 3')
+        expect(logattrs2.fetch('tags', nil)).to eq(['t1', 't2', 't3'])
+      end
+    end
+
     context "when serverhost_field is missing" do
       it "does not contain log file" do
         plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234'})

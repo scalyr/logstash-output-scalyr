@@ -25,16 +25,15 @@ require "scalyr/common/util"
 class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   config_name "scalyr"
-  concurrency :single
 
   # For correctness reasons we need to limit this plugin to a single worker, a single worker will be single concurrency
   # anyway but we should be explicit.
-  # concurrency :single
+  concurrency :single
 
-  # The Scalyr API write token.  This is the only compulsory configuration field required for proper upload
+  # The Scalyr API write token, these are available at https://www.scalyr.com/keys.  This is the only compulsory configuration field required for proper upload
   config :api_write_token, :validate => :string, :required => true
 
-  # If your Scalyr backend is located in other geographies (such as Europe), you may need to modify this
+  # If your Scalyr backend is located in other geographies (such as Europe which would use `https://agent.eu.scalyr.com/`), you may need to modify this
   config :scalyr_server, :validate => :string, :default => "https://agent.scalyr.com/"
 
   # Path to SSL bundle file.
@@ -50,8 +49,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # the plugin will automatically set it, using the aggregator hostname as value, if this value is true.
   config :use_hostname_for_serverhost, :validate => :boolean, :default => false
 
-  # Field that represents the origin of the log event. Will be combined with the logfile field to extract out logfile
-  # attributes.
+  # Field that represents the origin of the log event.
   # (Warning: events with an existing 'serverHost' field, it will be overwritten)
   config :serverhost_field, :validate => :string, :default => 'serverHost'
 
@@ -96,7 +94,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   config :force_message_encoding, :validate => :string, :default => nil
   config :replace_invalid_utf8, :validate => :boolean, :default => false
 
-  # Valid options are bz2, deflate or None.
+  # Valid options are bz2, or deflate.
   config :compression_type, :validate => :string, :default => 'deflate'
 
   # An int containing the compression level of compression to use, from 1-9. Defaults to 6
@@ -308,22 +306,22 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
       record = l_event.to_hash
 
-      # Create optional threads hash if origin is non-nil
+      # Create optional threads hash if serverHost is non-nil
       # echee: TODO I don't think threads are necessary.  Too much info?
       # they seem to be a second level of granularity within a logfile
-      origin = record.fetch(@serverhost_field, nil)
+      serverHost = record.fetch(@serverhost_field, nil)
 
-      if origin
-        # get thread id or add a new one if we haven't seen this origin before
-        if thread_ids.key? origin
-          thread_id = thread_ids[origin]
+      if serverHost
+        # get thread id or add a new one if we haven't seen this serverHost before
+        if thread_ids.key? serverHost
+          thread_id = thread_ids[serverHost]
         else
           thread_id = next_id
-          thread_ids[origin] = thread_id
+          thread_ids[serverHost] = thread_id
           next_id += 1
         end
         # then update the map of threads for this chunk
-        current_threads[origin] = thread_id
+        current_threads[serverHost] = thread_id
       end
 
       rename = lambda do |renamed_field, standard_field|
@@ -360,15 +358,15 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       # Rename user-specified logfile field -> 'logfile'
       rename.call(@logfile_field, 'logfile')
       record.delete(@logfile_field)
-      # Set logfile field if empty and origin is supplied
-      if record['logfile'].to_s.empty? and origin
-        record['logfile'] = "/logstash/#{origin}"
+      # Set logfile field if empty and serverHost is supplied
+      if record['logfile'].to_s.empty? and serverHost
+        record['logfile'] = "/logstash/#{serverHost}"
       end
 
       log_identifier = nil
       add_log = false
-      if origin
-       log_identifier = origin + record['logfile']
+      if serverHost
+       log_identifier = serverHost + record['logfile']
       end
       if log_identifier and not logs.key? log_identifier
         add_log = true
@@ -388,6 +386,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           @log_constants.each {|log_constant|
             if record.key? log_constant
               logs[log_identifier]['attrs'][log_constant] = record[log_constant]
+              record.delete(log_constant)
             end
           }
         end
@@ -398,13 +397,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       # Delete unwanted fields from record
       record.delete('@version')
       record.delete('@timestamp')
-      if log_identifier
-        if @log_constants
-          @log_constants.each {|log_constant|
-            record.delete(log_constant)
-          }
-        end
-      end
 
       # flatten tags
       if @flatten_tags and record.key? 'tags'
@@ -425,7 +417,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       }
 
       # optionally set thread
-      if origin
+      if serverHost
         scalyr_event[:thread] = thread_id.to_s
         scalyr_event[:log] = logs_ids[log_identifier]
       end
@@ -443,7 +435,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         # Send the faulty event to a label @ERROR block and allow to handle it there (output to exceptions file for ex)
         # TODO
         # atime = Fluent::EventTime.new( sec, nsec )
-        # router.emit_error_event(origin, time, record, e)
+        # router.emit_error_event(serverHost, time, record, e)
 
         scalyr_event[:attrs].each do |key, value|
           @logger.debug "\t#{key} (#{value.encoding.name}): '#{value}'"
@@ -458,7 +450,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       append_event = true
       add_bytes =  event_json.bytesize
       if log_json
-        test_bytes = add_bytes + log_json.bytesize
+        add_bytes = add_bytes + log_json.bytesize
       end
       if total_bytes + add_bytes > @max_request_buffer
         # make sure we always have at least one event
