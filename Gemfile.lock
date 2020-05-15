@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    logstash-output-scalyr (1.0.0.pre.alpha)
+    logstash-output-scalyr (0.1.0.pre.beta)
       ffi (>= 1.9.25)
       logstash-codec-plain
       logstash-core-plugin-api (>= 1.60, <= 2.99)
@@ -143,4 +143,4 @@ DEPENDENCIES
   pry-nav
 
 BUNDLED WITH
-   2.0.2
+   2.1.4

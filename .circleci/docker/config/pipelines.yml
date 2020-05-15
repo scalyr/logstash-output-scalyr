@@ -5,11 +5,11 @@
 # log.level: debug
 # config.debug: true
   
-- pipeline.id: main
-  path.config: "/usr/share/logstash/pipeline/logstash.conf"
+#- pipeline.id: main
+#  path.config: "/usr/share/logstash/pipeline/logstash.conf"
 - pipeline.id: scalyr
   pipeline.batch.size: 100
   pipeline.batch.delay: 50
-  pipeline.workers: 3
+  pipeline.workers: 1
   queue.type: persisted
   path.config: "/usr/share/logstash/pipeline/scalyr.conf"

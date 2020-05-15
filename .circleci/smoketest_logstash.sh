@@ -44,7 +44,7 @@ logstash_docker_context=$4
 
 # Smoketest code (built into smoketest image)
 # smoketest.py must run as root otherwise Uploader doesn't have permissions to write to shared mount /app/xxxx.log
-smoketest_script="source ~/.bashrc && pyenv shell 3.7.3 && sudo -E python3 /tmp/smoketest.py"
+smoketest_script="sudo -E python3 /tmp/smoketest.py"
 
 # container names for all test containers
 # The suffixes MUST be one of (agent, uploader, verifier) to match verify_upload::DOCKER_CONTNAME_SUFFIXES
@@ -113,7 +113,8 @@ bash -c "${smoketest_script} ${contname_uploader} ${max_wait} \
 --scalyr_server ${SCALYR_SERVER} \
 --read_api_key ${READ_API_KEY} \
 --agent_hostname ${agent_hostname} \
---monitored_logfile $monitored_logfile1"
+--monitored_logfile $monitored_logfile1 \
+--debug true"
 
 # Capture uploader short container ID
 uploader_hostname=$(docker ps --format "{{.ID}}" --filter "name=$contname_uploader")
@@ -134,6 +135,7 @@ bash -c "${smoketest_script} ${contname_verifier} ${max_wait} \
 --read_api_key ${READ_API_KEY} \
 --agent_hostname ${agent_hostname} \
 --uploader_hostname ${uploader_hostname} \
---monitored_logfile $monitored_logfile1"
+--monitored_logfile $monitored_logfile1 \
+--debug true"
 
 kill_and_delete_docker_test_containers

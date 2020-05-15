@@ -161,11 +161,15 @@ class ClientSession
 
     post = Net::HTTP::Post.new uri_path
     post.add_field('Content-Type', 'application/json')
+    version = 'output-logstash-scalyr 0.1.0.beta'
+    post.add_field('User-Agent', version + ';' + RUBY_VERSION + ';' + RUBY_PLATFORM)
 
-    if @compression_type
+    if not encoding.nil?
       post.add_field('Content-Encoding', encoding)
+      post.body = compressed_body
+    else
+      post.body = body
     end
-    post.body = compressed_body
     post
   end  # def prepare_post_object
 

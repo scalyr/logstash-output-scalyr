@@ -5,10 +5,12 @@
 
 This plugin implements a Logstash output plugin that uploads data to [Scalyr](http://www.scalyr.com).
 
+You can view documentation for this plugin [on the Scalyr website](https://www.scalyr.com/solutions/logstash).
+
 # Quick start
 
 1. Build the gem, run `gem build logstash-output-scalyr.gemspec` 
-2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-1.0.0.pre.alpha.gem` or follow the latest official instructions on working with plugins from Logstash.
+2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-0.1.0.pre.beta.gem` or follow the latest official instructions on working with plugins from Logstash.
 3. Configure the output plugin (e.g. add it to a pipeline .conf)
 4. Restart Logstash 
 
@@ -30,14 +32,123 @@ input {
 output {
  scalyr {
    api_write_token => 'SCALYR_API_KEY'
-   origin_field => 'host'
+   serverhost_field => 'host'
    logfile_field => 'path'
  }
 }
 ```
 
-In the above example, the Logstash pipeline defines a file input that reads from `/var/log/messages`.  Log events from this source have the `host` and `path` fields.  The pipeline then outputs to the scalyr plugin, which in this example is configured to remap `host`->`origin` and `path`->`logfile`, thus facilitating filtering in the Scalyr UI.
+In the above example, the Logstash pipeline defines a file input that reads from `/var/log/messages`.  Log events from this source have the `host` and `path` fields.  The pipeline then outputs to the scalyr plugin, which in this example is configured to remap `host`->`serverHost` and `path`->`logfile`, thus facilitating filtering in the Scalyr UI.
 
+## Options
+
+- The Scalyr API write token, these are available at https://www.scalyr.com/keys.  This is the only compulsory configuration field required for proper upload
+
+`config :api_write_token, :validate => :string, :required => true`
+
+---
+
+- If your Scalyr backend is located in other geographies (such as Europe which would use `https://agent.eu.scalyr.com/`), you may need to modify this
+
+`config :scalyr_server, :validate => :string, :default => "https://agent.scalyr.com/"`
+
+---
+
+- Path to SSL bundle file.
+
+`config :ssl_ca_bundle_path, :validate => :string, :default =>  "/etc/ssl/certs/ca-bundle.crt"`
+
+---
+
+- server_attributes is a dictionary of key value pairs that represents/identifies the logstash aggregator server
+ (where this plugin is running).  Keys are arbitrary except for the 'serverHost' key which holds special meaning to
+ Scalyr and is given special treatment in the Scalyr UI.  All of these attributes are optional (not required for logs
+ to be correctly uploaded)
+
+`config :server_attributes, :validate => :hash, :default => nil`
+
+---
+
+- Related to the server_attributes dictionary above, if you do not define the 'serverHost' key in server_attributes,
+ the plugin will automatically set it, using the aggregator hostname as value, if this value is true.
+ 
+`config :use_hostname_for_serverhost, :validate => :boolean, :default => false`
+
+---
+
+- Field that represents the origin of the log event. (Warning: events with an existing 'serverHost' field, it will be overwritten)
+
+`config :serverhost_field, :validate => :string, :default => 'serverHost'`
+
+---
+
+- The 'logfile' fieldname has special meaning for the Scalyr UI.  Traditionally, it represents the origin logfile
+ which users can search for in a dedicated widget in the Scalyr UI. If your Events capture this in a different field
+ you can specify that fieldname here and the Scalyr Output Plugin will rename it to 'logfile' before upload.
+ (Warning: events with an existing 'logfile' field, it will be overwritten)
+
+`config :logfile_field, :validate => :string, :default => 'logfile'`
+
+---
+
+- The Scalyr Output Plugin expects the main log message to be contained in the Event['message'].  If your main log
+ content is contained in a different field, specify it here.  It will be renamed to 'message' before upload.
+ (Warning: events with an existing 'message' field, it will be overwritten)
+
+`config :message_field, :validate => :string, :default => "message"`
+
+---
+
+- A list of fieldnames that are constant for any logfile. Any fields listed here will be sent to Scalyr as part of
+ the `logs` array instead of inside every event to save on transmitted bytes. What constitutes a single "logfile"
+ for correctness is a combination of logfile_field value and serverhost_field value. Only events with a serverHost
+ value with have fields moved.
+
+`config :log_constants, :validate => :array, :default => nil`
+
+---
+
+- If true, nested values will be flattened (which changes keys to underscore-separated concatenation of all
+ nested keys).
+
+`config :flatten_nested_values, :validate => :boolean, :default => false`
+
+---
+
+- If true, the 'tags' field will be flattened into key-values where each key is a tag and each value is set to
+ :flat_tag_value
+
+`config :flatten_tags, :validate => :boolean, :default => false`
+
+`config :flat_tag_prefix, :validate => :string, :default => 'tag_'`
+
+`config :flat_tag_value, :default => 1`
+
+---
+
+- Initial interval in seconds between bulk retries. Doubled on each retry up to `retry_max_interval`
+
+`config :retry_initial_interval, :validate => :number, :default => 1`
+
+---
+
+- Set max interval in seconds between bulk retries.
+
+`config :retry_max_interval, :validate => :number, :default => 64`
+
+---
+
+- Valid options are bz2, deflate, or none.
+
+`config :compression_type, :validate => :string, :default => 'deflate'`
+
+---
+
+- An int containing the compression level of compression to use, from 1-9. Defaults to 6
+
+`config :compression_level, :validate => :number, :default => 6`
+
+---
 
 # Conceptual Overview
 
@@ -48,9 +159,7 @@ Logstash itself supports [Persistent Queues](https://www.elastic.co/guide/en/log
 
 ## Concurrency
 
-The plugin does not manage its own internal concurrency - no threads are started to increase parallelism.  Instead, the plugin synchronously uploads data to Scalyr.  Horizontal scale-out through Logstash's worker-thread model is supported whereby users may increase the number of workers assigned to the Logstash pipeline that invokes the Scalyr plugin.
-
-The plugin's `multi_receive` method is thread-safe.  Each worker thread invokes the plugin's `multi_receive`method, passing it a list of events which are transformed and upload to Scalyr.
+The plugin does not manage its own internal concurrency - no threads are started to increase parallelism. To ensure correct ordering of events in Scalyr configure your pipeline with `pipeline.workers: 1`.
 
 ## Data model
 
@@ -58,7 +167,7 @@ Logstash Events are arbitrary nested JSON.  Scalyr, however, supports a flat key
 
 ### Special fields
 
-Scalyr assigns semantics to certain fields. These semantics allow Scalyr to know which field contains the main message, and also facilitates searching of data. For example, a user may restrict searches to specific combination of `origin` and `logfile` in the [Scalyr UI](https://www.scalyr.com/help/log-overview), whereby these 2 fields have dedicated input widgets in the UI.
+Scalyr assigns semantics to certain fields. These semantics allow Scalyr to know which field contains the main message, and also facilitates searching of data. For example, a user may restrict searches to specific combination of `serverHost` and `logfile` in the [Scalyr UI](https://www.scalyr.com/help/log-overview), whereby these 2 fields have dedicated input widgets in the UI.
 
 Mapping/renaming of Logstash event fields to these special fields an important configuration step. For example, if the main message is contained in a field named `text_msg`, then you should configure the plugin's `message_field`  parameter to `text_msg`. This instructs the plugin to rename event `text_msg` to `message`, thus enabling the Scalyr backend to correctly receive the main log message.
 
@@ -69,16 +178,29 @@ Here is the Scalyr API data shape and a description of the special fields:
   "attrs": 
   {
     "message": <The main log message>
-    "origin": <The originating source/server for the message>
     "logfile": <Log file name (at the originating server) for the message>
-    "serverHost": <The aggregator host (i.e. the Logstash aggregator)>
+    "serverHost": <The originating source/server for the message>
+    "parser": <What Scalyr parser will be used for server side parsing>
     <Any other keys / values>
     ...
   }
 }
 ```
 
-Note: the only required fields above are `ts` and `attrs/message`.  Omitting optional fields such as `origin` or `logfile` merely precludes ability to filter on these fields, but you are still able to search for the log event by any of the event's key/values including the  main message field.
+You can use the `mutate` filter to add these fields or rename existing fields to them. Here is an example of a filter configuration you can use to add these fields:
+
+```
+filter {
+    mutate {
+        add_field => { "parser" => "logstash_parser" }
+        add_field => { "serverHost" => "my hostname" }
+        rename => { "path" => "logfile" }
+        rename => { "data" => "message" }
+    }
+}
+```
+
+Note: the only required fields above are `ts` and `attrs/message`.  Omitting optional fields such as `serverHost` or `logfile` merely precludes ability to filter on these fields, but you are still able to search for the log event by any of the event's key/values including the main message field.
 
 
 ### Flattening nested values
@@ -158,8 +280,10 @@ Whereas flattening will result in the following data shape:
 }
 ```
 
-## Other server attributes
-TODO: Add support for config-based server attributes
+## Log attributes
+
+If every message that comes from the same `logfile` and `serverHost` has fields that stay constant for that logfile and serverHost you can define this as a log constant. 
+Any fields marked as such will be sent only once per request to scalyr for a serverhost and logfile, which can result in better throughput due to fewer bytes sent.
 
 # Testing
 
@@ -174,3 +298,10 @@ This repo has been configured to run a full-cycle smoketest on CircleCI as follo
 
 ## Unit tests
 
+This repo has unit tests that can be run by running:
+
+```
+bundle exec rspec
+```
+
+in the root of the repo.

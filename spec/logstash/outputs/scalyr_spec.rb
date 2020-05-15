@@ -24,7 +24,27 @@ describe LogStash::Outputs::Scalyr do
 
   describe "#build_multi_event_request_array" do
 
-    context "when origin is missing" do
+    context "when a field is configured as a log attribute" do
+      it "creates logfile from serverHost" do
+        plugin = LogStash::Outputs::Scalyr.new({
+                                                   'api_write_token' => '1234',
+                                                   'serverhost_field' => 'source_host',
+                                                   'log_constants' => ['tags'],
+                                               })
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        result = plugin.build_multi_event_request_array(sample_events)
+        body = JSON.parse(result[0][:body])
+        expect(body['events'].size).to eq(3)
+        attrs2 = body['events'][2]['attrs']
+        logattrs2 = body['logs'][2]['attrs']
+        expect(logattrs2.fetch('serverHost', nil)).to eq('my host 3')
+        expect(logattrs2.fetch('logfile', nil)).to eq('/logstash/my host 3')
+        expect(logattrs2.fetch('tags', nil)).to eq(['t1', 't2', 't3'])
+      end
+    end
+
+    context "when serverhost_field is missing" do
       it "does not contain log file" do
         plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234'})
         allow(plugin).to receive(:send_status).and_return(nil)
@@ -36,11 +56,11 @@ describe LogStash::Outputs::Scalyr do
       end
     end
 
-    context "when origin is present (or mapped)" do
-      it "creates logfile from origin" do
+    context "when serverhost_field is present (or mapped)" do
+      it "creates logfile from serverHost" do
         plugin = LogStash::Outputs::Scalyr.new({
                                                    'api_write_token' => '1234',
-                                                   'origin_field' => 'source_host',
+                                                   'serverhost_field' => 'source_host',
                                                })
         allow(plugin).to receive(:send_status).and_return(nil)
         plugin.register
@@ -48,16 +68,17 @@ describe LogStash::Outputs::Scalyr do
         body = JSON.parse(result[0][:body])
         expect(body['events'].size).to eq(3)
         attrs2 = body['events'][2]['attrs']
-        expect(attrs2.fetch('origin', nil)).to eq('my host 3')
-        expect(attrs2.fetch('logfile', nil)).to eq('/logstash/my host 3')
+        logattrs2 = body['logs'][2]['attrs']
+        expect(logattrs2.fetch('serverHost', nil)).to eq('my host 3')
+        expect(logattrs2.fetch('logfile', nil)).to eq('/logstash/my host 3')
       end
     end
 
-    context "when origin and logfile are present (or mapped)" do
+    context "when serverhost_field and logfile are present (or mapped)" do
       it "does not contain log file" do
         plugin = LogStash::Outputs::Scalyr.new({
                                                    'api_write_token' => '1234',
-                                                   'origin_field' => 'source_host',
+                                                   'serverhost_field' => 'source_host',
                                                    'logfile_field' => 'source_file',
                                                })
         allow(plugin).to receive(:send_status).and_return(nil)
@@ -66,8 +87,9 @@ describe LogStash::Outputs::Scalyr do
         body = JSON.parse(result[0][:body])
         expect(body['events'].size).to eq(3)
         attrs2 = body['events'][2]['attrs']
-        expect(attrs2.fetch('origin', nil)).to eq('my host 3')
-        expect(attrs2.fetch('logfile', nil)).to eq('my file 3')
+        logattrs2 = body['logs'][2]['attrs']
+        expect(logattrs2.fetch('serverHost', nil)).to eq('my host 3')
+        expect(logattrs2.fetch('logfile', nil)).to eq('my file 3')
       end
     end
 
