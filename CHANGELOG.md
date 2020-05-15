@@ -1,5 +1,5 @@
 # Beta
-## 0.1.0
+## 0.1.2
  - Remove special treatment of `origin` field in favor of `serverHost`
  - Change concurrency type to `single` to help guarantee one-time ordered delivery in Scalyr
  - Change default compression to `deflate`
