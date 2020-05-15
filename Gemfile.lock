@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    logstash-output-scalyr (0.1.0.pre.beta)
+    logstash-output-scalyr (0.1.1)
       ffi (>= 1.9.25)
       logstash-codec-plain
       logstash-core-plugin-api (>= 1.60, <= 2.99)
@@ -82,7 +82,7 @@ GEM
     minitar (0.5.4)
     multi_json (1.13.1)
     multipart-post (2.1.1)
-    net-http-persistent (3.0.1)
+    net-http-persistent (4.0.0)
       connection_pool (~> 2.2)
     numerizer (0.1.1)
     openssl_pkcs8_pure (0.0.0.2)
