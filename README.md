@@ -138,7 +138,7 @@ In the above example, the Logstash pipeline defines a file input that reads from
 
 ---
 
-- Valid options are bz2, or deflate.
+- Valid options are bz2, deflate, or none.
 
 `config :compression_type, :validate => :string, :default => 'deflate'`
 

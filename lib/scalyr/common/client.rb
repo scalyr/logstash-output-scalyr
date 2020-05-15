@@ -144,7 +144,7 @@ class ClientSession
   private
   def prepare_post_object(uri_path, body)
     # use compression if enabled
-    encoding = nil
+    encoding = "identity"
     if @compression_type
       if @compression_type == 'deflate'
         encoding = 'deflate'

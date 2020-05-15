@@ -94,7 +94,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   config :force_message_encoding, :validate => :string, :default => nil
   config :replace_invalid_utf8, :validate => :boolean, :default => false
 
-  # Valid options are bz2, or deflate.
+  # Valid options are bz2, deflate, or none.
   config :compression_type, :validate => :string, :default => 'deflate'
 
   # An int containing the compression level of compression to use, from 1-9. Defaults to 6
