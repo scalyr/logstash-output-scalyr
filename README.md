@@ -305,3 +305,28 @@ bundle exec rspec
 ```
 
 in the root of the repo.
+
+# Releasing
+
+## Updating version
+
+Currently references to the version need to be manually updated, files to look in for this are `logstash-putput-scalyr.gemspec`,
+ `client.rb`, twice in the CircleCI `Dockerfile`, and under "Quick Start" in this `README.md`.
+
+The changelog should also be updated with the latest version and changes of note.
+
+## Releasing to RubyGems.org
+
+To deploy the current code on your machine run these commands:
+
+```
+bundle check --path vendor/bundle || bundle install --deployment
+curl -u RUBY_USER:RUBY_PASSWORD https://rubygems.org/api/v1/api_key.yaml > ~/.gem/credentials
+chmod 0600 ~/.gem/credentials
+bundle exec rake vendor
+bundle exec rspec
+bundle exec rake publish_gem
+```
+
+`RUBY_USER` and `RUBY_PASSWORD` should be replaced with the username and password to the RubyGems.org account you wish to release to,
+ these credentials should be found in Keeper.

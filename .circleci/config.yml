@@ -51,34 +51,6 @@ jobs: # a collection of steps
             gemfile=$(ls *.gem)
             cp $gemfile .circleci/docker/
             source .circleci/smoketest_logstash.sh yarnsh/agent-testing:latest 300 $gemfile .circleci/docker
-  release:
-    docker:
-      - image: circleci/jruby:9.2.7.0-jdk
-    steps:
-      - checkout
-      - run:
-          name: Install bundler specified in Gemfile.lock
-          command: gem install bundler
-      - restore_cache:
-          keys:
-            - logstash-output-scalyr-{{ checksum "Gemfile.lock" }}
-            - logstash-output-scalyr-
-      - run: # Install Ruby dependencies
-          name: Bundle Install
-          command: bundle check --path vendor/bundle || bundle install --deployment
-      # Store bundle cache for Ruby dependencies
-      - save_cache:
-          key: logstash-output-scalyr-{{ checksum "Gemfile.lock" }}
-          paths:
-            - vendor/bundle
-      - run:
-          name: Upload to RubyGems.com
-          command: |
-            curl -u $RUBY_USER:$RUBY_PASSWORD https://rubygems.org/api/v1/api_key.yaml > ~/.gem/credentials
-            chmod 0600 ~/.gem/credentials
-            bundle exec rake vendor
-            bundle exec rspec
-            bundle exec rake publish_gem
 
 workflows:
   version: 2
@@ -86,10 +58,3 @@ workflows:
     jobs:
       - smoketest
       - unittest
-      - release:
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              # See https://discuss.circleci.com/t/filter-job-by-tag-not-working-regexp-possibly-unsupported/28484
-              only: /^(\d|[1-9]\d*)\.(\d|[1-9]\d*)\.(\d|[1-9]\d*)(-(0|[1-9A-Za-z-][0-9A-Za-z-]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9A-Za-z-][0-9A-Za-z-]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$/
