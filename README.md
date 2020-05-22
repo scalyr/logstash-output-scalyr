@@ -5,7 +5,7 @@
 
 This plugin implements a Logstash output plugin that uploads data to [Scalyr](http://www.scalyr.com).
 
-You can view documentation for this plugin [on the Scalyr website](https://www.scalyr.com/solutions/logstash).
+You can view documentation for this plugin [on the Scalyr website](https://app.scalyr.com/solutions/logstash).
 
 # Quick start
 
