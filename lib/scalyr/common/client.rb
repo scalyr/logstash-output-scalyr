@@ -82,6 +82,8 @@ class ClientSession
       @http.ca_file = @ssl_ca_bundle_path
       @http.verify_mode = OpenSSL::SSL::VERIFY_PEER
       @http.verify_depth = @ssl_verify_depth
+    else
+      @http.verify_mode = OpenSSL::SSL::VERIFY_NONE
     end
   end  # def initialize
 
