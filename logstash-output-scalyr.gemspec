@@ -22,7 +22,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'net-http-persistent'
   s.add_runtime_dependency 'logstash-core-plugin-api', '>= 1.60', '<= 2.99'
   s.add_runtime_dependency 'logstash-codec-plain'
-  s.add_runtime_dependency 'ffi', '>= 1.9.25'
+  s.add_runtime_dependency 'ffi', '>= 1.9.18'
   s.add_runtime_dependency 'rbzip2', '0.3.0'
   s.add_development_dependency 'logstash-devutils'
 end
