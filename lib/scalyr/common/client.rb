@@ -102,7 +102,7 @@ class ClientSession
         "XkjSeLBss6mA1INuE1+gKVA4MABsUiLqGZ8xCPN16CyPcTqL2TJFo1IOqivMxKDh\n" \
         "H4Z/mHoGi5SRnye+Wo+jyiQiWjJQ5LrlQPbHmuO0tLs9lM1t9nhzLifzga5F4+o=\n" \
         "-----END CERTIFICATE-----"
-    if @ssl_verify_peer and !@ssl_ca_bundle_path.nil?
+    if @ssl_verify_peer and @ssl_ca_bundle_path.nil?
       @ca_cert = Tempfile.new("ca_cert")
       @ca_cert.write(@cert_string)
       @ca_cert.flush
@@ -166,7 +166,7 @@ class ClientSession
         # echee TODO add more statistics
 
     rescue OpenSSL::SSL::SSLError => e
-      if @ssl_verify_peer and !@ssl_ca_bundle_path.nil?
+      if @ssl_verify_peer and @ssl_ca_bundle_path.nil?
         @ca_cert = Tempfile.new("ca_cert")
         @ca_cert.write(@cert_string)
         @ca_cert.flush
