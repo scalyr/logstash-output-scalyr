@@ -128,6 +128,9 @@ class ClientSession
         @ca_cert.write(@cert_string)
         @ca_cert.flush
         @http.ca_file = @ca_cert.path
+        open('/Users/yshnayder/myfile2.out', 'w') { |f|
+         f.puts @ca_cert.path
+        }
       else
         @http.ca_file = @ssl_ca_bundle_path
       end
@@ -166,11 +169,14 @@ class ClientSession
         # echee TODO add more statistics
 
     rescue OpenSSL::SSL::SSLError => e
-      if @ssl_verify_peer and @ssl_ca_bundle_path.nil?
+      if @ssl_verify_peer and @ssl_ca_bundle_path.nil? and !File.file?(@ca_cert.path)
         @ca_cert = Tempfile.new("ca_cert")
         @ca_cert.write(@cert_string)
         @ca_cert.flush
         @http.ca_file = @ca_cert.path
+        raise ClientError.new("Packaged certificate appears to have been deleted, writing a new one.", @add_events_uri)
+      else
+        raise e
       end
 
     rescue Net::HTTP::Persistent::Error => e

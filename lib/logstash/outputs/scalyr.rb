@@ -212,9 +212,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     while !multi_event_request_array.to_a.empty?
       begin
         multi_event_request = multi_event_request_array.pop
-        @client_session.post_add_events(multi_event_request[:body])
-        sleep_interval = 0
-        result.push(multi_event_request)
+        if !multi_event_request.nil?
+          @client_session.post_add_events(multi_event_request[:body])
+          sleep_interval = 0
+          result.push(multi_event_request)
+        end
 
       rescue OpenSSL::SSL::SSLError => e
         # cannot rely on exception message, so we always log the following warning
@@ -229,7 +231,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         sleep_interval = sleep_for(sleep_interval)
         message = "Error uploading to Scalyr (will backoff-retry)"
         exc_data = {
-            :url => e.url.sanitized.to_s,
+            :url => e.url.to_s,
             :message => e.message,
             :batch_num => batch_num,
             :total_batches => total_batches,
@@ -247,7 +249,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           # all other failed uploads should be errors
           @logger.error(message, exc_data)
         end
-        retry if @running.true?
+        retry if @running
 
       rescue => e
         # Any unexpected errors should be fully logged
@@ -259,7 +261,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         )
         @logger.debug("Failed multi_event_request", :multi_event_request => multi_event_request)
         sleep_interval = sleep_for(sleep_interval)
-        retry if @running.true?
+        retry if @running
       end
     end
 
@@ -591,7 +593,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   # Helper method that performs synchronous sleep for a certain time interval
   def sleep_for(sleep_interval)
-    Stud.stoppable_sleep(sleep_interval) { @running.false? }
+    Stud.stoppable_sleep(sleep_interval) { !@running }
     get_sleep_sec(sleep_interval)
   end
 
