@@ -128,9 +128,6 @@ class ClientSession
         @ca_cert.write(@cert_string)
         @ca_cert.flush
         @http.ca_file = @ca_cert.path
-        open('/Users/yshnayder/myfile2.out', 'w') { |f|
-         f.puts @ca_cert.path
-        }
       else
         @http.ca_file = @ssl_ca_bundle_path
       end
