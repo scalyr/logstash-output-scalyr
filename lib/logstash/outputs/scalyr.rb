@@ -87,7 +87,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   config :retry_max_interval, :validate => :number, :default => 64
 
   # The following two settings pertain to preventing Man-in-the-middle (MITM) attacks  # echee TODO: eliminate?
-  config :ssl_verify_peer, :validate => :boolean, :default => false #true
+  config :ssl_verify_peer, :validate => :boolean, :default => true
   config :ssl_verify_depth, :validate => :number, :default => 5
 
   config :max_request_buffer, :validate => :number, :default => 5500000  # echee TODO: eliminate?
