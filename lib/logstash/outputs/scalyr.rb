@@ -37,7 +37,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   config :scalyr_server, :validate => :string, :default => "https://agent.scalyr.com/"
 
   # Path to SSL bundle file. The default value of `nil` will use the certificate built in with the plugin.
-  config :ssl_ca_bundle_path, :validate => :string, :default => nil
+  config :ssl_ca_bundle_path, :validate => :string, :default => "/etc/ssl/certs/ca-bundle.crt"
 
   # server_attributes is a dictionary of key value pairs that represents/identifies the logstash aggregator server
   # (where this plugin is running).  Keys are arbitrary except for the 'serverHost' key which holds special meaning to

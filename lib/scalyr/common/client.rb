@@ -102,8 +102,6 @@ class ClientSession
         "XkjSeLBss6mA1INuE1+gKVA4MABsUiLqGZ8xCPN16CyPcTqL2TJFo1IOqivMxKDh\n" \
         "H4Z/mHoGi5SRnye+Wo+jyiQiWjJQ5LrlQPbHmuO0tLs9lM1t9nhzLifzga5F4+o=\n" \
         "-----END CERTIFICATE-----"
-    if @ssl_verify_peer and @ssl_ca_bundle_path.nil?
-    end
 
     # Request statistics are accumulated across multiple threads and must be accessed through a mutex
     @stats_lock = Mutex.new
@@ -123,14 +121,19 @@ class ClientSession
 
     # verify peers to prevent potential MITM attacks
     if @ssl_verify_peer
-      if @ssl_ca_bundle_path.nil?
-        @ca_cert = Tempfile.new("ca_cert")
-        @ca_cert.write(@cert_string)
-        @ca_cert.flush
-        @http.ca_file = @ca_cert.path
-      else
-        @http.ca_file = @ssl_ca_bundle_path
-      end
+      #if @ssl_ca_bundle_path.nil?
+      #  @ca_cert = Tempfile.new("ca_cert")
+      #  @ca_cert.write(@cert_string)
+      #  @ca_cert.flush
+      #  @http.ca_file = @ca_cert.path
+      #else
+      #  @http.ca_file = @ssl_ca_bundle_path
+      #end
+      @ca_cert = Tempfile.new("ca_cert")
+      @ca_cert.write(File.read(@ssl_ca_bundle_path))
+      @ca_cert.write(@cert_string)
+      @ca_cert.flush
+      @http.ca_file = @ca_cert.path
       @http.verify_mode = OpenSSL::SSL::VERIFY_PEER
       @http.verify_depth = @ssl_verify_depth
     else
