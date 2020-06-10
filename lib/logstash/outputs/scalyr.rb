@@ -36,8 +36,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # If your Scalyr backend is located in other geographies (such as Europe which would use `https://agent.eu.scalyr.com/`), you may need to modify this
   config :scalyr_server, :validate => :string, :default => "https://agent.scalyr.com/"
 
-  # Path to SSL bundle file. The default value of `nil` will use the certificate built in with the plugin.
+  # Path to SSL bundle file.
   config :ssl_ca_bundle_path, :validate => :string, :default => "/etc/ssl/certs/ca-bundle.crt"
+
+  # If we should append our built-in Scalyr cert to the one we find at `ssl_ca_bundle_path`.
+  config :append_builtin_cert, :validate => :boolean, :default => true
 
   # server_attributes is a dictionary of key value pairs that represents/identifies the logstash aggregator server
   # (where this plugin is running).  Keys are arbitrary except for the 'serverHost' key which holds special meaning to
@@ -177,7 +180,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     @client_session = Scalyr::Common::Client::ClientSession.new(
         @logger, @add_events_uri,
         @compression_type, @compression_level,
-        @ssl_verify_peer, @ssl_ca_bundle_path, @ssl_verify_depth
+        @ssl_verify_peer, @ssl_ca_bundle_path, @ssl_verify_depth,
+        @append_builtin_cert
     )
 
     @logger.info("Started Scalyr output plugin", :class => self.class.name)

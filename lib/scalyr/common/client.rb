@@ -52,13 +52,14 @@ end
 class ClientSession
 
   def initialize(logger, add_events_uri, compression_type, compression_level,
-                 ssl_verify_peer, ssl_ca_bundle_path, ssl_verify_depth)
+                 ssl_verify_peer, ssl_ca_bundle_path, ssl_verify_depth, append_builtin_cert)
     @logger = logger
     @add_events_uri = add_events_uri  # typically /addEvents
     @compression_type = compression_type
     @compression_level = compression_level
     @ssl_verify_peer = ssl_verify_peer
     @ssl_ca_bundle_path = ssl_ca_bundle_path
+    @append_builtin_cert = append_builtin_cert
     @ssl_verify_depth = ssl_verify_depth
 
     # A cert to use by default to avoid issues caused by the OpenSSL library not validating certs according to standard
@@ -121,19 +122,15 @@ class ClientSession
 
     # verify peers to prevent potential MITM attacks
     if @ssl_verify_peer
-      #if @ssl_ca_bundle_path.nil?
-      #  @ca_cert = Tempfile.new("ca_cert")
-      #  @ca_cert.write(@cert_string)
-      #  @ca_cert.flush
-      #  @http.ca_file = @ca_cert.path
-      #else
-      #  @http.ca_file = @ssl_ca_bundle_path
-      #end
       @ca_cert = Tempfile.new("ca_cert")
-      @ca_cert.write(File.read(@ssl_ca_bundle_path))
-      @ca_cert.flush
-      open(@ca_cert.path, 'a') do |f|
-        f.puts @cert_string
+      if File.file?(@ssl_ca_bundle_path)
+        @ca_cert.write(File.read(@ssl_ca_bundle_path))
+        @ca_cert.flush
+      end
+      if @append_builtin_cert
+        open(@ca_cert.path, 'a') do |f|
+          f.puts @cert_string
+        end
       end
       @ca_cert.flush
       @http.ca_file = @ca_cert.path
