@@ -131,7 +131,10 @@ class ClientSession
       #end
       @ca_cert = Tempfile.new("ca_cert")
       @ca_cert.write(File.read(@ssl_ca_bundle_path))
-      @ca_cert.write(@cert_string)
+      @ca_cert.flush
+      open(@ca_cert.path, 'a') do |f|
+        f.puts @cert_string
+      end
       @ca_cert.flush
       @http.ca_file = @ca_cert.path
       @http.verify_mode = OpenSSL::SSL::VERIFY_PEER
