@@ -56,7 +56,7 @@ In the above example, the Logstash pipeline defines a file input that reads from
 
 - Path to SSL bundle file.
 
-`config :ssl_ca_bundle_path, :validate => :string, :default =>  "/etc/ssl/certs/ca-bundle.crt"`
+`config :ssl_ca_bundle_path, :validate => :string, :default => nil`
 
 ---
 

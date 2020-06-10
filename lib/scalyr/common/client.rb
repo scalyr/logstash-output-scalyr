@@ -52,14 +52,57 @@ end
 class ClientSession
 
   def initialize(logger, add_events_uri, compression_type, compression_level,
-                 ssl_verify_peer, ssl_ca_bundle_path, ssl_verify_depth)
+                 ssl_verify_peer, ssl_ca_bundle_path, ssl_verify_depth, append_builtin_cert)
     @logger = logger
     @add_events_uri = add_events_uri  # typically /addEvents
     @compression_type = compression_type
     @compression_level = compression_level
     @ssl_verify_peer = ssl_verify_peer
     @ssl_ca_bundle_path = ssl_ca_bundle_path
+    @append_builtin_cert = append_builtin_cert
     @ssl_verify_depth = ssl_verify_depth
+
+    # A cert to use by default to avoid issues caused by the OpenSSL library not validating certs according to standard
+    @cert_string = "" \
+        "-----BEGIN CERTIFICATE-----\n" \
+        "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\n" \
+        "-----END CERTIFICATE-----"
 
     # Request statistics are accumulated across multiple threads and must be accessed through a mutex
     @stats_lock = Mutex.new
@@ -79,7 +122,18 @@ class ClientSession
 
     # verify peers to prevent potential MITM attacks
     if @ssl_verify_peer
-      @http.ca_file = @ssl_ca_bundle_path
+      @ca_cert = Tempfile.new("ca_cert")
+      if File.file?(@ssl_ca_bundle_path)
+        @ca_cert.write(File.read(@ssl_ca_bundle_path))
+        @ca_cert.flush
+      end
+      if @append_builtin_cert
+        open(@ca_cert.path, 'a') do |f|
+          f.puts @cert_string
+        end
+      end
+      @ca_cert.flush
+      @http.ca_file = @ca_cert.path
       @http.verify_mode = OpenSSL::SSL::VERIFY_PEER
       @http.verify_depth = @ssl_verify_depth
     else
@@ -105,7 +159,6 @@ class ClientSession
     compressed_bytes_sent = 0
     bytes_received = 0
     begin
-
       response = @http.request(@add_events_uri, post)
       handle_response(response)
 
@@ -114,6 +167,17 @@ class ClientSession
       compressed_bytes_sent = (post.body.bytesize + @add_events_uri.path.bytesize)
       bytes_received = response.body.bytesize  # echee: double check
         # echee TODO add more statistics
+
+    rescue OpenSSL::SSL::SSLError => e
+      if @ssl_verify_peer and @ssl_ca_bundle_path.nil? and !File.file?(@ca_cert.path)
+        @ca_cert = Tempfile.new("ca_cert")
+        @ca_cert.write(@cert_string)
+        @ca_cert.flush
+        @http.ca_file = @ca_cert.path
+        raise ClientError.new("Packaged certificate appears to have been deleted, writing a new one.", @add_events_uri)
+      else
+        raise e
+      end
 
     rescue Net::HTTP::Persistent::Error => e
       # The underlying persistent-connection library automatically retries when there are network-related errors.

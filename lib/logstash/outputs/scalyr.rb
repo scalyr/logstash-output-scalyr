@@ -37,7 +37,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   config :scalyr_server, :validate => :string, :default => "https://agent.scalyr.com/"
 
   # Path to SSL bundle file.
-  config :ssl_ca_bundle_path, :validate => :string, :default =>  "/etc/ssl/certs/ca-bundle.crt"
+  config :ssl_ca_bundle_path, :validate => :string, :default => "/etc/ssl/certs/ca-bundle.crt"
+
+  # If we should append our built-in Scalyr cert to the one we find at `ssl_ca_bundle_path`.
+  config :append_builtin_cert, :validate => :boolean, :default => true
 
   # server_attributes is a dictionary of key value pairs that represents/identifies the logstash aggregator server
   # (where this plugin is running).  Keys are arbitrary except for the 'serverHost' key which holds special meaning to
@@ -177,7 +180,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     @client_session = Scalyr::Common::Client::ClientSession.new(
         @logger, @add_events_uri,
         @compression_type, @compression_level,
-        @ssl_verify_peer, @ssl_ca_bundle_path, @ssl_verify_depth
+        @ssl_verify_peer, @ssl_ca_bundle_path, @ssl_verify_depth,
+        @append_builtin_cert
     )
 
     @logger.info("Started Scalyr output plugin", :class => self.class.name)
@@ -212,9 +216,13 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     while !multi_event_request_array.to_a.empty?
       begin
         multi_event_request = multi_event_request_array.pop
-        @client_session.post_add_events(multi_event_request[:body])
-        sleep_interval = 0
-        result.push(multi_event_request)
+        # For some reason a retry on the multi_receive may result in the request array containing `nil` elements, we
+        # ignore these.
+        if !multi_event_request.nil?
+          @client_session.post_add_events(multi_event_request[:body])
+          sleep_interval = 0
+          result.push(multi_event_request)
+        end
 
       rescue OpenSSL::SSL::SSLError => e
         # cannot rely on exception message, so we always log the following warning
@@ -229,7 +237,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         sleep_interval = sleep_for(sleep_interval)
         message = "Error uploading to Scalyr (will backoff-retry)"
         exc_data = {
-            :url => e.url.sanitized.to_s,
+            :url => e.url.to_s,
             :message => e.message,
             :batch_num => batch_num,
             :total_batches => total_batches,
@@ -247,7 +255,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           # all other failed uploads should be errors
           @logger.error(message, exc_data)
         end
-        retry if @running.true?
+        retry if @running
 
       rescue => e
         # Any unexpected errors should be fully logged
@@ -259,7 +267,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         )
         @logger.debug("Failed multi_event_request", :multi_event_request => multi_event_request)
         sleep_interval = sleep_for(sleep_interval)
-        retry if @running.true?
+        retry if @running
       end
     end
 
@@ -583,15 +591,13 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         @last_status_transmit_time = Float::INFINITY
         return saved_last_time
       end
-    ensure
-
     end
   end
 
 
   # Helper method that performs synchronous sleep for a certain time interval
   def sleep_for(sleep_interval)
-    Stud.stoppable_sleep(sleep_interval) { @running.false? }
+    Stud.stoppable_sleep(sleep_interval) { !@running }
     get_sleep_sec(sleep_interval)
   end
 
