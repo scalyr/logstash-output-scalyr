@@ -36,7 +36,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # If your Scalyr backend is located in other geographies (such as Europe which would use `https://agent.eu.scalyr.com/`), you may need to modify this
   config :scalyr_server, :validate => :string, :default => "https://agent.scalyr.com/"
 
-  # Path to SSL bundle file.
+  # Path to SSL bundle file. The default value of `nil` will use the certificate built in with the plugin.
   config :ssl_ca_bundle_path, :validate => :string, :default => nil
 
   # server_attributes is a dictionary of key value pairs that represents/identifies the logstash aggregator server
@@ -212,6 +212,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     while !multi_event_request_array.to_a.empty?
       begin
         multi_event_request = multi_event_request_array.pop
+        # For some reason a retry on the multi_receive may result in the request array containing `nil` elements, we
+        # ignore these.
         if !multi_event_request.nil?
           @client_session.post_add_events(multi_event_request[:body])
           sleep_interval = 0
@@ -585,8 +587,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         @last_status_transmit_time = Float::INFINITY
         return saved_last_time
       end
-    ensure
-
     end
   end
 
