@@ -361,14 +361,23 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
       # Rename user-specified serverHost field -> 'serverHost'
       rename.call(@serverhost_field, 'serverHost')
-      record.delete(@serverhost_field)
+      if @serverhost_field != 'serverHost'
+        record.delete(@serverhost_field)
+      end
 
       # Rename user-specified logfile field -> 'logfile'
       rename.call(@logfile_field, 'logfile')
-      record.delete(@logfile_field)
+      if @logfile_field != 'logfile'
+        record.delete(@logfile_field)
+      end
       # Set logfile field if empty and serverHost is supplied
       if record['logfile'].to_s.empty? and serverHost
         record['logfile'] = "/logstash/#{serverHost}"
+      end
+
+      # Set a default if no serverHost value is present.
+      if serverHost.nil?
+        record['serverHost'] = "Logstash"
       end
 
       log_identifier = nil
