@@ -116,6 +116,7 @@ describe LogStash::Outputs::Scalyr do
                                                      'seq' => 3,
                                                      'source_file' => 'my file 3',
                                                      'source_host' => 'my host 3',
+                                                     'serverHost' => 'Logstash',
                                                      "tag_prefix_t1" => "true",
                                                      "tag_prefix_t2" => "true",
                                                      "tag_prefix_t3" => "true",
@@ -139,6 +140,7 @@ describe LogStash::Outputs::Scalyr do
                                                      'seq' => 3,
                                                      'source_file' => 'my file 3',
                                                      'source_host' => 'my host 3',
+                                                     'serverHost' => 'Logstash',
                                                      "tags" => ["t1", "t2", "t3"],
                                                  })
       end
