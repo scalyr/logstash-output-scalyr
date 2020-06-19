@@ -110,6 +110,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   public
   def register
+    @node_hostname = Socket.gethostname
 
     if @log_constants and not @log_constants.all? { |x| x.is_a? String }
       raise LogStash::ConfigurationError, "All elements of 'log_constants' must be strings."
@@ -157,7 +158,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       # Note: Use strings rather than symbols for the key, because keys coming
       # from the config file will be strings
       unless @server_attributes.key? 'serverHost'
-        @server_attributes['serverHost'] = Socket.gethostname
+        @server_attributes['serverHost'] = @node_hostname
       end
     end
 
@@ -361,14 +362,18 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
       # Rename user-specified serverHost field -> 'serverHost'
       rename.call(@serverhost_field, 'serverHost')
-      record.delete(@serverhost_field)
 
       # Rename user-specified logfile field -> 'logfile'
       rename.call(@logfile_field, 'logfile')
-      record.delete(@logfile_field)
+
       # Set logfile field if empty and serverHost is supplied
       if record['logfile'].to_s.empty? and serverHost
         record['logfile'] = "/logstash/#{serverHost}"
+      end
+
+      # Set a default if no serverHost value is present.
+      if serverHost.nil?
+        record['serverHost'] = "Logstash"
       end
 
       log_identifier = nil
@@ -562,6 +567,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
     if !@last_status_transmit_time
       status_event[:attrs]['message'] = "Started Scalyr LogStash output plugin."
+      status_event[:attrs]['serverHost'] = @node_hostname
     else
       cur_time = Time.now()
       return if (cur_time.to_i - @last_status_transmit_time.to_i) < 300
@@ -575,6 +581,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         cnt += 1
       end
       status_event[:attrs]['message'] = msg
+      status_event[:attrs]['serverHost'] = @node_hostname
     end
     multi_event_request = create_multi_event_request([status_event], nil, nil)
     @client_session.post_add_events(multi_event_request[:body])
