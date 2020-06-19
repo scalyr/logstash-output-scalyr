@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apache-pool
+  namespace: loadgen
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apache
+  template:
+    metadata:
+      name: apache-worker
+      namespace: loadgen
+      labels:
+        app: apache
+      annotations:
+        # Set a parser for your app
+        log.config.scalyr.com/flog-telemetry.attributes.parser: "flogTelemetryParser"
+        log.config.scalyr.com/flog-load.exclude: "true"
+    spec:
+      containers:
+      - name: flog-load
+        image: 137797084791.dkr.ecr.us-east-1.amazonaws.com/scalyr-dev/loadgen/flog:v5
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            memory: 100Mi
+          requests:
+            cpu: 200m
+        command: ["/bin/flog"]
+        args: ["--loop", "--format", "apache_combined", "--delay", "0.2", "-g", "25"]
+
+        volumeMounts:
+        - name: flogtmp
+          mountPath: /tmp
+      - name: flog-telemetry
+        image: busybox
+        args: [/bin/sh, -c, 'while ! tail -n+1 -F /tmp/flog_status.log ; do sleep 1 ; done']
+        volumeMounts:
+        - name: flogtmp
+          mountPath: /tmp
+
+      volumes:
+      - name: flogtmp
+        emptyDir: {}
