@@ -562,6 +562,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
     if !@last_status_transmit_time
       status_event[:attrs]['message'] = "Started Scalyr LogStash output plugin."
+      status_event[:attrs]['serverHost'] = Socket.gethostname
     else
       cur_time = Time.now()
       return if (cur_time.to_i - @last_status_transmit_time.to_i) < 300
@@ -575,6 +576,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         cnt += 1
       end
       status_event[:attrs]['message'] = msg
+      status_event[:attrs]['serverHost'] = Socket.gethostname
     end
     multi_event_request = create_multi_event_request([status_event], nil, nil)
     @client_session.post_add_events(multi_event_request[:body])
