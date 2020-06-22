@@ -8,13 +8,11 @@ with os.popen('kubectl get pods -o wide -n logstash') as stream:
 pods_list = pods_string.split("\n")
 
 hosts_list = []
-i = 0
-for line in pods_list:
-    if i > 0 and line != "":
+for line in pods_list[1:]:
+    if line != "":
         pod_info = line.split()
         if pod_info[5] != "<none>":
             hosts_list.append('"%s:5044"' % pod_info[5])
-    i += 1
 
 beats_yaml = ""
 with open('k8s_yaml/beats.yaml', mode='r') as f:
