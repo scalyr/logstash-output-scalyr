@@ -120,6 +120,7 @@ describe LogStash::Outputs::Scalyr do
                                                      "tag_prefix_t1" => "true",
                                                      "tag_prefix_t2" => "true",
                                                      "tag_prefix_t3" => "true",
+                                                     "parser" => "logstashParser",
                                                  })
       end
     end
@@ -142,6 +143,7 @@ describe LogStash::Outputs::Scalyr do
                                                      'source_host' => 'my host 3',
                                                      'serverHost' => 'Logstash',
                                                      "tags" => ["t1", "t2", "t3"],
+                                                     "parser" => "logstashParser",
                                                  })
       end
     end
