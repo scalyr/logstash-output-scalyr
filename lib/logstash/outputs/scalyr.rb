@@ -366,6 +366,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       # Rename user-specified logfile field -> 'logfile'
       rename.call(@logfile_field, 'logfile')
 
+      # Set a default parser is none is present in the event
+      if record['parser'].to_s.empty?
+        record['parser'] = "logstashParser"
+      end
+
       # Set logfile field if empty and serverHost is supplied
       if record['logfile'].to_s.empty? and serverHost
         record['logfile'] = "/logstash/#{serverHost}"
