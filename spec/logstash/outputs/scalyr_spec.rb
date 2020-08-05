@@ -148,4 +148,44 @@ describe LogStash::Outputs::Scalyr do
       end
     end
   end
+
+  describe "#ssl_tests" do
+      context "test_default_ssl_certificates" do
+        it "throws no errors" do
+            expect {
+              plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234'})
+              plugin.register
+              plugin.multi_receive(sample_events)
+            }.to raise_error(Scalyr::Common::Client::ServerError)
+        end
+      end
+
+      context "test_hostname_verification" do
+        it "throws some errors" do
+          agent_scalyr_com_ip = `dig +short agent.scalyr.com 2> /dev/null | tail -n 1 | tr -d "\n"`
+          if agent_scalyr_com_ip.empty?
+            agent_scalyr_com_ip = `getent hosts agent.scalyr.com \
+            | awk '{ print $1 }' | tail -n 1 | tr -d "\n"`
+          end
+          mock_host = "invalid.mitm.should.fail.test.agent.scalyr.com"
+          etc_hosts_entry = "#{agent_scalyr_com_ip} #{mock_host}"
+          hosts_bkp = `sudo cat /etc/hosts`
+          hosts_bkp = hosts_bkp.chomp
+          # Add mock /etc/hosts entry and config scalyr_server entry
+          `echo "#{etc_hosts_entry}" | sudo tee -a /etc/hosts`
+
+          begin
+            expect {
+              plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'scalyr_server' => 'https://invalid.mitm.should.fail.test.agent.scalyr.com:443'})
+              plugin.register
+              plugin.multi_receive(sample_events)
+            }.to raise_error(OpenSSL::SSL::SSLError)
+          ensure
+            # Clean up the hosts file
+            `sudo truncate -s 0 /etc/hosts`
+            `echo "#{hosts_bkp}" | sudo tee -a /etc/hosts`
+          end
+        end
+      end
+  end
 end
