@@ -150,8 +150,8 @@ describe LogStash::Outputs::Scalyr do
   end
 
   describe "#ssl_tests" do
-      context "test_default_ssl_certificates" do
-        it "throws no errors" do
+      context "with default SSL configuration" do
+        it "throws a ServerError due to fake api key" do
             expect {
               plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234'})
               plugin.register
@@ -160,8 +160,36 @@ describe LogStash::Outputs::Scalyr do
         end
       end
 
-      context "test_hostname_verification" do
-        it "throws some errors" do
+      context "when pointing at a location without any valid certs and not using builtin" do
+        it "throws an SSLError" do
+            expect {
+              plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'ssl_ca_bundle_path' => '/fakepath/nocerts', 'append_builtin_cert' => false})
+              plugin.register
+              plugin.multi_receive(sample_events)
+            }.to raise_error(OpenSSL::SSL::SSLError)
+        end
+      end
+
+      context "when system certs are missing and not using builtin" do
+        it "throws an SSLError" do
+          `sudo mv #{OpenSSL::X509::DEFAULT_CERT_FILE} /tmp/system_cert.pem`
+          `sudo mv #{OpenSSL::X509::DEFAULT_CERT_DIR} /tmp/system_certs`
+
+          begin
+            expect {
+              plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'append_builtin_cert' => false})
+              plugin.register
+              plugin.multi_receive(sample_events)
+            }.to raise_error(OpenSSL::SSL::SSLError)
+          end
+          ensure
+            `sudo mv /tmp/system_certs #{OpenSSL::X509::DEFAULT_CERT_DIR}`
+            `sudo mv /tmp/system_cert.pem #{OpenSSL::X509::DEFAULT_CERT_FILE}`
+        end
+      end
+
+      context "when server hostname doesn't match the cert" do
+        it "throws an SSLError" do
           agent_scalyr_com_ip = `dig +short agent.scalyr.com 2> /dev/null | tail -n 1 | tr -d "\n"`
           if agent_scalyr_com_ip.empty?
             agent_scalyr_com_ip = `getent hosts agent.scalyr.com \
