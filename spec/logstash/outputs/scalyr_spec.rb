@@ -156,7 +156,7 @@ describe LogStash::Outputs::Scalyr do
               plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234'})
               plugin.register
               plugin.multi_receive(sample_events)
-            }.to raise_error(Scalyr::Common::Client::ServerError)
+            }.to raise_error(Scalyr::Common::Client::ServerError, "error/client/badParam")
         end
       end
 
@@ -166,7 +166,7 @@ describe LogStash::Outputs::Scalyr do
               plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'ssl_ca_bundle_path' => '/fakepath/nocerts', 'append_builtin_cert' => false})
               plugin.register
               plugin.multi_receive(sample_events)
-            }.to raise_error(OpenSSL::SSL::SSLError)
+            }.to raise_error(OpenSSL::SSL::SSLError, "certificate verify failed")
         end
       end
 
@@ -180,7 +180,7 @@ describe LogStash::Outputs::Scalyr do
               plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'append_builtin_cert' => false})
               plugin.register
               plugin.multi_receive(sample_events)
-            }.to raise_error(OpenSSL::SSL::SSLError)
+            }.to raise_error(OpenSSL::SSL::SSLError, "certificate verify failed")
           end
           ensure
             `sudo mv /tmp/system_certs #{OpenSSL::X509::DEFAULT_CERT_DIR}`
@@ -207,7 +207,7 @@ describe LogStash::Outputs::Scalyr do
               plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'scalyr_server' => 'https://invalid.mitm.should.fail.test.agent.scalyr.com:443'})
               plugin.register
               plugin.multi_receive(sample_events)
-            }.to raise_error(OpenSSL::SSL::SSLError)
+            }.to raise_error(OpenSSL::SSL::SSLError, "hostname \"invalid.mitm.should.fail.test.agent.scalyr.com\" does not match the server certificate")
           ensure
             # Clean up the hosts file
             `sudo truncate -s 0 /etc/hosts`

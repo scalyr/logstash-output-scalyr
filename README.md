@@ -301,7 +301,7 @@ This repo has been configured to run a full-cycle smoketest on CircleCI as follo
 This repo has unit tests that can be run by running:
 
 ```
-bundle exec rspec
+sudo bundle exec rspec
 ```
 
 in the root of the repo.
