@@ -7,7 +7,9 @@ jobs: # a collection of steps
       - checkout
       - run:
           name: Install bundler specified in Gemfile.lock
-          command: gem install bundler
+          command: |
+            gem update --system
+            gem install bundler -v "$(grep -A 1 "BUNDLED WITH" Gemfile.lock | tail -n 1)"
       - restore_cache:
           keys:
             - logstash-output-scalyr-{{ checksum "Gemfile.lock" }}
