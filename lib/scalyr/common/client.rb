@@ -227,7 +227,7 @@ class ClientSession
 
     post = Net::HTTP::Post.new uri_path
     post.add_field('Content-Type', 'application/json')
-    version = 'output-logstash-scalyr 0.1.5'
+    version = 'output-logstash-scalyr 0.1.6'
     post.add_field('User-Agent', version + ';' + RUBY_VERSION + ';' + RUBY_PLATFORM)
 
     if not encoding.nil?

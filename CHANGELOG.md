@@ -1,4 +1,7 @@
 # Beta
+## 0.1.6
+ - Allow for a customer delimiter when flattening values using the `flatten_nested_values_delimiter` configuration option
+
 ## 0.1.2
  - Remove special treatment of `origin` field in favor of `serverHost`
  - Change concurrency type to `single` to help guarantee one-time ordered delivery in Scalyr
