@@ -115,6 +115,12 @@ In the above example, the Logstash pipeline defines a file input that reads from
 
 ---
 
+- If set, this will change the delimiter used when concatenating nested keys
+
+`config :flatten_nested_values_delimiter, :validate => :string, :default => "_"`
+
+---
+
 - If true, the 'tags' field will be flattened into key-values where each key is a tag and each value is set to
  :flat_tag_value
 
