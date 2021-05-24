@@ -33,7 +33,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # The Scalyr API write token, these are available at https://www.scalyr.com/keys.  This is the only compulsory configuration field required for proper upload
   config :api_write_token, :validate => :string, :required => true
 
-  # If your Scalyr backend is located in other geographies (such as Europe which would use `https://agent.eu.scalyr.com/`), you may need to modify this
+  # If you have an EU-based Scalyr account, please use https://eu.scalyr.com/
   config :scalyr_server, :validate => :string, :default => "https://agent.scalyr.com/"
 
   # Path to SSL bundle file.
