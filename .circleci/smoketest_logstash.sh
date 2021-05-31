@@ -55,6 +55,7 @@ contname_verifier="ci-plugin-logstash-${CIRCLE_BUILD_NUM}-verifier"
 
 # Kill leftover containers
 function kill_and_delete_docker_test_containers() {
+    echo ""
     for cont in $contname_agent $contname_uploader $contname_verifier
     do
         if [[ -n `docker ps | grep $cont` ]]; then
@@ -64,6 +65,7 @@ function kill_and_delete_docker_test_containers() {
             docker rm $cont;
         fi
     done
+    echo ""
 }
 kill_and_delete_docker_test_containers
 echo `pwd`
@@ -119,7 +121,6 @@ bash -c "${smoketest_script} ${contname_uploader} ${max_wait} \
 # Capture uploader short container ID
 uploader_hostname=$(docker ps --format "{{.ID}}" --filter "name=$contname_uploader")
 echo "Uploader container ID == ${uploader_hostname}"
-
 
 #------------------------------------------------------------------------------------------------------------
 # Launch synchronous Verifier image
