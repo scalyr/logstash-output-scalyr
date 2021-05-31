@@ -224,6 +224,41 @@ class SmokeTestActor(object):
         self.verify_logs_uploaded()
         self.verify_status_event_emitted()
 
+    def verify_status_event_emitted(self):
+        def _query_scalyr_for_status_line_event():
+            resp = requests.get(
+                self._make_query_url(
+                    {
+                        "$hostname": self._localhostname,
+                    },
+                    message="plugin_status",
+                    override_log="scalyr_logstash.log",
+                )
+            )
+
+            if resp.ok:
+                data = json.loads(resp.content)
+                if "matches" not in data:
+                    return False
+                matches = data["matches"]
+                if len(matches) == 0:
+                    return False
+
+                message = matches[0]["message"]
+
+                if "total_requests_sent=" in message and "total_request_latency_secs=" in message:
+                    return True
+            return False
+
+        self.poll_until_max_wait(
+            _query_scalyr_for_status_line_event,
+            "Querying server to verify at least one status event has been emitted.",
+            "Status event verified",
+            "Status event not verified",
+            exit_on_success=False,
+            exit_on_fail=True,
+        )
+
     def _make_log_line(self, count, stream):
         """Return a line of text to be written to the log.  Don't include trailing newline
         Args:
@@ -486,40 +521,6 @@ class StandaloneSmokeTestActor(SmokeTestActor):
             "Querying server to verify monitored logfile was uploaded.",
             "Monitored logfile upload verified",
             "Monitored logfile upload not verified",
-            exit_on_success=False,
-            exit_on_fail=True,
-        )
-
-    def verify_status_event_emitted(self):
-        def _query_scalyr_for_status_line_event():
-            resp = requests.get(
-                self._make_query_url(
-                    {
-                        "$hostname": self._localhostname,
-                    },
-                    message="plugin_status"
-                )
-            )
-
-            if resp.ok:
-                data = json.loads(resp.content)
-                if "matches" not in data:
-                    return False
-                matches = data["matches"]
-                if len(matches) == 0:
-                    return False
-
-                message = matches[0]["message"]
-
-                if "total_requests_sent=" in message and "total_request_latency_secs=" in message:
-                    return True
-            return False
-
-        self.poll_until_max_wait(
-            _query_scalyr_for_monitored_log_upload,
-            "Querying server to verify at least one status event has been emitted.",
-            "Status event verified",
-            "Status event not verified",
             exit_on_success=False,
             exit_on_fail=True,
         )
