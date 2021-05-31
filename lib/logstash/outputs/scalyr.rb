@@ -104,6 +104,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # An int containing the compression level of compression to use, from 1-9. Defaults to 6
   config :compression_level, :validate => :number, :default => 6
 
+  # How often to log and report status metrics to Scalyr. Defaults to every 5
+  # minutes.
+  config :status_report_interval, :validate => :number, :default => 300
+
   def close
     @running = false
     @client_session.close if @client_session
@@ -581,7 +585,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       status_event[:attrs]['serverHost'] = @node_hostname
     else
       cur_time = Time.now()
-      return if (cur_time.to_i - @last_status_transmit_time.to_i) < 300
+      return if (cur_time.to_i - @last_status_transmit_time.to_i) < @status_report_interval
       # echee TODO: get instance stats from session and create a status log line
       msg = 'plugin_status: '
       cnt = 0
