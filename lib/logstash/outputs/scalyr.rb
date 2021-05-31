@@ -580,7 +580,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       status_event[:attrs]['message'] = "Started Scalyr LogStash output plugin."
       status_event[:attrs]['serverHost'] = @node_hostname
     else
-      puts @client_session.get_stats
       cur_time = Time.now()
       return if (cur_time.to_i - @last_status_transmit_time.to_i) < 300
       # echee TODO: get instance stats from session and create a status log line
