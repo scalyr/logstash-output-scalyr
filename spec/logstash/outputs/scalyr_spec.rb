@@ -6,6 +6,35 @@ require "logstash/event"
 require "json"
 
 
+class MockClientSession
+  DEFAULT_STATS = {
+    :total_requests_sent => 20,
+    :total_requests_failed => 10,
+    :total_request_bytes_sent => 100,
+    :total_compressed_request_bytes_sent => 50,
+    :total_response_bytes_received => 100,
+    :total_request_latency_secs => 100,
+    :total_connections_created => 10,
+    :total_serialization_duration => 100.5,
+    :total_compression_duration => 10.20,
+    :compression_type => "deflate",
+    :compression_level => 9,
+  }
+
+  def initialize(stats = DEFAULT_STATS)
+    @stats = stats
+    @sent_events = []
+  end
+
+  def get_stats
+    @stats.clone
+  end
+
+  def post_add_events(body, body_serialization_duration = 0)
+    @sent_events << body
+  end
+end
+
 
 describe LogStash::Outputs::Scalyr do
   let(:sample_events) {
@@ -23,6 +52,36 @@ describe LogStash::Outputs::Scalyr do
   }
 
   describe "#build_multi_event_request_array" do
+
+    context "test get_stats and send_status" do
+      plugin = LogStash::Outputs::Scalyr.new({
+                                                     'api_write_token' => '1234',
+                                                     'serverhost_field' => 'source_host',
+                                                     'log_constants' => ['tags'],
+                                                 })
+
+      mock_client_session = MockClientSession.new
+
+      it "returns correct stats on get_stats" do
+        stats = mock_client_session.get_stats
+        expect(stats[:total_requests_sent]).to eq(20)
+      end
+
+      it "returns and sends correct status event on send_stats on initial and subsequent send" do
+        # 1. Initial send
+        plugin.instance_variable_set(:@last_status_transmit_time, nil)
+        plugin.instance_variable_set(:@client_session, mock_client_session)
+        status_event = plugin.send_status
+        expect(status_event[:attrs]["message"]).to eq("Started Scalyr LogStash output plugin.")
+
+        # 2. Second send
+        plugin.instance_variable_set(:@last_status_transmit_time, 100)
+        plugin.instance_variable_set(:@client_session, mock_client_session)
+        status_event = plugin.send_status
+        puts
+        expect(status_event[:attrs]["message"]).to eq("plugin_status: total_requests_sent=20, total_requests_failed=10, total_request_bytes_sent=100, total_compressed_request_bytes_sent=50, total_response_bytes_received=100, total_request_latency_secs=100, total_connections_created=10, total_serialization_duration=100.5, total_compression_duration=10.2, compression_type=deflate, compression_level=9")
+      end
+    end
 
     context "when a field is configured as a log attribute" do
       it "creates logfile from serverHost" do
