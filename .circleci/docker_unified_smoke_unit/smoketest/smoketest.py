@@ -228,10 +228,9 @@ class SmokeTestActor(object):
         def _query_scalyr_for_status_line_event():
             resp = requests.get(
                 self._make_query_url(
-                    {
-                        "$hostname": self._localhostname,
-                    },
+                    {},
                     message="plugin_status",
+                    override_serverHost=self._agent_hostname,
                     override_log="scalyr_logstash.log",
                 )
             )
@@ -246,8 +245,32 @@ class SmokeTestActor(object):
 
                 message = matches[0]["message"]
 
-                if "total_requests_sent=" in message and "total_request_latency_secs=" in message:
-                    return True
+                if not message:
+                    print("Event \"message\" field is empty")
+                    return False
+
+                print("Event \"message\" field value: %s" % (message))
+
+                split = message.strip().split(" ")[1:]
+
+                metrics = {}
+                for item in split:
+                    key, value = item.strip().replace(",", "").split("=")
+                    try:
+                        metrics[key] = float(value)
+                    except Exception:
+                        metrics[key] = value
+
+                print("Found status line metrics: %s" % (metrics))
+
+                return all([
+                    metrics.get("total_requests_sent"),
+                    metrics.get("total_request_latency_secs"),
+                    metrics.get("compression_level"),
+                    metrics.get("total_requests_sent") >= 1,
+                    metrics.get("total_request_bytes_sent") >= 10,
+                ])
+
             return False
 
         self.poll_until_max_wait(
