@@ -158,7 +158,6 @@ In the above example, the Logstash pipeline defines a file input that reads from
 
 # Conceptual Overview
 
-
 ## Persistence
 
 Logstash itself supports [Persistent Queues](https://www.elastic.co/guide/en/logstash/current/persistent-queues.html) with at-least-once delivery semantics.  It expects output plugins to retry uploads until success or else to write failures into a Dead-Letter Queue (DLQ). Since Logstash offers Persistent Queues, the Scalyr plugin does not perform its own buffering or persistence.  More specifically, invocation of `multi_receive` is synchronously retried until success or written to the DLQ upon failure.  Note: the `multi_receive` interface does not provide a feedback mechanism (outcome codes etc).
@@ -311,6 +310,16 @@ sudo bundle exec rspec
 ```
 
 in the root of the repo.
+
+By default this will run all the tests (including integration ones which require sudo access and
+may not pass everywhere).
+
+If you want to run just the unit tests, you can run the command displayed below.
+
+
+```bash
+bundle exec rspec spec/logstash/outputs/scalyr_spec.rb spec/scalyr/common/util_spec.rb
+```
 
 # Releasing
 
