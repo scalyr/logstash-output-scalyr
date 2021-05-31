@@ -116,6 +116,12 @@ class ClientSession
         # can be calculated by dividing this number by @total_requests_sent).
         # This includes connection establishment time.
         :total_connections_created => 0, # The total number of HTTP connections successfully created.
+        :total_serialization_duration => 0, # The total duration (in seconds) it took to serialize (JSON dumos) all the request bodies.
+        # You can calculate avg compression duration by diving this value with total_requests_sent
+        :total_compression_duration => 0, # The total duration (in seconds) it took to compress all the request bodies.
+        # You can calculate avg compression duration by diving this value with total_requests_sent
+        :compression_type => @compression_type,
+        :compression_level => @compression_level,
     }
 
     @http = Net::HTTP::Persistent.new
@@ -151,8 +157,8 @@ class ClientSession
 
 
   # Upload data to Scalyr. Assumes that the body size complies with Scalyr limits
-  def post_add_events(body)
-    post = prepare_post_object @add_events_uri.path, body
+  def post_add_events(body, body_serialization_duration = 0)
+    post, compression_duration = prepare_post_object @add_events_uri.path, body
     fail_count = 1  # putative assume failure
     start_time = Time.now
     uncompressed_bytes_sent = 0
@@ -193,6 +199,8 @@ class ClientSession
         @stats[:total_response_bytes_received] += bytes_received
         end_time = Time.now
         @stats[:total_request_latency_secs] += (end_time - start_time)
+        @stats[:total_serialization_duration] += body_serialization_duration
+        @stats[:total_compression_duration] += compression_duration
       end
 
     end
@@ -211,7 +219,9 @@ class ClientSession
   def prepare_post_object(uri_path, body)
     # use compression if enabled
     encoding = nil
+    compression_duration = 0
     if @compression_type
+      start_time = Time.now.to_f
       if @compression_type == 'deflate'
         encoding = 'deflate'
         compressed_body = Zlib::Deflate.deflate(body, @compression_level)
@@ -223,6 +233,8 @@ class ClientSession
         bz2.close
         compressed_body = io.string
       end
+      end_time = Time.now.to_f
+      compression_duration = end_time - start_time
     end
 
     post = Net::HTTP::Post.new uri_path
@@ -236,7 +248,7 @@ class ClientSession
     else
       post.body = body
     end
-    post
+    return post, compression_duration
   end  # def prepare_post_object
 
 

@@ -548,7 +548,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     # add serverAttributes
     body[:sessionInfo] = @server_attributes if @server_attributes
 
-    { :body => body.to_json, :record_count => scalyr_events.size }
+    # We time serialization to get some insight on how long it takes to serialize the request body
+    start_time = Time.now.to_f
+    serialized_body = body.to_json
+    end_time = Time.now.to_f
+    serialization_duration = end_time - start_time
+    { :body => serialized_body, :record_count => scalyr_events.size, :serialization_duration => serialization_duration }
 
   end  # def create_multi_event_request
 
@@ -575,6 +580,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       status_event[:attrs]['message'] = "Started Scalyr LogStash output plugin."
       status_event[:attrs]['serverHost'] = @node_hostname
     else
+      puts @client_session.get_stats
       cur_time = Time.now()
       return if (cur_time.to_i - @last_status_transmit_time.to_i) < 300
       # echee TODO: get instance stats from session and create a status log line
@@ -590,8 +596,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       status_event[:attrs]['serverHost'] = @node_hostname
     end
     multi_event_request = create_multi_event_request([status_event], nil, nil)
-    @client_session.post_add_events(multi_event_request[:body])
+    @client_session.post_add_events(multi_event_request[:body], multi_event_request[:serialization_duration])
     @last_status_transmit_time = Time.now()
+    status_event
   end
 
 
