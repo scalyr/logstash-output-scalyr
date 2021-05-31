@@ -15,8 +15,8 @@ class MockClientSession
     :total_response_bytes_received => 100,
     :total_request_latency_secs => 100,
     :total_connections_created => 10,
-    :total_serialization_duration => 100.5,
-    :total_compression_duration => 10.20,
+    :total_serialization_duration_secs => 100.5,
+    :total_compression_duration_secs => 10.20,
     :compression_type => "deflate",
     :compression_level => 9,
   }
@@ -79,7 +79,7 @@ describe LogStash::Outputs::Scalyr do
         plugin.instance_variable_set(:@client_session, mock_client_session)
         status_event = plugin.send_status
         puts
-        expect(status_event[:attrs]["message"]).to eq("plugin_status: total_requests_sent=20, total_requests_failed=10, total_request_bytes_sent=100, total_compressed_request_bytes_sent=50, total_response_bytes_received=100, total_request_latency_secs=100, total_connections_created=10, total_serialization_duration=100.5, total_compression_duration=10.2, compression_type=deflate, compression_level=9")
+        expect(status_event[:attrs]["message"]).to eq("plugin_status: total_requests_sent=20, total_requests_failed=10, total_request_bytes_sent=100, total_compressed_request_bytes_sent=50, total_response_bytes_received=100, total_request_latency_secs=100, total_connections_created=10, total_serialization_duration_secs=100.5, total_compression_duration_secs=10.2, compression_type=deflate, compression_level=9")
       end
     end
 
@@ -95,7 +95,6 @@ describe LogStash::Outputs::Scalyr do
         result = plugin.build_multi_event_request_array(sample_events)
         body = JSON.parse(result[0][:body])
         expect(body['events'].size).to eq(3)
-        attrs2 = body['events'][2]['attrs']
         logattrs2 = body['logs'][2]['attrs']
         expect(logattrs2.fetch('serverHost', nil)).to eq('my host 3')
         expect(logattrs2.fetch('logfile', nil)).to eq('/logstash/my host 3')
@@ -126,7 +125,6 @@ describe LogStash::Outputs::Scalyr do
         result = plugin.build_multi_event_request_array(sample_events)
         body = JSON.parse(result[0][:body])
         expect(body['events'].size).to eq(3)
-        attrs2 = body['events'][2]['attrs']
         logattrs2 = body['logs'][2]['attrs']
         expect(logattrs2.fetch('serverHost', nil)).to eq('my host 3')
         expect(logattrs2.fetch('logfile', nil)).to eq('/logstash/my host 3')
@@ -145,7 +143,6 @@ describe LogStash::Outputs::Scalyr do
         result = plugin.build_multi_event_request_array(sample_events)
         body = JSON.parse(result[0][:body])
         expect(body['events'].size).to eq(3)
-        attrs2 = body['events'][2]['attrs']
         logattrs2 = body['logs'][2]['attrs']
         expect(logattrs2.fetch('serverHost', nil)).to eq('my host 3')
         expect(logattrs2.fetch('logfile', nil)).to eq('my file 3')

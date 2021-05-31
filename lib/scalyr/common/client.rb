@@ -116,9 +116,9 @@ class ClientSession
         # can be calculated by dividing this number by @total_requests_sent).
         # This includes connection establishment time.
         :total_connections_created => 0, # The total number of HTTP connections successfully created.
-        :total_serialization_duration => 0, # The total duration (in seconds) it took to serialize (JSON dumos) all the request bodies.
+        :total_serialization_duration_secs => 0, # The total duration (in seconds) it took to serialize (JSON dumos) all the request bodies.
         # You can calculate avg compression duration by diving this value with total_requests_sent
-        :total_compression_duration => 0, # The total duration (in seconds) it took to compress all the request bodies.
+        :total_compression_duration_secs => 0, # The total duration (in seconds) it took to compress all the request bodies.
         # You can calculate avg compression duration by diving this value with total_requests_sent
         :compression_type => @compression_type,
         :compression_level => @compression_level,
@@ -199,8 +199,8 @@ class ClientSession
         @stats[:total_response_bytes_received] += bytes_received
         end_time = Time.now
         @stats[:total_request_latency_secs] += (end_time - start_time)
-        @stats[:total_serialization_duration] += body_serialization_duration
-        @stats[:total_compression_duration] += compression_duration
+        @stats[:total_serialization_duration_secs] += body_serialization_duration
+        @stats[:total_compression_duration_secs] += compression_duration
       end
 
     end
