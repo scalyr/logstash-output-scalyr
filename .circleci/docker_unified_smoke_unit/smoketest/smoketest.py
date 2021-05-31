@@ -508,7 +508,11 @@ class StandaloneSmokeTestActor(SmokeTestActor):
                 matches = data["matches"]
                 if len(matches) == 0:
                     return False
-                return True
+
+                message = matches[0]["message"]
+
+                if "total_requests_sent=" in message and "total_request_latency_secs=" in message:
+                    return True
             return False
 
         self.poll_until_max_wait(
