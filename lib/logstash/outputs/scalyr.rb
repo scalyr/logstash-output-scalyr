@@ -610,7 +610,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   def should_transmit_status?
     @last_status_transmit_time_lock.synchronize do
       saved_last_time = @last_status_transmit_time
-      if Time.now.to_i - saved_last_time.to_i > 300
+      if Time.now.to_i - saved_last_time.to_i > @status_report_interval
         @last_status_transmit_time = Float::INFINITY
         return saved_last_time
       end
