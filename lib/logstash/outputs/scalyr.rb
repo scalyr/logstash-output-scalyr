@@ -232,9 +232,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
       rescue OpenSSL::SSL::SSLError => e
         # cannot rely on exception message, so we always log the following warning
-        @logger.error "SSL certificate verification failed.  "
-        "Please make sure your certificate bundle is configured correctly and points to a valid file.  "
-        "You can configure this with the ssl_ca_bundle_path configuration option.  "
+        @logger.error "SSL certificate verification failed.  " +
+        "Please make sure your certificate bundle is configured correctly and points to a valid file.  " +
+        "You can configure this with the ssl_ca_bundle_path configuration option.  " +
         "The current value of ssl_ca_bundle_path is '#{@ssl_ca_bundle_path}'"
         @logger.error e.message
         @logger.error "Discarding buffer chunk without retrying."
@@ -344,8 +344,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         if standard_field != renamed_field
           if record.key? renamed_field
             if record.key? standard_field
-              @logger.warn "Overwriting log record field '#{standard_field}'.  You are seeing this warning because in "
-              "your LogStash config file you have configured the '#{renamed_field}' field to be converted to the "
+              @logger.warn "Overwriting log record field '#{standard_field}'.  You are seeing this warning because in " +
+              "your LogStash config file you have configured the '#{renamed_field}' field to be converted to the " +
               "'#{standard_field}' field, but the event already contains a field called '#{standard_field}' and "
               "this is now being overwritten."
             end
