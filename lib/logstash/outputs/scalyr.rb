@@ -614,6 +614,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     # requests so we can subtract that from total request count when calculating
     # averages. Even better, in addition to that, we should also record
     # percentiles.
+    # Technically we could still approximate number of status requests for a
+    # specific time period since we know how often those are sent (every 5
+    # minutes by default), but we still track latency and other metrics for
+    # status requests so this doesn't help us all that much.
     multi_event_request = create_multi_event_request([status_event], nil, nil, nil)
     @client_session.post_add_events(multi_event_request[:body], 0, 0)
     @last_status_transmit_time = Time.now()
