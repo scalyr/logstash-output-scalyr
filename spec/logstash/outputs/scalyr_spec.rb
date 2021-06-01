@@ -31,8 +31,8 @@ class MockClientSession
     @stats.clone
   end
 
-  def post_add_events(body, body_serialization_duration = 0)
-    @sent_events << body
+  def post_add_events(body, body_serialization_duration = 0, flatten_nested_values_duration = 0)
+    @sent_events << { :body => body, :body_serialization_duration => body_serialization_duration, :flatten_nested_values_duration => flatten_nested_values_duration }
   end
 end
 
