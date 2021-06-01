@@ -120,6 +120,9 @@ class ClientSession
         # You can calculate avg compression duration by diving this value with total_requests_sent
         :total_compression_duration_secs => 0, # The total duration (in seconds) it took to compress all the request bodies.
         # You can calculate avg compression duration by diving this value with total_requests_sent
+        :total_flatten_values_duration_secs => 0, # The total duration (in seconds) it took to flatten nested record values.
+        # In case flattening is disabled, this value will always be 0. Can infer average per-request value by dividing this
+        # value by total_requests_sent
         :compression_type => @compression_type,
         :compression_level => @compression_level,
     }
@@ -157,7 +160,7 @@ class ClientSession
 
 
   # Upload data to Scalyr. Assumes that the body size complies with Scalyr limits
-  def post_add_events(body, body_serialization_duration = 0)
+  def post_add_events(body, body_serialization_duration = 0, flatten_nested_values_duration = 0)
     post, compression_duration = prepare_post_object @add_events_uri.path, body
     fail_count = 1  # putative assume failure
     start_time = Time.now
@@ -200,6 +203,7 @@ class ClientSession
         end_time = Time.now
         @stats[:total_request_latency_secs] += (end_time - start_time)
         @stats[:total_serialization_duration_secs] += body_serialization_duration
+        @stats[:total_flatten_values_duration_secs] =+ flatten_nested_values_duration
         @stats[:total_compression_duration_secs] += compression_duration
       end
 

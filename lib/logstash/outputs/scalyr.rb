@@ -225,7 +225,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         # For some reason a retry on the multi_receive may result in the request array containing `nil` elements, we
         # ignore these.
         if !multi_event_request.nil?
-          @client_session.post_add_events(multi_event_request[:body])
+          @client_session.post_add_events(multi_event_request[:body], multi_event_request[:serialization_duration, multi_event_request[:flatten_nested_values_duration]])
           sleep_interval = 0
           result.push(multi_event_request)
         end
@@ -315,6 +315,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     logs = Hash.new
     logs_ids = Hash.new
     next_log_id = 1
+
+    flatten_nested_values_duration = 0
 
     logstash_events.each {|l_event|
 
@@ -430,7 +432,14 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       end
 
       # flatten record
-      record = Scalyr::Common::Util.flatten(record, delimiter=@flatten_nested_values_delimiter) if @flatten_nested_values
+      flatten_nested_values_duration = 0
+
+      if @flatten_nested_values
+        start_time = Time.now.to_f
+        record = Scalyr::Common::Util.flatten(record, delimiter=@flatten_nested_values_delimiter) if @flatten_nested_values
+        end_time = Time.now.to_f
+        flatten_nested_values_duration = end_time - start_time
+      end
 
       # Use LogStash event.timestamp as the 'ts' Scalyr timestamp.  Note that this may be overwritten by input
       # filters so may not necessarily reflect the actual originating timestamp.
@@ -481,7 +490,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           scalyr_events << scalyr_event
           append_event = false
         end
-        multi_event_request = self.create_multi_event_request(scalyr_events, current_threads, logs)
+        multi_event_request = self.create_multi_event_request(scalyr_events, current_threads, logs, flatten_nested_values_duration)
         multi_event_request_array << multi_event_request
 
         total_bytes = 0
@@ -501,7 +510,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     }
 
     # create a final request with any left over events
-    multi_event_request = self.create_multi_event_request(scalyr_events, current_threads, logs)
+    multi_event_request = self.create_multi_event_request(scalyr_events, current_threads, logs, flatten_nested_values_duration)
     multi_event_request_array << multi_event_request
     multi_event_request_array
   end
@@ -521,7 +530,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # A request comprises multiple Scalyr Events.  This function creates a request hash for
   # final upload to Scalyr (from an array of events, and an optional hash of current threads)
   # Note: The request body field will be json-encoded.
-  def create_multi_event_request(scalyr_events, current_threads, current_logs)
+  def create_multi_event_request(scalyr_events, current_threads, current_logs, flatten_nested_values_duration = 0)
 
     body = {
       :session => @session_id,
@@ -557,7 +566,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     serialized_body = body.to_json
     end_time = Time.now.to_f
     serialization_duration = end_time - start_time
-    { :body => serialized_body, :record_count => scalyr_events.size, :serialization_duration => serialization_duration }
+    { :body => serialized_body, :record_count => scalyr_events.size, :serialization_duration => serialization_duration,
+      :flatten_nested_values_duration => flatten_nested_values_duration }
 
   end  # def create_multi_event_request
 
@@ -598,8 +608,14 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       status_event[:attrs]['message'] = msg
       status_event[:attrs]['serverHost'] = @node_hostname
     end
-    multi_event_request = create_multi_event_request([status_event], nil, nil)
-    @client_session.post_add_events(multi_event_request[:body], multi_event_request[:serialization_duration])
+    # TODO: We shouldn't include metrics for status requests or should include
+    # them separately otherwise they will skew averages for other metrics for
+    # data requests. One option is to have a additional counter for status
+    # requests so we can subtract that from total request count when calculating
+    # averages. Even better, in addition to that, we should also record
+    # percentiles.
+    multi_event_request = create_multi_event_request([status_event], nil, nil, nil)
+    @client_session.post_add_events(multi_event_request[:body], 0, 0)
     @last_status_transmit_time = Time.now()
     status_event
   end
