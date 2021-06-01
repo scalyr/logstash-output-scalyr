@@ -266,7 +266,10 @@ class SmokeTestActor(object):
                 return all([
                     metrics.get("total_requests_sent"),
                     metrics.get("total_request_latency_secs"),
+                    metrics.get("total_response_bytes_received"),
                     metrics.get("compression_level"),
+                    metrics.get("compression_type") == "deflate",
+                    metrics.get("total_response_bytes_received") >= 10,
                     metrics.get("total_requests_sent") >= 1,
                     metrics.get("total_request_bytes_sent") >= 10,
                 ])
