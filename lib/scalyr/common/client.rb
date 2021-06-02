@@ -162,10 +162,16 @@ class ClientSession
     values_sorted = values.sort
     results = []
     for percentile in percentiles
-      k = (percentile*(values_sorted.length-1)+1).floor - 1
-      f = (percentile*(values_sorted.length-1)+1).modulo(1)
+      if values_sorted.length == 0
+        results.append(0)
+      elsif values_sorted.length == 1
+        results.append(values_sorted[0])
+      else
+        k = (percentile*(values_sorted.length-1)+1).floor - 1
+        f = (percentile*(values_sorted.length-1)+1).modulo(1)
 
-      results.append(values_sorted[k] + (f * (values_sorted[k+1] - values_sorted[k])))
+        results.append(values_sorted[k] + (f * (values_sorted[k+1] - values_sorted[k])))
+      end
     end
     results
   end
@@ -176,10 +182,22 @@ class ClientSession
   def get_stats
     current_stats = @stats.clone
 
-    current_stats[:request_latency_p50_p90_p99] = calculate_percentiles(@latency_stats[:request_latency_secs], [0.5, 0.9, 0.99])
-    current_stats[:serialization_duration_p50_p90_p99] = calculate_percentiles(@latency_stats[:serialization_duration_secs], [0.5, 0.9, 0.99])
-    current_stats[:flatten_values_duration_p50_p90_p99] = calculate_percentiles(@latency_stats[:flatten_values_duration_secs], [0.5, 0.9, 0.99])
-    current_stats[:compression_duration_p50_p90_p99] = calculate_percentiles(@latency_stats[:compression_duration_secs], [0.5, 0.9, 0.99])
+    request_latency = calculate_percentiles(@latency_stats[:request_latency_secs], [0.5, 0.9, 0.99])
+    current_stats[:request_latency_p50] = request_latency[0]
+    current_stats[:request_latency_p90] = request_latency[1]
+    current_stats[:request_latency_p99] = request_latency[2]
+    request_latency = calculate_percentiles(@latency_stats[:serialization_duration_secs], [0.5, 0.9, 0.99])
+    current_stats[:serialization_duration_secs_p50] = request_latency[0]
+    current_stats[:serialization_duration_secs_p90] = request_latency[1]
+    current_stats[:serialization_duration_secs_p99] = request_latency[2]
+    request_latency = calculate_percentiles(@latency_stats[:flatten_values_duration_secs], [0.5, 0.9, 0.99])
+    current_stats[:flatten_values_duration_secs_p50] = request_latency[0]
+    current_stats[:flatten_values_duration_secs_p90] = request_latency[1]
+    current_stats[:flatten_values_duration_secs_p99] = request_latency[2]
+    request_latency = calculate_percentiles(@latency_stats[:compression_duration_secs], [0.5, 0.9, 0.99])
+    current_stats[:compression_duration_secs_p50] = request_latency[0]
+    current_stats[:compression_duration_secs_p90] = request_latency[1]
+    current_stats[:compression_duration_secs_p99] = request_latency[2]
     @latency_stats = @base_latency_stats.clone
 
     current_stats
@@ -222,7 +240,7 @@ class ClientSession
       raise ClientError.new(e.message, @add_events_uri)
 
     ensure
-      if @record_stats_for_status or not is_status
+      if @record_stats_for_status or !is_status
         @stats_lock.synchronize do
           @stats[:total_requests_sent] += 1
           @stats[:total_requests_failed] += fail_count

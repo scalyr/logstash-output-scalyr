@@ -303,6 +303,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Tags are either propagated as a comma-separated string, or optionally transposed into key-values where the keys
   # are tag names and the values are 1 (may be configured.)
   def build_multi_event_request_array(logstash_events)
+    if logstash_events.nil? or logstash_events.empty?
+     return []
+    end
 
     multi_event_request_array = Array.new
     total_bytes = 0
@@ -603,7 +606,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       msg = 'plugin_status: '
       cnt = 0
       @client_session.get_stats.each do |k, v|
-        val = v.instance_of?(Float) ? sprintf("%.1f", v) : v
+        val = v.instance_of?(Float) ? sprintf("%.3f", v) : v
         msg << ', ' if cnt > 0
         msg << "#{k.to_s}=#{val}"
         cnt += 1

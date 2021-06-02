@@ -95,6 +95,14 @@ describe LogStash::Outputs::Scalyr do
       it "returns correct values on calculate_percentiles" do
         expect(client_session.calculate_percentiles([2.5, 2.5, 0.1, 3, 100], [0.5, 0.9, 0.95])).to eq([2.5, 61.19999999999997, 80.59999999999998])
       end
+
+      it "returns zero on calculate_percentiles with no values" do
+        expect(client_session.calculate_percentiles([], [0.5, 0.9, 0.95])).to eq([0, 0, 0])
+      end
+
+      it "returns the one value calculate_percentiles with one value" do
+        expect(client_session.calculate_percentiles([2.5], [0.5, 0.9, 0.95])).to eq([2.5, 2.5, 2.5])
+      end
     end
 
     context "when a field is configured as a log attribute" do
