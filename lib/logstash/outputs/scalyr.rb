@@ -108,6 +108,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # minutes.
   config :status_report_interval, :validate => :number, :default => 300
 
+  # Whether or not to count status event uploads in the statistics such as request latency etc.
+  config :record_stats_for_status, :validate => :boolean, :default => false
+
   def close
     @running = false
     @client_session.close if @client_session
@@ -187,7 +190,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         @logger, @add_events_uri,
         @compression_type, @compression_level,
         @ssl_verify_peer, @ssl_ca_bundle_path, @ssl_verify_depth,
-        @append_builtin_cert
+        @append_builtin_cert, @record_stats_for_status
     )
 
     @logger.info("Started Scalyr output plugin", :class => self.class.name)
@@ -225,7 +228,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         # For some reason a retry on the multi_receive may result in the request array containing `nil` elements, we
         # ignore these.
         if !multi_event_request.nil?
-          @client_session.post_add_events(multi_event_request[:body], multi_event_request[:serialization_duration], multi_event_request[:flatten_nested_values_duration])
+          @client_session.post_add_events(multi_event_request[:body], false, multi_event_request[:serialization_duration], multi_event_request[:flatten_nested_values_duration])
           sleep_interval = 0
           result.push(multi_event_request)
         end
@@ -619,7 +622,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     # minutes by default), but we still track latency and other metrics for
     # status requests so this doesn't help us all that much.
     multi_event_request = create_multi_event_request([status_event], nil, nil, nil)
-    @client_session.post_add_events(multi_event_request[:body], 0, 0)
+    @client_session.post_add_events(multi_event_request[:body], true, 0, 0)
     @last_status_transmit_time = Time.now()
     status_event
   end

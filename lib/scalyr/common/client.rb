@@ -52,7 +52,8 @@ end
 class ClientSession
 
   def initialize(logger, add_events_uri, compression_type, compression_level,
-                 ssl_verify_peer, ssl_ca_bundle_path, ssl_verify_depth, append_builtin_cert)
+                 ssl_verify_peer, ssl_ca_bundle_path, ssl_verify_depth, append_builtin_cert,
+                 record_stats_for_status)
     @logger = logger
     @add_events_uri = add_events_uri  # typically /addEvents
     @compression_type = compression_type
@@ -61,6 +62,7 @@ class ClientSession
     @ssl_ca_bundle_path = ssl_ca_bundle_path
     @append_builtin_cert = append_builtin_cert
     @ssl_verify_depth = ssl_verify_depth
+    @record_stats_for_status = record_stats_for_status
 
     # A cert to use by default to avoid issues caused by the OpenSSL library not validating certs according to standard
     @cert_string = "" \
@@ -160,7 +162,7 @@ class ClientSession
 
 
   # Upload data to Scalyr. Assumes that the body size complies with Scalyr limits
-  def post_add_events(body, body_serialization_duration = 0, flatten_nested_values_duration = 0)
+  def post_add_events(body, is_status, body_serialization_duration = 0, flatten_nested_values_duration = 0)
     post, compression_duration = prepare_post_object @add_events_uri.path, body
     fail_count = 1  # putative assume failure
     start_time = Time.now
@@ -194,19 +196,20 @@ class ClientSession
       raise ClientError.new(e.message, @add_events_uri)
 
     ensure
-      @stats_lock.synchronize do
-        @stats[:total_requests_sent] += 1
-        @stats[:total_requests_failed] += fail_count
-        @stats[:total_request_bytes_sent] += uncompressed_bytes_sent
-        @stats[:total_compressed_request_bytes_sent] += compressed_bytes_sent
-        @stats[:total_response_bytes_received] += bytes_received
-        end_time = Time.now
-        @stats[:total_request_latency_secs] += (end_time - start_time)
-        @stats[:total_serialization_duration_secs] += body_serialization_duration
-        @stats[:total_flatten_values_duration_secs] =+ flatten_nested_values_duration
-        @stats[:total_compression_duration_secs] += compression_duration
+      if @record_stats_for_status or not is_status
+        @stats_lock.synchronize do
+          @stats[:total_requests_sent] += 1
+          @stats[:total_requests_failed] += fail_count
+          @stats[:total_request_bytes_sent] += uncompressed_bytes_sent
+          @stats[:total_compressed_request_bytes_sent] += compressed_bytes_sent
+          @stats[:total_response_bytes_received] += bytes_received
+          end_time = Time.now
+          @stats[:total_request_latency_secs] += (end_time - start_time)
+          @stats[:total_serialization_duration_secs] += body_serialization_duration
+          @stats[:total_flatten_values_duration_secs] =+ flatten_nested_values_duration
+          @stats[:total_compression_duration_secs] += compression_duration
+        end
       end
-
     end
   end  # def post_request
 
