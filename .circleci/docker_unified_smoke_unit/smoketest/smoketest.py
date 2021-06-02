@@ -242,7 +242,7 @@ class SmokeTestActor(object):
                 matches = data["matches"]
                 if len(matches) == 0:
                     return False
-
+                print("%s matches found" % len(matches))
                 message = matches[len(matches) - 1]["message"]
 
                 if not message:
