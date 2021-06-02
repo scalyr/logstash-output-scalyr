@@ -84,6 +84,19 @@ describe LogStash::Outputs::Scalyr do
       end
     end
 
+    context "test get_stats calculation" do
+      client_session = Scalyr::Common::Client::ClientSession.new(
+        nil, nil,
+        nil, nil,
+        nil, nil, nil,
+        nil, nil
+      )
+
+      it "returns correct values on calculate_percentiles" do
+        expect(client_session.calculate_percentiles([2.5, 2.5, 0.1, 3, 100], [0.5, 0.9, 0.95])).to eq([2.5, 61.19999999999997, 80.59999999999998])
+      end
+    end
+
     context "when a field is configured as a log attribute" do
       it "creates logfile from serverHost" do
         plugin = LogStash::Outputs::Scalyr.new({

@@ -108,23 +108,27 @@ class ClientSession
 
     # Request statistics are accumulated across multiple threads and must be accessed through a mutex
     @stats_lock = Mutex.new
+    @base_latency_stats = {
+      # The total number of HTTP connections successfully created.
+      :serialization_duration_secs => [], # The total duration (in seconds) it took to serialize (JSON dumos) all the request bodies.
+      # You can calculate avg compression duration by diving this value with total_requests_sent
+      :compression_duration_secs => [], # The total duration (in seconds) it took to compress all the request bodies.
+      # You can calculate avg compression duration by diving this value with total_requests_sent
+      :flatten_values_duration_secs => [], # The total duration (in seconds) it took to flatten nested record values.
+      # In case flattening is disabled, this value will always be 0. Can infer average per-request value by dividing this
+      # value by total_requests_sent
+      :request_latency_secs => [], #  The total number of secs spent waiting for a responses (so average latency
+      # can be calculated by dividing this number by @total_requests_sent).
+      # This includes connection establishment time.
+    }
+    @latency_stats = @base_latency_stats.clone
     @stats = {
         :total_requests_sent => 0, # The total number of RPC requests sent.
         :total_requests_failed => 0, # The total number of RPC requests that failed.
         :total_request_bytes_sent => 0, # The total number of bytes sent over the network.
         :total_compressed_request_bytes_sent => 0,  # The total number of compressed bytes sent over the network
         :total_response_bytes_received => 0,  # The total number of bytes received.
-        :total_request_latency_secs => 0, #  The total number of secs spent waiting for a responses (so average latency
-        # can be calculated by dividing this number by @total_requests_sent).
-        # This includes connection establishment time.
-        :total_connections_created => 0, # The total number of HTTP connections successfully created.
-        :total_serialization_duration_secs => 0, # The total duration (in seconds) it took to serialize (JSON dumos) all the request bodies.
-        # You can calculate avg compression duration by diving this value with total_requests_sent
-        :total_compression_duration_secs => 0, # The total duration (in seconds) it took to compress all the request bodies.
-        # You can calculate avg compression duration by diving this value with total_requests_sent
-        :total_flatten_values_duration_secs => 0, # The total duration (in seconds) it took to flatten nested record values.
-        # In case flattening is disabled, this value will always be 0. Can infer average per-request value by dividing this
-        # value by total_requests_sent
+        :total_connections_created => 0,
         :compression_type => @compression_type,
         :compression_level => @compression_level,
     }
@@ -154,9 +158,31 @@ class ClientSession
 
 
 
+  def calculate_percentiles(values, percentiles)
+    values_sorted = values.sort
+    results = []
+    for percentile in percentiles
+      k = (percentile*(values_sorted.length-1)+1).floor - 1
+      f = (percentile*(values_sorted.length-1)+1).modulo(1)
+
+      results.append(values_sorted[k] + (f * (values_sorted[k+1] - values_sorted[k])))
+    end
+    results
+  end
+
+
+
   # Get a clone of current statistics hash
   def get_stats
-    @stats.clone
+    current_stats = @stats.clone
+
+    current_stats[:request_latency_p50_p90_p99] = calculate_percentiles(@latency_stats[:request_latency_secs], [0.5, 0.9, 0.99])
+    current_stats[:serialization_duration_p50_p90_p99] = calculate_percentiles(@latency_stats[:serialization_duration_secs], [0.5, 0.9, 0.99])
+    current_stats[:flatten_values_duration_p50_p90_p99] = calculate_percentiles(@latency_stats[:flatten_values_duration_secs], [0.5, 0.9, 0.99])
+    current_stats[:compression_duration_p50_p90_p99] = calculate_percentiles(@latency_stats[:compression_duration_secs], [0.5, 0.9, 0.99])
+    @latency_stats = @base_latency_stats.clone
+
+    current_stats
   end
 
 
@@ -204,10 +230,10 @@ class ClientSession
           @stats[:total_compressed_request_bytes_sent] += compressed_bytes_sent
           @stats[:total_response_bytes_received] += bytes_received
           end_time = Time.now
-          @stats[:total_request_latency_secs] += (end_time - start_time)
-          @stats[:total_serialization_duration_secs] += body_serialization_duration
-          @stats[:total_flatten_values_duration_secs] =+ flatten_nested_values_duration
-          @stats[:total_compression_duration_secs] += compression_duration
+          @latency_stats[:request_latency_secs].append(end_time - start_time)
+          @latency_stats[:serialization_duration_secs].append(body_serialization_duration)
+          @latency_stats[:flatten_values_duration_secs].append(flatten_nested_values_duration)
+          @latency_stats[:compression_duration_secs].append(compression_duration)
         end
       end
     end
