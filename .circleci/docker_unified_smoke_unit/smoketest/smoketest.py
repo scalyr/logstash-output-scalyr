@@ -243,7 +243,7 @@ class SmokeTestActor(object):
                 if len(matches) == 0:
                     return False
 
-                message = matches[len(matches)]["message"]
+                message = matches[len(matches) - 1]["message"]
 
                 if not message:
                     print("Event \"message\" field is empty")
