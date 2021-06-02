@@ -232,6 +232,7 @@ class SmokeTestActor(object):
                     message="plugin_status",
                     override_serverHost=self._agent_hostname,
                     override_log="scalyr_logstash.log",
+                    override_count=30
                 )
             )
 
@@ -316,12 +317,15 @@ class SmokeTestActor(object):
         override_serverHost=None,
         override_log=None,
         override_log_regex=None,
+        override_count=None,
     ):
         """
         Make url for querying Scalyr server.  Any str filter values will be url-encoded
         """
 
         base_params = self._get_base_query_params()
+        if override_count:
+            base_params["maxCount"] = override_count
 
         url = "https://" if not self._scalyr_server.startswith("http") else ""
         url += "{}/api/query?queryType=log&{}".format(
