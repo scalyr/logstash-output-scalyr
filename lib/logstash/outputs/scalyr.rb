@@ -225,7 +225,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         # For some reason a retry on the multi_receive may result in the request array containing `nil` elements, we
         # ignore these.
         if !multi_event_request.nil?
-          @client_session.post_add_events(multi_event_request[:body], multi_event_request[:serialization_duration, multi_event_request[:flatten_nested_values_duration]])
+          @client_session.post_add_events(multi_event_request[:body], multi_event_request[:serialization_duration], multi_event_request[:flatten_nested_values_duration])
           sleep_interval = 0
           result.push(multi_event_request)
         end
