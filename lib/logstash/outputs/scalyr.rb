@@ -183,6 +183,15 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     @last_status_transmit_time_lock = Mutex.new
     @last_status_transmit_time = nil
     @last_status_ = false
+    
+    # Per-multi-receive statistics
+    @multi_receive_statistics = {
+      :total_multi_receive_secs => 0
+    }
+    @base_multi_receive_metrics = {
+      :multi_receive_duration_secs => []
+    }
+    @multi_receive_metrics = @base_multi_receive_metrics.clone
 
     # create a client session for uploading to Scalyr
     @running = true
@@ -213,6 +222,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   #
   public
   def multi_receive(events)
+    start_time = Time.now.to_f
 
     multi_event_request_array = build_multi_event_request_array(events)
     # Loop over all array of multi-event requests, sending each multi-event to Scalyr
@@ -279,6 +289,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         retry if @running
       end
     end
+    
+    @multi_receive_statistics[:total_multi_receive_secs] += (Time.now.to_f - start_time)
+    @multi_receive_metrics[:multi_receive_duration_secs].append(Time.now.to_f - start_time)
 
     send_status
     return result
@@ -579,6 +592,19 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
 
 
+  def get_batch_stats
+    current_stats = @multi_receive_statistics.clone
+    
+    percentile = Scalyr::Common::Util.calculate_percentiles(@multi_receive_metrics[:multi_receive_duration_secs], [0.5, 0.9, 0.99])
+    current_stats[:multi_receive_duration_p50] = percentile[0]
+    current_stats[:multi_receive_duration_p90] = percentile[1]
+    current_stats[:multi_receive_duration_p99] = percentile[2]
+    
+    @multi_receive_metrics = @base_multi_receive_metrics.clone
+    current_stats
+  end
+
+
 
   # Sends a status update to Scalyr by posting a log entry under the special logfile of 'logstash_plugin.log'
   # Instead of creating a separate thread, let this method be invoked once at startup and then every 5 minutes
@@ -606,6 +632,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       msg = 'plugin_status: '
       cnt = 0
       @client_session.get_stats.each do |k, v|
+        val = v.instance_of?(Float) ? sprintf("%.3f", v) : v
+        msg << ', ' if cnt > 0
+        msg << "#{k.to_s}=#{val}"
+        cnt += 1
+      end
+      get_batch_stats.each do |k, v|
         val = v.instance_of?(Float) ? sprintf("%.3f", v) : v
         msg << ', ' if cnt > 0
         msg << "#{k.to_s}=#{val}"
