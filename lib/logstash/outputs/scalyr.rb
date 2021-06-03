@@ -213,7 +213,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Convenience method to create a fresh quantile estimator
   def get_new_multi_receive_metrics
     return {
-      :multi_receive_duration_secs => Quantile::Estimator.new
+      :multi_receive_duration_secs => Quantile::Estimator.new,
+      :multi_receive_event_count => Quantile::Estimator.new
     }
   end
 
@@ -239,7 +240,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     total_batches = multi_event_request_array.length unless multi_event_request_array.nil?
 
     result = []
-    had_records = !multi_event_request_array.to_a.empty?
+    records_count = events.to_a.length
 
     while !multi_event_request_array.to_a.empty?
       begin
@@ -299,9 +300,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       end
     end
 
-    if had_records
+    if records_count > 0
       @multi_receive_statistics[:total_multi_receive_secs] += (Time.now.to_f - start_time)
       @multi_receive_metrics[:multi_receive_duration_secs].observe(Time.now.to_f - start_time)
+      @multi_receive_metrics[:multi_receive_event_count].observe(records_count)
     end
 
     send_status
@@ -609,6 +611,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     current_stats[:multi_receive_duration_p50] = @multi_receive_metrics[:multi_receive_duration_secs].query(0.5)
     current_stats[:multi_receive_duration_p90] = @multi_receive_metrics[:multi_receive_duration_secs].query(0.9)
     current_stats[:multi_receive_duration_p99] = @multi_receive_metrics[:multi_receive_duration_secs].query(0.99)
+    current_stats[:multi_receive_event_count_p50] = @multi_receive_metrics[:multi_receive_event_count].query(0.5)
+    current_stats[:multi_receive_event_count_p90] = @multi_receive_metrics[:multi_receive_event_count].query(0.9)
+    current_stats[:multi_receive_event_count_p99] = @multi_receive_metrics[:multi_receive_event_count].query(0.99)
 
     @multi_receive_metrics = get_new_multi_receive_metrics
     current_stats
