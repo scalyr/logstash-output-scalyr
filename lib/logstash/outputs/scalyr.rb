@@ -111,6 +111,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Whether or not to count status event uploads in the statistics such as request latency etc.
   config :record_stats_for_status, :validate => :boolean, :default => false
 
+  # Parser to attach to status events
+  config :status_parser, :validate => :string, :default => "logstash_parser"
+
   def close
     @running = false
     @client_session.close if @client_session
@@ -645,6 +648,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       end
       status_event[:attrs]['message'] = msg
       status_event[:attrs]['serverHost'] = @node_hostname
+      status_event[:attrs]['parser'] = @status_parser
     end
     # TODO: We shouldn't include metrics for status requests or should include
     # them separately otherwise they will skew averages for other metrics for
