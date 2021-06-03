@@ -113,7 +113,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   config :record_stats_for_status, :validate => :boolean, :default => false
 
   # Parser to attach to status events
-  config :status_parser, :validate => :string, :default => "logstash_parser"
+  config :status_parser, :validate => :string, :default => "logstash_plugin_metrics"
 
   def close
     @running = false
