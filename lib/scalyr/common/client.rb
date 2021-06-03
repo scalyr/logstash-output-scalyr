@@ -235,7 +235,7 @@ class ClientSession
           @stats[:total_compressed_request_bytes_sent] += compressed_bytes_sent
           @stats[:total_response_bytes_received] += bytes_received
           @stats[:total_serialization_duration_secs] += body_serialization_duration
-          @stats[:total_flatten_values_duration_secs] =+ flatten_nested_values_duration
+          @stats[:total_flatten_values_duration_secs] += flatten_nested_values_duration
           @stats[:total_compression_duration_secs] += compression_duration
           end_time = Time.now
           @stats[:total_request_latency_secs] += (end_time - start_time)
