@@ -235,6 +235,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     total_batches = multi_event_request_array.length unless multi_event_request_array.nil?
 
     result = []
+    if multi_event_request_array.to_a.empty?
+      return result # Short circuit out so we don't add empty loops to the stats
+    end
+
     while !multi_event_request_array.to_a.empty?
       begin
         multi_event_request = multi_event_request_array.pop
