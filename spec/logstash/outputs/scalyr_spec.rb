@@ -79,11 +79,45 @@ describe LogStash::Outputs::Scalyr do
         # 2. Second send
         plugin.instance_variable_set(:@last_status_transmit_time, 100)
         plugin.instance_variable_set(:@client_session, mock_client_session)
+        # Setup one quantile calculation to make sure at least one of them calculates as expected
         plugin.instance_variable_set(:@multi_receive_metrics, {:multi_receive_duration_secs => Quantile::Estimator.new})
+        (1..20).each do |n|
+          plugin.instance_variable_get(:@multi_receive_metrics)[:multi_receive_duration_secs].observe(n)
+        end
         plugin.instance_variable_set(:@multi_receive_statistics, {:total_multi_receive_secs => 0})
         status_event = plugin.send_status
         puts status_event[:attrs]["message"]
-        expect(status_event[:attrs]["message"]).to eq("plugin_status: total_requests_sent=20, total_requests_failed=10, total_request_bytes_sent=100, total_compressed_request_bytes_sent=50, total_response_bytes_received=100, total_request_latency_secs=100, total_connections_created=10, total_serialization_duration_secs=100.500, total_compression_duration_secs=10.200, total_flatten_values_duration_secs=33.300, compression_type=deflate, compression_level=9, total_multi_receive_secs=0, multi_receive_duration_p50=, multi_receive_duration_p90=, multi_receive_duration_p99=")
+        expect(status_event[:attrs]["message"]).to eq("plugin_status: total_requests_sent=20, total_requests_failed=10, total_request_bytes_sent=100, total_compressed_request_bytes_sent=50, total_response_bytes_received=100, total_request_latency_secs=100, total_connections_created=10, total_serialization_duration_secs=100.500, total_compression_duration_secs=10.200, total_flatten_values_duration_secs=33.300, compression_type=deflate, compression_level=9, total_multi_receive_secs=0, multi_receive_duration_p50=10, multi_receive_duration_p90=18, multi_receive_duration_p99=19")
+      end
+
+      it "send_stats is called when events list is empty, but otherwise noop" do
+        quantile_estimator = Quantile::Estimator.new
+        plugin.instance_variable_set(:@multi_receive_metrics, {:multi_receive_duration_secs => quantile_estimator})
+        plugin.instance_variable_set(:@client_session, mock_client_session)
+        expect(plugin).to receive(:send_status)
+        expect(quantile_estimator).not_to receive(:observe)
+        expect(mock_client_session).not_to receive(:post_add_events)
+        plugin.multi_receive([])
+      end
+
+      # Kind of a weak test but I don't see a decent way to write a stronger one without a live client session
+      it "send_status only sends posts with is_status = true" do
+        # 1. Initial send
+        plugin.instance_variable_set(:@last_status_transmit_time, nil)
+        plugin.instance_variable_set(:@client_session, mock_client_session)
+        expect(mock_client_session).to receive(:post_add_events).with(anything, true, anything, anything)
+        plugin.send_status
+
+        # 2. Second send
+        plugin.instance_variable_set(:@last_status_transmit_time, 100)
+        plugin.instance_variable_set(:@client_session, mock_client_session)
+        plugin.instance_variable_set(:@multi_receive_metrics, {:multi_receive_duration_secs => Quantile::Estimator.new})
+        (1..20).each do |n|
+          plugin.instance_variable_get(:@multi_receive_metrics)[:multi_receive_duration_secs].observe(n)
+        end
+        plugin.instance_variable_set(:@multi_receive_statistics, {:total_multi_receive_secs => 0})
+        expect(mock_client_session).to receive(:post_add_events).with(anything, true, anything, anything)
+        plugin.send_status
       end
     end
 
