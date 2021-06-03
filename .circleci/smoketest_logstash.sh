@@ -38,6 +38,17 @@ gemfile=$3
 # 3. gemfile of scalyr logstash plugin
 logstash_docker_context=$4
 
+# We don't have an easy way to update base test docker images which come bundled
+# with the smoketest.py file
+# (.circleci/docker_unified_smoke_unit/smoketest/smoketest.py ->
+# /tmp/smoketest.py) so we simply download this file from the github before running the tests.
+# That's not great, but it works.
+SMOKE_TESTS_SCRIPT_BRANCH=${CIRCLE_BRANCH:-"master"}
+SMOKE_TESTS_SCRIPT_REPO=${CIRCLE_PROJECT_REPONAME:-"logstash-output-scalyr"}
+
+SMOKE_TESTS_SCRIPT_URL="https://raw.githubusercontent.com/scalyr/${SMOKE_TESTS_SCRIPT_REPO}/${SMOKE_TESTS_SCRIPT_BRANCH}/.circleci/docker_unified_smoke_unit/smoketest/smoketest.py"
+DOWNLOAD_SMOKE_TESTS_SCRIPT_COMMAND="sudo curl -o /tmp/smoketest.py ${SMOKE_TESTS_SCRIPT_URL}"
+
 #----------------------------------------------------------------------------------------
 # Everything below this script should be fully controlled by above variables
 #----------------------------------------------------------------------------------------
@@ -55,6 +66,7 @@ contname_verifier="ci-plugin-logstash-${CIRCLE_BUILD_NUM}-verifier"
 
 # Kill leftover containers
 function kill_and_delete_docker_test_containers() {
+    echo ""
     for cont in $contname_agent $contname_uploader $contname_verifier
     do
         if [[ -n `docker ps | grep $cont` ]]; then
@@ -64,6 +76,7 @@ function kill_and_delete_docker_test_containers() {
             docker rm $cont;
         fi
     done
+    echo ""
 }
 kill_and_delete_docker_test_containers
 echo `pwd`
@@ -120,7 +133,6 @@ bash -c "${smoketest_script} ${contname_uploader} ${max_wait} \
 uploader_hostname=$(docker ps --format "{{.ID}}" --filter "name=$contname_uploader")
 echo "Uploader container ID == ${uploader_hostname}"
 
-
 #------------------------------------------------------------------------------------------------------------
 # Launch synchronous Verifier image
 # Like the Uploader, the Verifier also waits for agent to be alive before uploading data
@@ -129,7 +141,7 @@ echo "Uploader container ID == ${uploader_hostname}"
 docker run -it --name ${contname_verifier} \
 --mount source=shared_volume,target=/app \
 ${smoketest_image} \
-bash -c "${smoketest_script} ${contname_verifier} ${max_wait} \
+bash -c "${DOWNLOAD_SMOKE_TESTS_SCRIPT_COMMAND} ; ${smoketest_script} ${contname_verifier} ${max_wait} \
 --mode verifier \
 --scalyr_server ${SCALYR_SERVER} \
 --read_api_key ${READ_API_KEY} \

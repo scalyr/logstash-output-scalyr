@@ -222,6 +222,83 @@ class SmokeTestActor(object):
         """
         self.wait_for_agent_to_start()
         self.verify_logs_uploaded()
+        self.verify_status_event_emitted()
+
+    def verify_status_event_emitted(self):
+        def _query_scalyr_for_status_line_event():
+            resp = requests.get(
+                self._make_query_url(
+                    {},
+                    message="plugin_status",
+                    override_serverHost=self._agent_hostname,
+                    override_log="scalyr_logstash.log",
+                    override_count=30
+                )
+            )
+
+            if resp.ok:
+                data = json.loads(resp.content)
+                if "matches" not in data:
+                    return False
+                matches = data["matches"]
+                if len(matches) == 0:
+                    return False
+                print("%s matches found" % len(matches))
+                message = matches[len(matches) - 1]["message"]
+
+                if not message:
+                    print("Event \"message\" field is empty")
+                    return False
+
+                print("Event \"message\" field value: %s" % (message))
+
+                split = message.strip().split(" ")[1:]
+
+                metrics = {}
+                for item in split:
+                    key, value = item.strip().replace(",", "").split("=")
+                    try:
+                        metrics[key] = float(value)
+                    except Exception:
+                        metrics[key] = value
+
+                print("Found status line metrics: %s" % (metrics))
+
+                if not all([
+                    metrics.get("total_requests_sent"),
+                    metrics.get("total_request_latency_secs"),
+                    metrics.get("total_response_bytes_received"),
+                    metrics.get("compression_level"),
+                    metrics.get("compression_type") == "deflate",
+                    metrics.get("total_response_bytes_received") >= 10,
+                    metrics.get("total_requests_sent") >= 1,
+                    metrics.get("total_request_bytes_sent") >= 10,
+                    metrics.get("total_flatten_values_duration_secs", -1) == 0, # Can't check for existence in the same way since 0 resolves to False
+                ]):
+                    print("Status line metrics didn't match:")
+                    if not metrics.get("total_requests_sent"): print("Missing total_requests_sent")
+                    if not metrics.get("total_request_latency_secs"): print("Missing total_request_latency_secs")
+                    if not metrics.get("total_response_bytes_received"): print("Missing total_response_bytes_received")
+                    if not metrics.get("total_flatten_values_duration_secs"): print("Missing total_flatten_values_duration_secs")
+                    if not metrics.get("compression_level"): print("Missing compression_level")
+                    if not metrics.get("compression_type", None) == "deflate": print("Wrong compression_type")
+                    if not metrics.get("total_response_bytes_received", -1) >= 10: print("Wrong total_response_bytes_received")
+                    if not metrics.get("total_requests_sent", -1) >= 1: print("Wrong total_requests_sent")
+                    if not metrics.get("total_request_bytes_sent", -1) >= 10: print("Wrong total_request_bytes_sent")
+                    if not metrics.get("total_flatten_values_duration_secs", -1) == 0: print("Wrong total_flatten_values_duration_secs")
+                    return False
+                return True
+
+            return False
+
+        self.poll_until_max_wait(
+            _query_scalyr_for_status_line_event,
+            "Querying server to verify at least one status event has been emitted.",
+            "Status event verified",
+            "Status event not verified",
+            exit_on_success=False,
+            exit_on_fail=True,
+        )
 
     def _make_log_line(self, count, stream):
         """Return a line of text to be written to the log.  Don't include trailing newline
@@ -252,12 +329,15 @@ class SmokeTestActor(object):
         override_serverHost=None,
         override_log=None,
         override_log_regex=None,
+        override_count=None,
     ):
         """
         Make url for querying Scalyr server.  Any str filter values will be url-encoded
         """
 
         base_params = self._get_base_query_params()
+        if override_count:
+            base_params["maxCount"] = override_count
 
         url = "https://" if not self._scalyr_server.startswith("http") else ""
         url += "{}/api/query?queryType=log&{}".format(
@@ -485,7 +565,7 @@ class StandaloneSmokeTestActor(SmokeTestActor):
             "Querying server to verify monitored logfile was uploaded.",
             "Monitored logfile upload verified",
             "Monitored logfile upload not verified",
-            exit_on_success=True,
+            exit_on_success=False,
             exit_on_fail=True,
         )
 

@@ -14,6 +14,7 @@ require 'net/https'
 require 'rbzip2'
 require 'zlib'
 require 'stringio'
+require 'quantile'
 
 require 'scalyr/common/client'
 require "scalyr/common/util"
@@ -104,6 +105,16 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # An int containing the compression level of compression to use, from 1-9. Defaults to 6
   config :compression_level, :validate => :number, :default => 6
 
+  # How often to log and report status metrics to Scalyr. Defaults to every 5
+  # minutes.
+  config :status_report_interval, :validate => :number, :default => 300
+
+  # Whether or not to count status event uploads in the statistics such as request latency etc.
+  config :record_stats_for_status, :validate => :boolean, :default => false
+
+  # Parser to attach to status events
+  config :status_parser, :validate => :string, :default => "logstash_plugin_metrics"
+
   def close
     @running = false
     @client_session.close if @client_session
@@ -176,6 +187,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     @last_status_transmit_time_lock = Mutex.new
     @last_status_transmit_time = nil
     @last_status_ = false
+    
+    # Per-multi-receive statistics
+    @multi_receive_statistics = {
+      :total_multi_receive_secs => 0
+    }
+    @multi_receive_metrics = get_new_multi_receive_metrics
 
     # create a client session for uploading to Scalyr
     @running = true
@@ -183,7 +200,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         @logger, @add_events_uri,
         @compression_type, @compression_level,
         @ssl_verify_peer, @ssl_ca_bundle_path, @ssl_verify_depth,
-        @append_builtin_cert
+        @append_builtin_cert, @record_stats_for_status
     )
 
     @logger.info("Started Scalyr output plugin", :class => self.class.name)
@@ -193,6 +210,13 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   end # def register
 
+  # Convenience method to create a fresh quantile estimator
+  def get_new_multi_receive_metrics
+    return {
+      :multi_receive_duration_secs => Quantile::Estimator.new,
+      :multi_receive_event_count => Quantile::Estimator.new
+    }
+  end
 
   # Receive an array of events and immediately upload them (without buffering).
   # The Logstash framework will call this plugin method whenever there is a list of events to upload to Scalyr.
@@ -206,6 +230,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   #
   public
   def multi_receive(events)
+    start_time = Time.now.to_f
 
     multi_event_request_array = build_multi_event_request_array(events)
     # Loop over all array of multi-event requests, sending each multi-event to Scalyr
@@ -215,22 +240,24 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     total_batches = multi_event_request_array.length unless multi_event_request_array.nil?
 
     result = []
+    records_count = events.to_a.length
+
     while !multi_event_request_array.to_a.empty?
       begin
         multi_event_request = multi_event_request_array.pop
         # For some reason a retry on the multi_receive may result in the request array containing `nil` elements, we
         # ignore these.
         if !multi_event_request.nil?
-          @client_session.post_add_events(multi_event_request[:body])
+          @client_session.post_add_events(multi_event_request[:body], false, multi_event_request[:serialization_duration], multi_event_request[:flatten_nested_values_duration])
           sleep_interval = 0
           result.push(multi_event_request)
         end
 
       rescue OpenSSL::SSL::SSLError => e
         # cannot rely on exception message, so we always log the following warning
-        @logger.error "SSL certificate verification failed.  "
-        "Please make sure your certificate bundle is configured correctly and points to a valid file.  "
-        "You can configure this with the ssl_ca_bundle_path configuration option.  "
+        @logger.error "SSL certificate verification failed.  " +
+        "Please make sure your certificate bundle is configured correctly and points to a valid file.  " +
+        "You can configure this with the ssl_ca_bundle_path configuration option.  " +
         "The current value of ssl_ca_bundle_path is '#{@ssl_ca_bundle_path}'"
         @logger.error e.message
         @logger.error "Discarding buffer chunk without retrying."
@@ -273,6 +300,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       end
     end
 
+    if records_count > 0
+      @multi_receive_statistics[:total_multi_receive_secs] += (Time.now.to_f - start_time)
+      @multi_receive_metrics[:multi_receive_duration_secs].observe(Time.now.to_f - start_time)
+      @multi_receive_metrics[:multi_receive_event_count].observe(records_count)
+    end
+
     send_status
     return result
   end  # def multi_receive
@@ -296,6 +329,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Tags are either propagated as a comma-separated string, or optionally transposed into key-values where the keys
   # are tag names and the values are 1 (may be configured.)
   def build_multi_event_request_array(logstash_events)
+    if logstash_events.nil? or logstash_events.empty?
+     return []
+    end
 
     multi_event_request_array = Array.new
     total_bytes = 0
@@ -311,6 +347,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     logs = Hash.new
     logs_ids = Hash.new
     next_log_id = 1
+
+    flatten_nested_values_duration = 0
 
     logstash_events.each {|l_event|
 
@@ -338,8 +376,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         if standard_field != renamed_field
           if record.key? renamed_field
             if record.key? standard_field
-              @logger.warn "Overwriting log record field '#{standard_field}'.  You are seeing this warning because in "
-              "your LogStash config file you have configured the '#{renamed_field}' field to be converted to the "
+              @logger.warn "Overwriting log record field '#{standard_field}'.  You are seeing this warning because in " +
+              "your LogStash config file you have configured the '#{renamed_field}' field to be converted to the " +
               "'#{standard_field}' field, but the event already contains a field called '#{standard_field}' and "
               "this is now being overwritten."
             end
@@ -426,7 +464,14 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       end
 
       # flatten record
-      record = Scalyr::Common::Util.flatten(record, delimiter=@flatten_nested_values_delimiter) if @flatten_nested_values
+      flatten_nested_values_duration = 0
+
+      if @flatten_nested_values
+        start_time = Time.now.to_f
+        record = Scalyr::Common::Util.flatten(record, delimiter=@flatten_nested_values_delimiter) if @flatten_nested_values
+        end_time = Time.now.to_f
+        flatten_nested_values_duration = end_time - start_time
+      end
 
       # Use LogStash event.timestamp as the 'ts' Scalyr timestamp.  Note that this may be overwritten by input
       # filters so may not necessarily reflect the actual originating timestamp.
@@ -477,7 +522,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           scalyr_events << scalyr_event
           append_event = false
         end
-        multi_event_request = self.create_multi_event_request(scalyr_events, current_threads, logs)
+        multi_event_request = self.create_multi_event_request(scalyr_events, current_threads, logs, flatten_nested_values_duration)
         multi_event_request_array << multi_event_request
 
         total_bytes = 0
@@ -497,7 +542,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     }
 
     # create a final request with any left over events
-    multi_event_request = self.create_multi_event_request(scalyr_events, current_threads, logs)
+    multi_event_request = self.create_multi_event_request(scalyr_events, current_threads, logs, flatten_nested_values_duration)
     multi_event_request_array << multi_event_request
     multi_event_request_array
   end
@@ -517,7 +562,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # A request comprises multiple Scalyr Events.  This function creates a request hash for
   # final upload to Scalyr (from an array of events, and an optional hash of current threads)
   # Note: The request body field will be json-encoded.
-  def create_multi_event_request(scalyr_events, current_threads, current_logs)
+  def create_multi_event_request(scalyr_events, current_threads, current_logs, flatten_nested_values_duration = 0)
 
     body = {
       :session => @session_id,
@@ -548,10 +593,31 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     # add serverAttributes
     body[:sessionInfo] = @server_attributes if @server_attributes
 
-    { :body => body.to_json, :record_count => scalyr_events.size }
+    # We time serialization to get some insight on how long it takes to serialize the request body
+    start_time = Time.now.to_f
+    serialized_body = body.to_json
+    end_time = Time.now.to_f
+    serialization_duration = end_time - start_time
+    { :body => serialized_body, :record_count => scalyr_events.size, :serialization_duration => serialization_duration,
+      :flatten_nested_values_duration => flatten_nested_values_duration }
 
   end  # def create_multi_event_request
 
+
+
+  def get_batch_stats
+    current_stats = @multi_receive_statistics.clone
+
+    current_stats[:multi_receive_duration_p50] = @multi_receive_metrics[:multi_receive_duration_secs].query(0.5)
+    current_stats[:multi_receive_duration_p90] = @multi_receive_metrics[:multi_receive_duration_secs].query(0.9)
+    current_stats[:multi_receive_duration_p99] = @multi_receive_metrics[:multi_receive_duration_secs].query(0.99)
+    current_stats[:multi_receive_event_count_p50] = @multi_receive_metrics[:multi_receive_event_count].query(0.5)
+    current_stats[:multi_receive_event_count_p90] = @multi_receive_metrics[:multi_receive_event_count].query(0.9)
+    current_stats[:multi_receive_event_count_p99] = @multi_receive_metrics[:multi_receive_event_count].query(0.99)
+
+    @multi_receive_metrics = get_new_multi_receive_metrics
+    current_stats
+  end
 
 
 
@@ -576,22 +642,30 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       status_event[:attrs]['serverHost'] = @node_hostname
     else
       cur_time = Time.now()
-      return if (cur_time.to_i - @last_status_transmit_time.to_i) < 300
+      return if (cur_time.to_i - @last_status_transmit_time.to_i) < @status_report_interval
       # echee TODO: get instance stats from session and create a status log line
       msg = 'plugin_status: '
       cnt = 0
       @client_session.get_stats.each do |k, v|
-        val = v.instance_of?(Float) ? sprintf("%.1f", v) : v
+        val = v.instance_of?(Float) ? sprintf("%.3f", v) : v
+        msg << ', ' if cnt > 0
+        msg << "#{k.to_s}=#{val}"
+        cnt += 1
+      end
+      get_batch_stats.each do |k, v|
+        val = v.instance_of?(Float) ? sprintf("%.3f", v) : v
         msg << ', ' if cnt > 0
         msg << "#{k.to_s}=#{val}"
         cnt += 1
       end
       status_event[:attrs]['message'] = msg
       status_event[:attrs]['serverHost'] = @node_hostname
+      status_event[:attrs]['parser'] = @status_parser
     end
-    multi_event_request = create_multi_event_request([status_event], nil, nil)
-    @client_session.post_add_events(multi_event_request[:body])
+    multi_event_request = create_multi_event_request([status_event], nil, nil, nil)
+    @client_session.post_add_events(multi_event_request[:body], true, 0, 0)
     @last_status_transmit_time = Time.now()
+    status_event
   end
 
 
@@ -600,7 +674,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   def should_transmit_status?
     @last_status_transmit_time_lock.synchronize do
       saved_last_time = @last_status_transmit_time
-      if Time.now.to_i - saved_last_time.to_i > 300
+      if Time.now.to_i - saved_last_time.to_i > @status_report_interval
         @last_status_transmit_time = Float::INFINITY
         return saved_last_time
       end

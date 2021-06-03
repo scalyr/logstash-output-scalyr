@@ -1,4 +1,9 @@
 # Beta
+## 0.1.7
+ - Tracking of new statistics such as `multi_receive` method duration and batch sizes.
+ - Addition of percentiles for both existing and new stats.
+ - Add ability to define a parser name for status messages using the `status_parser` configuration option.
+
 ## 0.1.6
  - Allow for a customer delimiter when flattening values using the `flatten_nested_values_delimiter` configuration option
 

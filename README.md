@@ -10,7 +10,7 @@ You can view documentation for this plugin [on the Scalyr website](https://app.s
 # Quick start
 
 1. Build the gem, run `gem build logstash-output-scalyr.gemspec` 
-2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-0.1.6.gem` or follow the latest official instructions on working with plugins from Logstash.
+2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-0.1.7.gem` or follow the latest official instructions on working with plugins from Logstash.
 3. Configure the output plugin (e.g. add it to a pipeline .conf)
 4. Restart Logstash 
 
@@ -157,7 +157,6 @@ In the above example, the Logstash pipeline defines a file input that reads from
 ---
 
 # Conceptual Overview
-
 
 ## Persistence
 
@@ -311,6 +310,16 @@ sudo bundle exec rspec
 ```
 
 in the root of the repo.
+
+By default this will run all the tests (including integration ones which require sudo access and
+may not pass everywhere).
+
+If you want to run just the unit tests, you can run the command displayed below.
+
+
+```bash
+bundle exec rspec spec/logstash/outputs/scalyr_spec.rb spec/scalyr/common/util_spec.rb
+```
 
 # Releasing
 

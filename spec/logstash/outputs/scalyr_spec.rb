@@ -4,7 +4,38 @@ require "logstash/outputs/scalyr"
 require "logstash/codecs/plain"
 require "logstash/event"
 require "json"
+require "quantile"
 
+
+class MockClientSession
+  DEFAULT_STATS = {
+    :total_requests_sent => 20,
+    :total_requests_failed => 10,
+    :total_request_bytes_sent => 100,
+    :total_compressed_request_bytes_sent => 50,
+    :total_response_bytes_received => 100,
+    :total_request_latency_secs => 100,
+    :total_connections_created => 10,
+    :total_serialization_duration_secs => 100.5,
+    :total_compression_duration_secs => 10.20,
+    :total_flatten_values_duration_secs => 33.3,
+    :compression_type => "deflate",
+    :compression_level => 9,
+  }
+
+  def initialize(stats = DEFAULT_STATS)
+    @stats = stats
+    @sent_events = []
+  end
+
+  def get_stats
+    @stats.clone
+  end
+
+  def post_add_events(body, is_status, body_serialization_duration = 0, flatten_nested_values_duration = 0)
+    @sent_events << { :body => body, :body_serialization_duration => body_serialization_duration, :flatten_nested_values_duration => flatten_nested_values_duration }
+  end
+end
 
 
 describe LogStash::Outputs::Scalyr do
@@ -24,6 +55,72 @@ describe LogStash::Outputs::Scalyr do
 
   describe "#build_multi_event_request_array" do
 
+    context "test get_stats and send_status" do
+      plugin = LogStash::Outputs::Scalyr.new({
+                                                     'api_write_token' => '1234',
+                                                     'serverhost_field' => 'source_host',
+                                                     'log_constants' => ['tags'],
+                                                 })
+
+      mock_client_session = MockClientSession.new
+
+      it "returns correct stats on get_stats" do
+        stats = mock_client_session.get_stats
+        expect(stats[:total_requests_sent]).to eq(20)
+      end
+
+      it "returns and sends correct status event on send_stats on initial and subsequent send" do
+        # 1. Initial send
+        plugin.instance_variable_set(:@last_status_transmit_time, nil)
+        plugin.instance_variable_set(:@client_session, mock_client_session)
+        status_event = plugin.send_status
+        expect(status_event[:attrs]["message"]).to eq("Started Scalyr LogStash output plugin.")
+
+        # 2. Second send
+        plugin.instance_variable_set(:@last_status_transmit_time, 100)
+        plugin.instance_variable_set(:@client_session, mock_client_session)
+        # Setup one quantile calculation to make sure at least one of them calculates as expected
+        plugin.instance_variable_set(:@multi_receive_metrics, {:multi_receive_duration_secs => Quantile::Estimator.new, :multi_receive_event_count => Quantile::Estimator.new})
+        (1..20).each do |n|
+          plugin.instance_variable_get(:@multi_receive_metrics)[:multi_receive_duration_secs].observe(n)
+        end
+        plugin.instance_variable_set(:@multi_receive_statistics, {:total_multi_receive_secs => 0})
+        status_event = plugin.send_status
+        puts status_event[:attrs]["message"]
+        expect(status_event[:attrs]["message"]).to eq("plugin_status: total_requests_sent=20, total_requests_failed=10, total_request_bytes_sent=100, total_compressed_request_bytes_sent=50, total_response_bytes_received=100, total_request_latency_secs=100, total_connections_created=10, total_serialization_duration_secs=100.500, total_compression_duration_secs=10.200, total_flatten_values_duration_secs=33.300, compression_type=deflate, compression_level=9, total_multi_receive_secs=0, multi_receive_duration_p50=10, multi_receive_duration_p90=18, multi_receive_duration_p99=19, multi_receive_event_count_p50=, multi_receive_event_count_p90=, multi_receive_event_count_p99=")
+      end
+
+      it "send_stats is called when events list is empty, but otherwise noop" do
+        quantile_estimator = Quantile::Estimator.new
+        plugin.instance_variable_set(:@multi_receive_metrics, {:multi_receive_duration_secs => quantile_estimator, :multi_receive_event_count => quantile_estimator})
+        plugin.instance_variable_set(:@client_session, mock_client_session)
+        expect(plugin).to receive(:send_status)
+        expect(quantile_estimator).not_to receive(:observe)
+        expect(mock_client_session).not_to receive(:post_add_events)
+        plugin.multi_receive([])
+      end
+
+      # Kind of a weak test but I don't see a decent way to write a stronger one without a live client session
+      it "send_status only sends posts with is_status = true" do
+        # 1. Initial send
+        plugin.instance_variable_set(:@last_status_transmit_time, nil)
+        plugin.instance_variable_set(:@client_session, mock_client_session)
+        expect(mock_client_session).to receive(:post_add_events).with(anything, true, anything, anything)
+        plugin.send_status
+
+        # 2. Second send
+        plugin.instance_variable_set(:@last_status_transmit_time, 100)
+        plugin.instance_variable_set(:@client_session, mock_client_session)
+        plugin.instance_variable_set(:@multi_receive_metrics, {:multi_receive_duration_secs => Quantile::Estimator.new, :multi_receive_event_count => Quantile::Estimator.new})
+        (1..20).each do |n|
+          plugin.instance_variable_get(:@multi_receive_metrics)[:multi_receive_duration_secs].observe(n)
+        end
+        plugin.instance_variable_set(:@multi_receive_statistics, {:total_multi_receive_secs => 0})
+        expect(mock_client_session).to receive(:post_add_events).with(anything, true, anything, anything)
+        plugin.send_status
+      end
+    end
+
     context "when a field is configured as a log attribute" do
       it "creates logfile from serverHost" do
         plugin = LogStash::Outputs::Scalyr.new({
@@ -36,7 +133,6 @@ describe LogStash::Outputs::Scalyr do
         result = plugin.build_multi_event_request_array(sample_events)
         body = JSON.parse(result[0][:body])
         expect(body['events'].size).to eq(3)
-        attrs2 = body['events'][2]['attrs']
         logattrs2 = body['logs'][2]['attrs']
         expect(logattrs2.fetch('serverHost', nil)).to eq('my host 3')
         expect(logattrs2.fetch('logfile', nil)).to eq('/logstash/my host 3')
@@ -67,7 +163,6 @@ describe LogStash::Outputs::Scalyr do
         result = plugin.build_multi_event_request_array(sample_events)
         body = JSON.parse(result[0][:body])
         expect(body['events'].size).to eq(3)
-        attrs2 = body['events'][2]['attrs']
         logattrs2 = body['logs'][2]['attrs']
         expect(logattrs2.fetch('serverHost', nil)).to eq('my host 3')
         expect(logattrs2.fetch('logfile', nil)).to eq('/logstash/my host 3')
@@ -86,7 +181,6 @@ describe LogStash::Outputs::Scalyr do
         result = plugin.build_multi_event_request_array(sample_events)
         body = JSON.parse(result[0][:body])
         expect(body['events'].size).to eq(3)
-        attrs2 = body['events'][2]['attrs']
         logattrs2 = body['logs'][2]['attrs']
         expect(logattrs2.fetch('serverHost', nil)).to eq('my host 3')
         expect(logattrs2.fetch('logfile', nil)).to eq('my file 3')
@@ -180,73 +274,5 @@ describe LogStash::Outputs::Scalyr do
                                                  })
       end
     end
-  end
-
-  describe "#ssl_tests" do
-      context "with default SSL configuration" do
-        it "throws a ServerError due to fake api key" do
-            expect {
-              plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234'})
-              plugin.register
-              plugin.multi_receive(sample_events)
-            }.to raise_error(Scalyr::Common::Client::ServerError, "error/client/badParam")
-        end
-      end
-
-      context "when pointing at a location without any valid certs and not using builtin" do
-        it "throws an SSLError" do
-            expect {
-              plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'ssl_ca_bundle_path' => '/fakepath/nocerts', 'append_builtin_cert' => false})
-              plugin.register
-              plugin.multi_receive(sample_events)
-            }.to raise_error(OpenSSL::SSL::SSLError, "certificate verify failed")
-        end
-      end
-
-      context "when system certs are missing and not using builtin" do
-        it "throws an SSLError" do
-          `sudo mv #{OpenSSL::X509::DEFAULT_CERT_FILE} /tmp/system_cert.pem`
-          `sudo mv #{OpenSSL::X509::DEFAULT_CERT_DIR} /tmp/system_certs`
-
-          begin
-            expect {
-              plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'append_builtin_cert' => false})
-              plugin.register
-              plugin.multi_receive(sample_events)
-            }.to raise_error(OpenSSL::SSL::SSLError, "certificate verify failed")
-          end
-          ensure
-            `sudo mv /tmp/system_certs #{OpenSSL::X509::DEFAULT_CERT_DIR}`
-            `sudo mv /tmp/system_cert.pem #{OpenSSL::X509::DEFAULT_CERT_FILE}`
-        end
-      end
-
-      context "when server hostname doesn't match the cert" do
-        it "throws an SSLError" do
-          agent_scalyr_com_ip = `dig +short agent.scalyr.com 2> /dev/null | tail -n 1 | tr -d "\n"`
-          if agent_scalyr_com_ip.empty?
-            agent_scalyr_com_ip = `getent hosts agent.scalyr.com \
-            | awk '{ print $1 }' | tail -n 1 | tr -d "\n"`
-          end
-          mock_host = "invalid.mitm.should.fail.test.agent.scalyr.com"
-          etc_hosts_entry = "#{agent_scalyr_com_ip} #{mock_host}"
-          hosts_bkp = `sudo cat /etc/hosts`
-          hosts_bkp = hosts_bkp.chomp
-          # Add mock /etc/hosts entry and config scalyr_server entry
-          `echo "#{etc_hosts_entry}" | sudo tee -a /etc/hosts`
-
-          begin
-            expect {
-              plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'scalyr_server' => 'https://invalid.mitm.should.fail.test.agent.scalyr.com:443'})
-              plugin.register
-              plugin.multi_receive(sample_events)
-            }.to raise_error(OpenSSL::SSL::SSLError, "hostname \"invalid.mitm.should.fail.test.agent.scalyr.com\" does not match the server certificate")
-          ensure
-            # Clean up the hosts file
-            `sudo truncate -s 0 /etc/hosts`
-            `echo "#{hosts_bkp}" | sudo tee -a /etc/hosts`
-          end
-        end
-      end
   end
 end
