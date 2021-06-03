@@ -108,16 +108,7 @@ class ClientSession
 
     # Request statistics are accumulated across multiple threads and must be accessed through a mutex
     @stats_lock = Mutex.new
-    @base_latency_stats = {
-      # The total number of HTTP connections successfully created.
-      :serialization_duration_secs => [], # The duration (in seconds) it took to serialize (JSON dumos) all the request bodies.
-      :compression_duration_secs => [], # The duration (in seconds) it took to compress all the request bodies.
-      :flatten_values_duration_secs => [], # The duration (in seconds) it took to flatten nested record values.
-      # In case flattening is disabled, this value will always be 0.
-      :request_latency_secs => [], #  Secs spent waiting for a responses. This includes connection establishment time.
-      :bytes_sent => []  # The number of bytes sent over the network. Batch size with a bit more overhead.
-    }
-    @latency_stats = @base_latency_stats.clone
+    @latency_stats = get_new_latency_stats
     @stats = {
         :total_requests_sent => 0, # The total number of RPC requests sent.
         :total_requests_failed => 0, # The total number of RPC requests that failed.
@@ -162,34 +153,40 @@ class ClientSession
     end
   end  # def initialize
 
-
+  # Convenience method to create a fresh quantile estimator
+  def get_new_latency_stats
+    return {
+      # The total number of HTTP connections successfully created.
+      :serialization_duration_secs => Quantile::Estimator.new, # The duration (in seconds) it took to serialize (JSON dumos) all the request bodies.
+      :compression_duration_secs => Quantile::Estimator.new, # The duration (in seconds) it took to compress all the request bodies.
+      :flatten_values_duration_secs => Quantile::Estimator.new, # The duration (in seconds) it took to flatten nested record values.
+      # In case flattening is disabled, this value will always be 0.
+      :request_latency_secs => Quantile::Estimator.new, #  Secs spent waiting for a responses. This includes connection establishment time.
+      :bytes_sent => Quantile::Estimator.new  # The number of bytes sent over the network. Batch size with a bit more overhead.
+    }
+  end
 
   # Get a clone of current statistics hash
   def get_stats
     current_stats = @stats.clone
 
-    request_latency = Scalyr::Common::Util.calculate_percentiles(@latency_stats[:request_latency_secs], [0.5, 0.9, 0.99])
-    current_stats[:request_latency_p50] = request_latency[0]
-    current_stats[:request_latency_p90] = request_latency[1]
-    current_stats[:request_latency_p99] = request_latency[2]
-    request_latency = Scalyr::Common::Util.calculate_percentiles(@latency_stats[:serialization_duration_secs], [0.5, 0.9, 0.99])
-    current_stats[:serialization_duration_secs_p50] = request_latency[0]
-    current_stats[:serialization_duration_secs_p90] = request_latency[1]
-    current_stats[:serialization_duration_secs_p99] = request_latency[2]
-    request_latency = Scalyr::Common::Util.calculate_percentiles(@latency_stats[:flatten_values_duration_secs], [0.5, 0.9, 0.99])
-    current_stats[:flatten_values_duration_secs_p50] = request_latency[0]
-    current_stats[:flatten_values_duration_secs_p90] = request_latency[1]
-    current_stats[:flatten_values_duration_secs_p99] = request_latency[2]
-    request_latency = Scalyr::Common::Util.calculate_percentiles(@latency_stats[:compression_duration_secs], [0.5, 0.9, 0.99])
-    current_stats[:compression_duration_secs_p50] = request_latency[0]
-    current_stats[:compression_duration_secs_p90] = request_latency[1]
-    current_stats[:compression_duration_secs_p99] = request_latency[2]
-    request_latency = Scalyr::Common::Util.calculate_percentiles(@latency_stats[:bytes_sent], [0.5, 0.9, 0.99])
-    current_stats[:bytes_sent_p50] = request_latency[0]
-    current_stats[:bytes_sent_p90] = request_latency[1]
-    current_stats[:bytes_sent_p99] = request_latency[2]
-    @latency_stats = @base_latency_stats.clone
+    current_stats[:request_latency_p50] = @latency_stats[:request_latency_secs].query(0.5)
+    current_stats[:request_latency_p90] = @latency_stats[:request_latency_secs].query(0.9)
+    current_stats[:request_latency_p99] = @latency_stats[:request_latency_secs].query(0.99)
+    current_stats[:serialization_duration_secs_p50] = @latency_stats[:serialization_duration_secs].query(0.5)
+    current_stats[:serialization_duration_secs_p90] = @latency_stats[:serialization_duration_secs].query(0.9)
+    current_stats[:serialization_duration_secs_p99] = @latency_stats[:serialization_duration_secs].query(0.99)
+    current_stats[:flatten_values_duration_secs_p50] = @latency_stats[:flatten_values_duration_secs].query(0.5)
+    current_stats[:flatten_values_duration_secs_p90] = @latency_stats[:flatten_values_duration_secs].query(0.9)
+    current_stats[:flatten_values_duration_secs_p99] = @latency_stats[:flatten_values_duration_secs].query(0.99)
+    current_stats[:compression_duration_secs_p50] = @latency_stats[:compression_duration_secs].query(0.5)
+    current_stats[:compression_duration_secs_p90] = @latency_stats[:compression_duration_secs].query(0.9)
+    current_stats[:compression_duration_secs_p99] = @latency_stats[:compression_duration_secs].query(0.99)
+    current_stats[:bytes_sent_p50] = @latency_stats[:bytes_sent].query(0.5)
+    current_stats[:bytes_sent_p90] = @latency_stats[:bytes_sent].query(0.9)
+    current_stats[:bytes_sent_p99] = @latency_stats[:bytes_sent].query(0.99)
 
+    @latency_stats = get_new_latency_stats
     current_stats
   end
 
@@ -242,11 +239,11 @@ class ClientSession
           @stats[:total_compression_duration_secs] += compression_duration
           end_time = Time.now
           @stats[:total_request_latency_secs] += (end_time - start_time)
-          @latency_stats[:request_latency_secs].append(end_time - start_time)
-          @latency_stats[:serialization_duration_secs].append(body_serialization_duration)
-          @latency_stats[:flatten_values_duration_secs].append(flatten_nested_values_duration)
-          @latency_stats[:compression_duration_secs].append(compression_duration)
-          @latency_stats[:bytes_sent].append(uncompressed_bytes_sent)
+          @latency_stats[:request_latency_secs].observe(end_time - start_time)
+          @latency_stats[:serialization_duration_secs].observe(body_serialization_duration)
+          @latency_stats[:flatten_values_duration_secs].observe(flatten_nested_values_duration)
+          @latency_stats[:compression_duration_secs].observe(compression_duration)
+          @latency_stats[:bytes_sent].observe(uncompressed_bytes_sent)
         end
       end
     end

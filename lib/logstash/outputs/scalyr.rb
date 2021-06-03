@@ -14,6 +14,7 @@ require 'net/https'
 require 'rbzip2'
 require 'zlib'
 require 'stringio'
+require 'quantile'
 
 require 'scalyr/common/client'
 require "scalyr/common/util"
@@ -191,10 +192,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     @multi_receive_statistics = {
       :total_multi_receive_secs => 0
     }
-    @base_multi_receive_metrics = {
-      :multi_receive_duration_secs => []
-    }
-    @multi_receive_metrics = @base_multi_receive_metrics.clone
+    @multi_receive_metrics = get_new_multi_receive_metrics
 
     # create a client session for uploading to Scalyr
     @running = true
@@ -212,6 +210,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   end # def register
 
+  # Convenience method to create a fresh quantile estimator
+  def get_new_multi_receive_metrics
+    return {
+      :multi_receive_duration_secs => Quantile::Estimator.new
+    }
+  end
 
   # Receive an array of events and immediately upload them (without buffering).
   # The Logstash framework will call this plugin method whenever there is a list of events to upload to Scalyr.
@@ -235,9 +239,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     total_batches = multi_event_request_array.length unless multi_event_request_array.nil?
 
     result = []
-    if multi_event_request_array.to_a.empty?
-      return result # Short circuit out so we don't add empty loops to the stats
-    end
+    had_records = !multi_event_request_array.to_a.empty?
 
     while !multi_event_request_array.to_a.empty?
       begin
@@ -296,9 +298,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         retry if @running
       end
     end
-    
-    @multi_receive_statistics[:total_multi_receive_secs] += (Time.now.to_f - start_time)
-    @multi_receive_metrics[:multi_receive_duration_secs].append(Time.now.to_f - start_time)
+
+    if had_records
+      @multi_receive_statistics[:total_multi_receive_secs] += (Time.now.to_f - start_time)
+      @multi_receive_metrics[:multi_receive_duration_secs].observe(Time.now.to_f - start_time)
+    end
 
     send_status
     return result
@@ -601,13 +605,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   def get_batch_stats
     current_stats = @multi_receive_statistics.clone
-    
-    percentile = Scalyr::Common::Util.calculate_percentiles(@multi_receive_metrics[:multi_receive_duration_secs], [0.5, 0.9, 0.99])
-    current_stats[:multi_receive_duration_p50] = percentile[0]
-    current_stats[:multi_receive_duration_p90] = percentile[1]
-    current_stats[:multi_receive_duration_p99] = percentile[2]
-    
-    @multi_receive_metrics = @base_multi_receive_metrics.clone
+
+    current_stats[:multi_receive_duration_p50] = @multi_receive_metrics[:multi_receive_duration_secs].query(0.5)
+    current_stats[:multi_receive_duration_p90] = @multi_receive_metrics[:multi_receive_duration_secs].query(0.9)
+    current_stats[:multi_receive_duration_p99] = @multi_receive_metrics[:multi_receive_duration_secs].query(0.99)
+
+    @multi_receive_metrics = get_new_multi_receive_metrics
     current_stats
   end
 

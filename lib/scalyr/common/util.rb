@@ -45,25 +45,5 @@ def self.flatten(obj, delimiter='_')
   return result
 end
 
-
-
-def self.calculate_percentiles(values, percentiles)
-  values_sorted = values.sort
-  results = []
-  for percentile in percentiles
-    if values_sorted.length == 0
-      results.append(0)
-    elsif values_sorted.length == 1
-      results.append(values_sorted[0])
-    else
-      k = (percentile*(values_sorted.length-1)+1).floor - 1
-      f = (percentile*(values_sorted.length-1)+1).modulo(1)
-
-      results.append(values_sorted[k] + (f * (values_sorted[k+1] - values_sorted[k])))
-    end
-  end
-  results
-end
-
 end; end; end;
 

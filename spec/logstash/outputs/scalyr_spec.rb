@@ -4,6 +4,7 @@ require "logstash/outputs/scalyr"
 require "logstash/codecs/plain"
 require "logstash/event"
 require "json"
+require "quantile"
 
 
 class MockClientSession
@@ -78,25 +79,11 @@ describe LogStash::Outputs::Scalyr do
         # 2. Second send
         plugin.instance_variable_set(:@last_status_transmit_time, 100)
         plugin.instance_variable_set(:@client_session, mock_client_session)
-        plugin.instance_variable_set(:@multi_receive_metrics, {:multi_receive_duration_secs => [1, 2, 3]})
+        plugin.instance_variable_set(:@multi_receive_metrics, {:multi_receive_duration_secs => Quantile::Estimator.new})
         plugin.instance_variable_set(:@multi_receive_statistics, {:total_multi_receive_secs => 0})
         status_event = plugin.send_status
         puts status_event[:attrs]["message"]
-        expect(status_event[:attrs]["message"]).to eq("plugin_status: total_requests_sent=20, total_requests_failed=10, total_request_bytes_sent=100, total_compressed_request_bytes_sent=50, total_response_bytes_received=100, total_request_latency_secs=100, total_connections_created=10, total_serialization_duration_secs=100.500, total_compression_duration_secs=10.200, total_flatten_values_duration_secs=33.300, compression_type=deflate, compression_level=9, total_multi_receive_secs=0, multi_receive_duration_p50=2.000, multi_receive_duration_p90=2.800, multi_receive_duration_p99=2.980")
-      end
-    end
-
-    context "test get_stats calculation" do
-      it "returns correct values on calculate_percentiles" do
-        expect(Scalyr::Common::Util.calculate_percentiles([2.5, 2.5, 0.1, 3, 100], [0.5, 0.9, 0.95])).to eq([2.5, 61.19999999999997, 80.59999999999998])
-      end
-
-      it "returns zero on calculate_percentiles with no values" do
-        expect(Scalyr::Common::Util.calculate_percentiles([], [0.5, 0.9, 0.95])).to eq([0, 0, 0])
-      end
-
-      it "returns the one value calculate_percentiles with one value" do
-        expect(Scalyr::Common::Util.calculate_percentiles([2.5], [0.5, 0.9, 0.95])).to eq([2.5, 2.5, 2.5])
+        expect(status_event[:attrs]["message"]).to eq("plugin_status: total_requests_sent=20, total_requests_failed=10, total_request_bytes_sent=100, total_compressed_request_bytes_sent=50, total_response_bytes_received=100, total_request_latency_secs=100, total_connections_created=10, total_serialization_duration_secs=100.500, total_compression_duration_secs=10.200, total_flatten_values_duration_secs=33.300, compression_type=deflate, compression_level=9, total_multi_receive_secs=0, multi_receive_duration_p50=, multi_receive_duration_p90=, multi_receive_duration_p99=")
       end
     end
 
