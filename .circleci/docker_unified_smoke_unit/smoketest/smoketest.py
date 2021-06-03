@@ -268,19 +268,18 @@ class SmokeTestActor(object):
                     metrics.get("total_requests_sent"),
                     metrics.get("total_request_latency_secs"),
                     metrics.get("total_response_bytes_received"),
-                    metrics.get("total_flatten_values_duration_secs"),
                     metrics.get("compression_level"),
                     metrics.get("compression_type") == "deflate",
                     metrics.get("total_response_bytes_received") >= 10,
                     metrics.get("total_requests_sent") >= 1,
                     metrics.get("total_request_bytes_sent") >= 10,
-                    metrics.get("total_flatten_values_duration_secs") == 0,
+                    metrics.get("total_flatten_values_duration_secs", -1) == 0, # Can't check for existence in the same way since 0 resolves to False
                 ]):
                     print("Status line metrics didn't match:")
                     if not metrics.get("total_requests_sent"): print("Missing total_requests_sent")
                     if not metrics.get("total_request_latency_secs"): print("Missing total_request_latency_secs")
-                    if not metrics.get("total_response_bytes_received"): print("Missing total_requests_sent")
-                    if not metrics.get("total_flatten_values_duration_secs"): print("Missing total_response_bytes_received")
+                    if not metrics.get("total_response_bytes_received"): print("Missing total_response_bytes_received")
+                    if not metrics.get("total_flatten_values_duration_secs"): print("Missing total_flatten_values_duration_secs")
                     if not metrics.get("compression_level"): print("Missing compression_level")
                     if not metrics.get("compression_type", None) == "deflate": print("Wrong compression_type")
                     if not metrics.get("total_response_bytes_received", -1) >= 10: print("Wrong total_response_bytes_received")
