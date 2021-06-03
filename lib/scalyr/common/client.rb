@@ -184,6 +184,10 @@ class ClientSession
     current_stats[:compression_duration_secs_p50] = request_latency[0]
     current_stats[:compression_duration_secs_p90] = request_latency[1]
     current_stats[:compression_duration_secs_p99] = request_latency[2]
+    request_latency = Scalyr::Common::Util.calculate_percentiles(@latency_stats[:bytes_sent], [0.5, 0.9, 0.99])
+    current_stats[:bytes_sent_p50] = request_latency[0]
+    current_stats[:bytes_sent_p90] = request_latency[1]
+    current_stats[:bytes_sent_p99] = request_latency[2]
     @latency_stats = @base_latency_stats.clone
 
     current_stats
