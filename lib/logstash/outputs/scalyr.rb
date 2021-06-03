@@ -657,16 +657,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       status_event[:attrs]['serverHost'] = @node_hostname
       status_event[:attrs]['parser'] = @status_parser
     end
-    # TODO: We shouldn't include metrics for status requests or should include
-    # them separately otherwise they will skew averages for other metrics for
-    # data requests. One option is to have a additional counter for status
-    # requests so we can subtract that from total request count when calculating
-    # averages. Even better, in addition to that, we should also record
-    # percentiles.
-    # Technically we could still approximate number of status requests for a
-    # specific time period since we know how often those are sent (every 5
-    # minutes by default), but we still track latency and other metrics for
-    # status requests so this doesn't help us all that much.
     multi_event_request = create_multi_event_request([status_event], nil, nil, nil)
     @client_session.post_add_events(multi_event_request[:body], true, 0, 0)
     @last_status_transmit_time = Time.now()
