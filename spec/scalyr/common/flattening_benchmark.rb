@@ -1,5 +1,6 @@
 require 'benchmark'
 require 'json'
+
 require_relative '../../../lib/scalyr/common/util'
 
 # NOTE: When using jRuby using multiple iterations with the same dataset doesn't make
@@ -23,12 +24,14 @@ def generate_hash(widths)
   end
 end
 
-ITERATIONS = 100
+ITERATIONS = 500
 
 data = []
 ITERATIONS.times do
-  data << generate_hash([8, 3, 2])
+  data << generate_hash([14, 8, 6, 4])
 end
+
+puts "Using %s total keys in a hash" % [Scalyr::Common::Util.flatten(data[0]).count]
 
 result = []
 ITERATIONS.times do |i|
