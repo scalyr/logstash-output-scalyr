@@ -90,9 +90,7 @@ jobs: # a collection of steps
           name: Run smoketest script which first builds another Docker Logstash image and installs our gem
           command: |
             echo $pwd
-            gemfile=$(ls *.gem)
-            cp $gemfile .circleci/docker/
-            source .circleci/smoketest_logstash.sh yarnsh/agent-testing:latest 300 $gemfile .circleci/docker Dockerfile.rubygems
+            source .circleci/smoketest_logstash.sh yarnsh/agent-testing:latest 300 logstash-output-scalyr .circleci/docker Dockerfile.rubygems
 
 
 workflows:
