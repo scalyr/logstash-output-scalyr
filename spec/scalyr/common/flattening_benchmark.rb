@@ -26,12 +26,17 @@ end
 
 ITERATIONS = 500
 
+puts "Using %s iterations" % [ITERATIONS]
+puts ""
+
+# Around ~512 keys in a hash
 data = []
 ITERATIONS.times do
-  data << generate_hash([14, 8, 6, 4])
+  data << generate_hash([8, 4, 4, 4])
 end
 
 puts "Using %s total keys in a hash" % [Scalyr::Common::Util.flatten(data[0]).count]
+puts ""
 
 result = []
 ITERATIONS.times do |i|
@@ -41,7 +46,49 @@ end
 sum = result.inject(nil) { |sum, t| sum.nil? ? sum = t : sum += t }
 avg = sum / result.size
 
-puts "Using %s iterations" % [ITERATIONS]
+Benchmark.bm(7, "sum:", "avg:") do |b|
+  [sum, avg]
+end
+
+# Around ~960 keys in a hash
+data = []
+ITERATIONS.times do
+  data << generate_hash([12, 5, 4, 4])
+end
+
+puts ""
+puts "Using %s total keys in a hash" % [Scalyr::Common::Util.flatten(data[0]).count]
+puts ""
+
+result = []
+ITERATIONS.times do |i|
+  result << Benchmark.measure { Scalyr::Common::Util.flatten(data[i]) }
+end
+
+sum = result.inject(nil) { |sum, t| sum.nil? ? sum = t : sum += t }
+avg = sum / result.size
+
+Benchmark.bm(7, "sum:", "avg:") do |b|
+  [sum, avg]
+end
+
+# Around ~2700 keys in a hash
+data = []
+ITERATIONS.times do
+  data << generate_hash([14, 8, 6, 4])
+end
+
+puts ""
+puts "Using %s total keys in a hash" % [Scalyr::Common::Util.flatten(data[0]).count]
+puts ""
+
+result = []
+ITERATIONS.times do |i|
+  result << Benchmark.measure { Scalyr::Common::Util.flatten(data[i]) }
+end
+
+sum = result.inject(nil) { |sum, t| sum.nil? ? sum = t : sum += t }
+avg = sum / result.size
 
 Benchmark.bm(7, "sum:", "avg:") do |b|
   [sum, avg]
