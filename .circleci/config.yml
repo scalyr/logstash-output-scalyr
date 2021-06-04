@@ -87,4 +87,5 @@ workflows:
     jobs:
       - smoketest
       - unittest
-      - microbenchmarks
+      - microbenchmarks-jruby
+      - microbenchmarks-cruby
