@@ -115,6 +115,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Parser to attach to status events
   config :status_parser, :validate => :string, :default => "logstash_plugin_metrics"
 
+  # Whether or not to create fresh quantile estimators after a status send. Depending on what you want to gather from
+  # these stas this might be wanted or not.
+  config :flush_quantile_estimates_on_status_send, :validate => :boolean, :default => false
+
   def close
     @running = false
     @client_session.close if @client_session
@@ -200,7 +204,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         @logger, @add_events_uri,
         @compression_type, @compression_level,
         @ssl_verify_peer, @ssl_ca_bundle_path, @ssl_verify_depth,
-        @append_builtin_cert, @record_stats_for_status
+        @append_builtin_cert, @record_stats_for_status, @flush_quantile_estimates_on_status_send
     )
 
     @logger.info("Started Scalyr output plugin", :class => self.class.name)
@@ -615,7 +619,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     current_stats[:multi_receive_event_count_p90] = @multi_receive_metrics[:multi_receive_event_count].query(0.9)
     current_stats[:multi_receive_event_count_p99] = @multi_receive_metrics[:multi_receive_event_count].query(0.99)
 
-    @multi_receive_metrics = get_new_multi_receive_metrics
+    if @flush_quantile_estimates_on_status_send
+      @multi_receive_metrics = get_new_multi_receive_metrics
+    end
     current_stats
   end
 
@@ -648,12 +654,14 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       cnt = 0
       @client_session.get_stats.each do |k, v|
         val = v.instance_of?(Float) ? sprintf("%.3f", v) : v
+        val = val.nil? ? 0 : val
         msg << ', ' if cnt > 0
         msg << "#{k.to_s}=#{val}"
         cnt += 1
       end
       get_batch_stats.each do |k, v|
         val = v.instance_of?(Float) ? sprintf("%.3f", v) : v
+        val = val.nil? ? 0 : val
         msg << ', ' if cnt > 0
         msg << "#{k.to_s}=#{val}"
         cnt += 1

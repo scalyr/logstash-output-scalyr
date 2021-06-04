@@ -53,7 +53,7 @@ class ClientSession
 
   def initialize(logger, add_events_uri, compression_type, compression_level,
                  ssl_verify_peer, ssl_ca_bundle_path, ssl_verify_depth, append_builtin_cert,
-                 record_stats_for_status)
+                 record_stats_for_status, flush_quantile_estimates_on_status_send)
     @logger = logger
     @add_events_uri = add_events_uri  # typically /addEvents
     @compression_type = compression_type
@@ -63,6 +63,7 @@ class ClientSession
     @append_builtin_cert = append_builtin_cert
     @ssl_verify_depth = ssl_verify_depth
     @record_stats_for_status = record_stats_for_status
+    @flush_quantile_estimates_on_status_send = flush_quantile_estimates_on_status_send
 
     # A cert to use by default to avoid issues caused by the OpenSSL library not validating certs according to standard
     @cert_string = "" \
@@ -186,7 +187,9 @@ class ClientSession
     current_stats[:bytes_sent_p90] = @latency_stats[:bytes_sent].query(0.9)
     current_stats[:bytes_sent_p99] = @latency_stats[:bytes_sent].query(0.99)
 
-    @latency_stats = get_new_latency_stats
+    if @flush_quantile_estimates_on_status_send
+      @latency_stats = get_new_latency_stats
+    end
     current_stats
   end
 
