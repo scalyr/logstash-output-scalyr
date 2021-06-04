@@ -107,12 +107,5 @@ workflows:
       - microbenchmarks-jruby
       - microbenchmarks-cruby
   daily-rubygems-smoketest:
-     triggers:
-       - schedule:
-           cron: "0 0 * * *"
-           filters:
-             branches:
-               only:
-                 - master
      jobs:
        - rubygems-smoketest
