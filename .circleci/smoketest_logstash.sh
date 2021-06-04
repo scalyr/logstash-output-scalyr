@@ -38,6 +38,10 @@ gemfile=$3
 # 3. gemfile of scalyr logstash plugin
 logstash_docker_context=$4
 
+# Supply the docker name to let us build slightly different images,
+# for example one that pulls the gem from rubygems.org
+dockerfile=$5
+
 # We don't have an easy way to update base test docker images which come bundled
 # with the smoketest.py file
 # (.circleci/docker_unified_smoke_unit/smoketest/smoketest.py ->
@@ -98,7 +102,7 @@ pushd $logstash_docker_context
 perl -pi.bak -e "s{ORIGIN1_INFILE}{$monitored_logfile1}" pipeline/scalyr.conf
 perl -pi.bak -e "s{SCALYR_API_KEY}{$SCALYR_API_KEY}" pipeline/scalyr.conf
 perl -pi.bak -e "s{SCALYR_SERVER}{$SCALYR_SERVER}" pipeline/scalyr.conf
-docker build -t ${agent_image} .
+docker build -t ${agent_image} -f $dockerfile .
 popd
 
 #------------------------------------------------------------------------------------------------------------

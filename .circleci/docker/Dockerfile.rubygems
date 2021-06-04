@@ -1,0 +1,4 @@
+FROM docker.elastic.co/logstash/logstash:7.2.0
+COPY config /usr/share/logstash/config
+COPY pipeline /usr/share/logstash/pipeline
+RUN /usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr
