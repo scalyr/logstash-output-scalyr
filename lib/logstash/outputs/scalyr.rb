@@ -235,7 +235,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     return {
       :multi_receive_duration_secs => Quantile::Estimator.new,
       :multi_receive_event_count => Quantile::Estimator.new,
-      :multi_receive_event_attributes_count => Quantile::Estimator.new,
+      :event_attributes_count => Quantile::Estimator.new,
       :flatten_values_duration_secs => Quantile::Estimator.new
     }
   end
@@ -496,7 +496,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       end
 
       if should_sample_event_metrics
-        @metrics[:multi_receive_event_attributes_count].observe(record.count)
+        @metrics[:event_attributes_count].observe(record.count)
 
         if @flatten_nested_values
           @metrics[:flatten_values_duration_secs].observe(flatten_nested_values_duration)
@@ -643,9 +643,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     current_stats[:multi_receive_event_count_p90] = @metrics[:multi_receive_event_count].query(0.9)
     current_stats[:multi_receive_event_count_p99] = @metrics[:multi_receive_event_count].query(0.99)
 
-    current_stats[:multi_receive_event_attributes_count_p50] = @metrics[:multi_receive_event_attributes_count].query(0.5)
-    current_stats[:multi_receive_event_attributes_count_p90] = @metrics[:multi_receive_event_attributes_count].query(0.9)
-    current_stats[:multi_receive_event_attributes_count_p99] = @metrics[:multi_receive_event_attributes_count].query(0.99)
+    current_stats[:event_attributes_count_p50] = @metrics[:event_attributes_count].query(0.5)
+    current_stats[:event_attributes_count_p90] = @metrics[:event_attributes_count].query(0.9)
+    current_stats[:event_attributes_count_p99] = @metrics[:event_attributes_count].query(0.99)
 
     current_stats[:flatten_values_duration_secs_p50] = @metrics[:flatten_values_duration_secs].query(0.5)
     current_stats[:flatten_values_duration_secs_p90] = @metrics[:flatten_values_duration_secs].query(0.9)

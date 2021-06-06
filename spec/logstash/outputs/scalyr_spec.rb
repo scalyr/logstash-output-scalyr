@@ -82,7 +82,7 @@ describe LogStash::Outputs::Scalyr do
         plugin.instance_variable_set(:@metrics, {
           :multi_receive_duration_secs => Quantile::Estimator.new,
           :multi_receive_event_count => Quantile::Estimator.new,
-          :multi_receive_event_attributes_count =>  Quantile::Estimator.new,
+          :event_attributes_count =>  Quantile::Estimator.new,
           :flatten_values_duration_secs => Quantile::Estimator.new
         })
 
@@ -92,7 +92,7 @@ describe LogStash::Outputs::Scalyr do
 
         plugin.instance_variable_set(:@multi_receive_statistics, {:total_multi_receive_secs => 0})
         status_event = plugin.send_status
-        expect(status_event[:attrs]["message"]).to eq("plugin_status: total_requests_sent=20, total_requests_failed=10, total_request_bytes_sent=100, total_compressed_request_bytes_sent=50, total_response_bytes_received=100, total_request_latency_secs=100, total_connections_created=10, total_serialization_duration_secs=100.500, total_compression_duration_secs=10.200, compression_type=deflate, compression_level=9, total_multi_receive_secs=0, multi_receive_duration_p50=10, multi_receive_duration_p90=18, multi_receive_duration_p99=19, multi_receive_event_count_p50=0, multi_receive_event_count_p90=0, multi_receive_event_count_p99=0, multi_receive_event_attributes_count_p50=0, multi_receive_event_attributes_count_p90=0, multi_receive_event_attributes_count_p99=0, flatten_values_duration_secs_p50=0, flatten_values_duration_secs_p90=0, flatten_values_duration_secs_p99=0")
+        expect(status_event[:attrs]["message"]).to eq("plugin_status: total_requests_sent=20, total_requests_failed=10, total_request_bytes_sent=100, total_compressed_request_bytes_sent=50, total_response_bytes_received=100, total_request_latency_secs=100, total_connections_created=10, total_serialization_duration_secs=100.500, total_compression_duration_secs=10.200, compression_type=deflate, compression_level=9, total_multi_receive_secs=0, multi_receive_duration_p50=10, multi_receive_duration_p90=18, multi_receive_duration_p99=19, multi_receive_event_count_p50=0, multi_receive_event_count_p90=0, multi_receive_event_count_p99=0, event_attributes_count_p50=0, event_attributes_count_p90=0, event_attributes_count_p99=0, flatten_values_duration_secs_p50=0, flatten_values_duration_secs_p90=0, flatten_values_duration_secs_p99=0")
       end
 
       it "send_stats is called when events list is empty, but otherwise noop" do
@@ -100,7 +100,7 @@ describe LogStash::Outputs::Scalyr do
         plugin.instance_variable_set(:@metrics, {
           :multi_receive_duration_secs => Quantile::Estimator.new,
           :multi_receive_event_count => Quantile::Estimator.new,
-          :multi_receive_event_attributes_count => Quantile::Estimator.new,
+          :event_attributes_count => Quantile::Estimator.new,
           :flatten_values_duration_secs => Quantile::Estimator.new
         })
         plugin.instance_variable_set(:@client_session, mock_client_session)
@@ -124,7 +124,7 @@ describe LogStash::Outputs::Scalyr do
         plugin.instance_variable_set(:@metrics, {
           :multi_receive_duration_secs => Quantile::Estimator.new,
           :multi_receive_event_count => Quantile::Estimator.new,
-          :multi_receive_event_attributes_count =>  Quantile::Estimator.new,
+          :event_attributes_count =>  Quantile::Estimator.new,
           :flatten_values_duration_secs => Quantile::Estimator.new
         })
         (1..20).each do |n|
