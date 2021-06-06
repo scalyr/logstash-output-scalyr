@@ -349,6 +349,10 @@ can easily parse them using a parser definition similar to the one below.
 }
 ```
 
+Do keep in mind that this line contains quite a lot of metrics so parsing it may make it more likely
+to hit server side defined per 5 minute period unique number of attributes limit in case you are already
+very close to tke limit.
+
 For various request level metrics we track totals (either counts or duration). Those metrics names start
 with ``total_`` (e.g. ``total_requests_failed``). To be able to derive average per request values you
 can do that by dividing the total value with the value of ``total_requests_sent`` metrics.
