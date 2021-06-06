@@ -119,7 +119,6 @@ class ClientSession
         :total_request_latency_secs => 0, #  The total number of secs spent waiting for a responses (so average latency
         # can be calculated by dividing this number by @total_requests_sent).
         # This includes connection establishment time.
-        :total_connections_created => 0, # The total number of HTTP connections successfully created.
         :total_serialization_duration_secs => 0, # The total duration (in seconds) it took to serialize (JSON dumos) all the request bodies.
         # You can calculate avg compression duration by diving this value with total_requests_sent
         :total_compression_duration_secs => 0, # The total duration (in seconds) it took to compress all the request bodies.
