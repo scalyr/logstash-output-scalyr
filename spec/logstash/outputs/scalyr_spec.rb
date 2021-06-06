@@ -58,6 +58,7 @@ describe LogStash::Outputs::Scalyr do
                                                      'api_write_token' => '1234',
                                                      'serverhost_field' => 'source_host',
                                                      'log_constants' => ['tags'],
+                                                     'flatten_nested_values' => true,
                                                  })
 
       mock_client_session = MockClientSession.new
@@ -65,6 +66,29 @@ describe LogStash::Outputs::Scalyr do
       it "returns correct stats on get_stats" do
         stats = mock_client_session.get_stats
         expect(stats[:total_requests_sent]).to eq(20)
+      end
+
+      it "it doesnt include flatten metrics if flattening is disabled" do
+          plugin1 = LogStash::Outputs::Scalyr.new({
+                                                     'api_write_token' => '1234',
+                                                     'serverhost_field' => 'source_host',
+                                                     'log_constants' => ['tags'],
+                                                     'flatten_nested_values' => false,
+                                                 })
+        mock_client_session = MockClientSession.new
+        plugin1.instance_variable_set(:@last_status_transmit_time, 100)
+        plugin1.instance_variable_set(:@client_session, mock_client_session)
+        plugin1.instance_variable_set(:@plugin_metrics, {
+          :multi_receive_duration_secs => Quantile::Estimator.new,
+          :multi_receive_event_count => Quantile::Estimator.new,
+          :event_attributes_count =>  Quantile::Estimator.new,
+          :flatten_values_duration_secs => Quantile::Estimator.new
+        })
+        plugin1.instance_variable_get(:@plugin_metrics)[:multi_receive_duration_secs].observe(1)
+        plugin1.instance_variable_set(:@multi_receive_statistics, {:total_multi_receive_secs => 0})
+
+        status_event = plugin1.send_status
+        expect(status_event[:attrs]["message"]).to eq("plugin_status: total_requests_sent=20 total_requests_failed=10 total_request_bytes_sent=100 total_compressed_request_bytes_sent=50 total_response_bytes_received=100 total_request_latency_secs=100 total_serialization_duration_secs=100.500 total_compression_duration_secs=10.200 compression_type=deflate compression_level=9 total_multi_receive_secs=0 multi_receive_duration_p50=1 multi_receive_duration_p90=1 multi_receive_duration_p99=1 multi_receive_event_count_p50=0 multi_receive_event_count_p90=0 multi_receive_event_count_p99=0 event_attributes_count_p50=0 event_attributes_count_p90=0 event_attributes_count_p99=0")
       end
 
       it "returns and sends correct status event on send_stats on initial and subsequent send" do

@@ -648,9 +648,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     current_stats[:event_attributes_count_p90] = @plugin_metrics[:event_attributes_count].query(0.9)
     current_stats[:event_attributes_count_p99] = @plugin_metrics[:event_attributes_count].query(0.99)
 
-    current_stats[:flatten_values_duration_secs_p50] = @plugin_metrics[:flatten_values_duration_secs].query(0.5)
-    current_stats[:flatten_values_duration_secs_p90] = @plugin_metrics[:flatten_values_duration_secs].query(0.9)
-    current_stats[:flatten_values_duration_secs_p99] = @plugin_metrics[:flatten_values_duration_secs].query(0.99)
+    if @flatten_nested_values
+      # We only return those metrics in case flattening is enabled
+      current_stats[:flatten_values_duration_secs_p50] = @plugin_metrics[:flatten_values_duration_secs].query(0.5)
+      current_stats[:flatten_values_duration_secs_p90] = @plugin_metrics[:flatten_values_duration_secs].query(0.9)
+      current_stats[:flatten_values_duration_secs_p99] = @plugin_metrics[:flatten_values_duration_secs].query(0.99)
+    end
 
     if @flush_quantile_estimates_on_status_send
       @logger.debug "Recreating / reseting quantile estimator classes for plugin metrics"
