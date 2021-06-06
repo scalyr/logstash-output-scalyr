@@ -64,7 +64,7 @@ jobs: # a collection of steps
           name: Run Micro Benchmarks
           command: |
             echo "Flattening and serialization util results:"
-            ruby spec/scalyr/common/flattening_benchmark.rb
+            ruby spec/benchmarks/flattening_and_serialization.rb
             echo ""
   microbenchmarks-cruby:
     docker:

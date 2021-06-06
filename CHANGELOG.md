@@ -1,4 +1,10 @@
 # Beta
+## 0.1.8
+
+- Add additional metrics.
+- Correctly handle flatten_nested_values_duration metric
+- Add support for setting sampling rate for per event level metrics. It defaults to %5 (``0.05``.)
+
 ## 0.1.7
  - Tracking of new statistics such as `multi_receive` method duration and batch sizes.
  - Addition of percentiles for both existing and new stats.
