@@ -1,7 +1,7 @@
 require 'benchmark'
 require 'json'
 
-require_relative '../../../lib/scalyr/common/util'
+require_relative '../../lib/scalyr/common/util'
 
 # NOTE: When using jRuby using multiple iterations with the same dataset doesn't make
 # sense since it will just use JITed version of the code which will be very fast. If we
@@ -54,6 +54,7 @@ def run_benchmark_and_print_results(data, run_benchmark_func)
 end
 
 def flatten_data_func(data)
+  Scalyr::Common::Util.flatten(data)
 end
 
 def json_serialize_data(data)
