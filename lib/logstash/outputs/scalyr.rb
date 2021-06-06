@@ -325,8 +325,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
     if records_count > 0
       @multi_receive_statistics[:total_multi_receive_secs] += (Time.now.to_f - start_time)
-      @metrics[:multi_receive_duration_secs].observe(Time.now.to_f - start_time)
-      @metrics[:multi_receive_event_count].observe(records_count)
+      @plugin_metrics[:multi_receive_duration_secs].observe(Time.now.to_f - start_time)
+      @plugin_metrics[:multi_receive_event_count].observe(records_count)
     end
 
     send_status
@@ -497,10 +497,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       end
 
       if should_sample_event_metrics
-        @metrics[:event_attributes_count].observe(record.count)
+        @plugin_metrics[:event_attributes_count].observe(record.count)
 
         if @flatten_nested_values
-          @metrics[:flatten_values_duration_secs].observe(flatten_nested_values_duration)
+          @plugin_metrics[:flatten_values_duration_secs].observe(flatten_nested_values_duration)
         end
       end
 
@@ -636,21 +636,21 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   def get_stats
     current_stats = @multi_receive_statistics.clone
 
-    current_stats[:multi_receive_duration_p50] = @metrics[:multi_receive_duration_secs].query(0.5)
-    current_stats[:multi_receive_duration_p90] = @metrics[:multi_receive_duration_secs].query(0.9)
-    current_stats[:multi_receive_duration_p99] = @metrics[:multi_receive_duration_secs].query(0.99)
+    current_stats[:multi_receive_duration_p50] = @plugin_metrics[:multi_receive_duration_secs].query(0.5)
+    current_stats[:multi_receive_duration_p90] = @plugin_metrics[:multi_receive_duration_secs].query(0.9)
+    current_stats[:multi_receive_duration_p99] = @plugin_metrics[:multi_receive_duration_secs].query(0.99)
 
-    current_stats[:multi_receive_event_count_p50] = @metrics[:multi_receive_event_count].query(0.5)
-    current_stats[:multi_receive_event_count_p90] = @metrics[:multi_receive_event_count].query(0.9)
-    current_stats[:multi_receive_event_count_p99] = @metrics[:multi_receive_event_count].query(0.99)
+    current_stats[:multi_receive_event_count_p50] = @plugin_metrics[:multi_receive_event_count].query(0.5)
+    current_stats[:multi_receive_event_count_p90] = @plugin_metrics[:multi_receive_event_count].query(0.9)
+    current_stats[:multi_receive_event_count_p99] = @plugin_metrics[:multi_receive_event_count].query(0.99)
 
-    current_stats[:event_attributes_count_p50] = @metrics[:event_attributes_count].query(0.5)
-    current_stats[:event_attributes_count_p90] = @metrics[:event_attributes_count].query(0.9)
-    current_stats[:event_attributes_count_p99] = @metrics[:event_attributes_count].query(0.99)
+    current_stats[:event_attributes_count_p50] = @plugin_metrics[:event_attributes_count].query(0.5)
+    current_stats[:event_attributes_count_p90] = @plugin_metrics[:event_attributes_count].query(0.9)
+    current_stats[:event_attributes_count_p99] = @plugin_metrics[:event_attributes_count].query(0.99)
 
-    current_stats[:flatten_values_duration_secs_p50] = @metrics[:flatten_values_duration_secs].query(0.5)
-    current_stats[:flatten_values_duration_secs_p90] = @metrics[:flatten_values_duration_secs].query(0.9)
-    current_stats[:flatten_values_duration_secs_p99] = @metrics[:flatten_values_duration_secs].query(0.99)
+    current_stats[:flatten_values_duration_secs_p50] = @plugin_metrics[:flatten_values_duration_secs].query(0.5)
+    current_stats[:flatten_values_duration_secs_p90] = @plugin_metrics[:flatten_values_duration_secs].query(0.9)
+    current_stats[:flatten_values_duration_secs_p99] = @plugin_metrics[:flatten_values_duration_secs].query(0.99)
 
     if @flush_quantile_estimates_on_status_send
       @logger.debug "Recreating / reseting quantile estimator classes for plugin metrics"

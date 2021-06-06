@@ -79,7 +79,7 @@ describe LogStash::Outputs::Scalyr do
         plugin.instance_variable_set(:@last_status_transmit_time, 100)
         plugin.instance_variable_set(:@client_session, mock_client_session)
         # Setup one quantile calculation to make sure at least one of them calculates as expected
-        plugin.instance_variable_set(:@metrics, {
+        plugin.instance_variable_set(:@plugin_metrics, {
           :multi_receive_duration_secs => Quantile::Estimator.new,
           :multi_receive_event_count => Quantile::Estimator.new,
           :event_attributes_count =>  Quantile::Estimator.new,
@@ -87,7 +87,7 @@ describe LogStash::Outputs::Scalyr do
         })
 
         (1..20).each do |n|
-          plugin.instance_variable_get(:@metrics)[:multi_receive_duration_secs].observe(n)
+          plugin.instance_variable_get(:@plugin_metrics)[:multi_receive_duration_secs].observe(n)
         end
 
         plugin.instance_variable_set(:@multi_receive_statistics, {:total_multi_receive_secs => 0})
@@ -97,7 +97,7 @@ describe LogStash::Outputs::Scalyr do
 
       it "send_stats is called when events list is empty, but otherwise noop" do
         quantile_estimator = Quantile::Estimator.new
-        plugin.instance_variable_set(:@metrics, {
+        plugin.instance_variable_set(:@plugin_metrics, {
           :multi_receive_duration_secs => Quantile::Estimator.new,
           :multi_receive_event_count => Quantile::Estimator.new,
           :event_attributes_count => Quantile::Estimator.new,
@@ -121,14 +121,14 @@ describe LogStash::Outputs::Scalyr do
         # 2. Second send
         plugin.instance_variable_set(:@last_status_transmit_time, 100)
         plugin.instance_variable_set(:@client_session, mock_client_session)
-        plugin.instance_variable_set(:@metrics, {
+        plugin.instance_variable_set(:@plugin_metrics, {
           :multi_receive_duration_secs => Quantile::Estimator.new,
           :multi_receive_event_count => Quantile::Estimator.new,
           :event_attributes_count =>  Quantile::Estimator.new,
           :flatten_values_duration_secs => Quantile::Estimator.new
         })
         (1..20).each do |n|
-          plugin.instance_variable_get(:@metrics)[:multi_receive_duration_secs].observe(n)
+          plugin.instance_variable_get(:@plugin_metrics)[:multi_receive_duration_secs].observe(n)
         end
         plugin.instance_variable_set(:@multi_receive_statistics, {:total_multi_receive_secs => 0})
         expect(mock_client_session).to receive(:post_add_events).with(anything, true, anything)
