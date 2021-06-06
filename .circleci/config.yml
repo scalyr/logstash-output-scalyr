@@ -56,6 +56,7 @@ jobs: # a collection of steps
   microbenchmarks-jruby:
     docker:
       - image: circleci/jruby:9.2.7.0-jdk
+    resource_class: medium+
     steps:
       - setup_remote_docker:
           docker_layer_caching: false
@@ -69,6 +70,7 @@ jobs: # a collection of steps
   microbenchmarks-cruby:
     docker:
       - image: cimg/ruby:2.7.1-node
+    resource_class: medium+
     steps:
       - setup_remote_docker:
           docker_layer_caching: false
