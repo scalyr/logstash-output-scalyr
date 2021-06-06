@@ -7,7 +7,7 @@ require_relative '../../lib/scalyr/common/util'
 # sense since it will just use JITed version of the code which will be very fast. If we
 # wanted to accurately measure using multiple iterations we would need te different
 # input data for each iteration.
-ITERATIONS = 500
+ITERATIONS = 300
 
 def rand_str(len)
   return (0...len).map { (65 + rand(26)).chr }.join
