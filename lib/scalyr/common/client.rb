@@ -124,9 +124,6 @@ class ClientSession
         # You can calculate avg compression duration by diving this value with total_requests_sent
         :total_compression_duration_secs => 0, # The total duration (in seconds) it took to compress all the request bodies.
         # You can calculate avg compression duration by diving this value with total_requests_sent
-        :total_flatten_values_duration_secs => 0, # The total duration (in seconds) it took to flatten nested record values.
-        # In case flattening is disabled, this value will always be 0. Can infer average per-request value by dividing this
-        # value by total_requests_sent
         :compression_type => @compression_type,
         :compression_level => @compression_level,
     }
@@ -160,8 +157,6 @@ class ClientSession
       # The total number of HTTP connections successfully created.
       :serialization_duration_secs => Quantile::Estimator.new, # The duration (in seconds) it took to serialize (JSON dumos) all the request bodies.
       :compression_duration_secs => Quantile::Estimator.new, # The duration (in seconds) it took to compress all the request bodies.
-      :flatten_values_duration_secs => Quantile::Estimator.new, # The duration (in seconds) it took to flatten nested record values.
-      # In case flattening is disabled, this value will always be 0.
       :request_latency_secs => Quantile::Estimator.new, #  Secs spent waiting for a responses. This includes connection establishment time.
       :bytes_sent => Quantile::Estimator.new  # The number of bytes sent over the network. Batch size with a bit more overhead.
     }
@@ -177,9 +172,6 @@ class ClientSession
     current_stats[:serialization_duration_secs_p50] = @latency_stats[:serialization_duration_secs].query(0.5)
     current_stats[:serialization_duration_secs_p90] = @latency_stats[:serialization_duration_secs].query(0.9)
     current_stats[:serialization_duration_secs_p99] = @latency_stats[:serialization_duration_secs].query(0.99)
-    current_stats[:flatten_values_duration_secs_p50] = @latency_stats[:flatten_values_duration_secs].query(0.5)
-    current_stats[:flatten_values_duration_secs_p90] = @latency_stats[:flatten_values_duration_secs].query(0.9)
-    current_stats[:flatten_values_duration_secs_p99] = @latency_stats[:flatten_values_duration_secs].query(0.99)
     current_stats[:compression_duration_secs_p50] = @latency_stats[:compression_duration_secs].query(0.5)
     current_stats[:compression_duration_secs_p90] = @latency_stats[:compression_duration_secs].query(0.9)
     current_stats[:compression_duration_secs_p99] = @latency_stats[:compression_duration_secs].query(0.99)
@@ -196,7 +188,7 @@ class ClientSession
 
 
   # Upload data to Scalyr. Assumes that the body size complies with Scalyr limits
-  def post_add_events(body, is_status, body_serialization_duration = 0, flatten_nested_values_duration = 0)
+  def post_add_events(body, is_status, body_serialization_duration = 0)
     post, compression_duration = prepare_post_object @add_events_uri.path, body
     fail_count = 1  # putative assume failure
     start_time = Time.now
@@ -238,13 +230,11 @@ class ClientSession
           @stats[:total_compressed_request_bytes_sent] += compressed_bytes_sent
           @stats[:total_response_bytes_received] += bytes_received
           @stats[:total_serialization_duration_secs] += body_serialization_duration
-          @stats[:total_flatten_values_duration_secs] += flatten_nested_values_duration
           @stats[:total_compression_duration_secs] += compression_duration
           end_time = Time.now
           @stats[:total_request_latency_secs] += (end_time - start_time)
           @latency_stats[:request_latency_secs].observe(end_time - start_time)
           @latency_stats[:serialization_duration_secs].observe(body_serialization_duration)
-          @latency_stats[:flatten_values_duration_secs].observe(flatten_nested_values_duration)
           @latency_stats[:compression_duration_secs].observe(compression_duration)
           @latency_stats[:bytes_sent].observe(uncompressed_bytes_sent)
         end

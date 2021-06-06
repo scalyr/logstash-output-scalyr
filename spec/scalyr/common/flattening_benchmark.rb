@@ -54,7 +54,6 @@ def run_benchmark_and_print_results(data, run_benchmark_func)
 end
 
 def flatten_data_func(data)
-  Scalyr::Common::Util.flatten(data)
 end
 
 def json_serialize_data(data)

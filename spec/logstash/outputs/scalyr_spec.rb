@@ -18,7 +18,6 @@ class MockClientSession
     :total_connections_created => 10,
     :total_serialization_duration_secs => 100.5,
     :total_compression_duration_secs => 10.20,
-    :total_flatten_values_duration_secs => 33.3,
     :compression_type => "deflate",
     :compression_level => 9,
   }
@@ -32,8 +31,8 @@ class MockClientSession
     @stats.clone
   end
 
-  def post_add_events(body, is_status, body_serialization_duration = 0, flatten_nested_values_duration = 0)
-    @sent_events << { :body => body, :body_serialization_duration => body_serialization_duration, :flatten_nested_values_duration => flatten_nested_values_duration }
+  def post_add_events(body, is_status, body_serialization_duration = 0)
+    @sent_events << { :body => body, :body_serialization_duration => body_serialization_duration }
   end
 end
 
@@ -80,19 +79,30 @@ describe LogStash::Outputs::Scalyr do
         plugin.instance_variable_set(:@last_status_transmit_time, 100)
         plugin.instance_variable_set(:@client_session, mock_client_session)
         # Setup one quantile calculation to make sure at least one of them calculates as expected
-        plugin.instance_variable_set(:@multi_receive_metrics, {:multi_receive_duration_secs => Quantile::Estimator.new, :multi_receive_event_count => Quantile::Estimator.new})
+        plugin.instance_variable_set(:@metrics, {
+          :multi_receive_duration_secs => Quantile::Estimator.new,
+          :multi_receive_event_count => Quantile::Estimator.new,
+          :multi_receive_event_attributes_count =>  Quantile::Estimator.new,
+          :flatten_values_duration_secs => Quantile::Estimator.new
+        })
+
         (1..20).each do |n|
-          plugin.instance_variable_get(:@multi_receive_metrics)[:multi_receive_duration_secs].observe(n)
+          plugin.instance_variable_get(:@metrics)[:multi_receive_duration_secs].observe(n)
         end
+
         plugin.instance_variable_set(:@multi_receive_statistics, {:total_multi_receive_secs => 0})
         status_event = plugin.send_status
-        puts status_event[:attrs]["message"]
-        expect(status_event[:attrs]["message"]).to eq("plugin_status: total_requests_sent=20, total_requests_failed=10, total_request_bytes_sent=100, total_compressed_request_bytes_sent=50, total_response_bytes_received=100, total_request_latency_secs=100, total_connections_created=10, total_serialization_duration_secs=100.500, total_compression_duration_secs=10.200, total_flatten_values_duration_secs=33.300, compression_type=deflate, compression_level=9, total_multi_receive_secs=0, multi_receive_duration_p50=10, multi_receive_duration_p90=18, multi_receive_duration_p99=19, multi_receive_event_count_p50=0, multi_receive_event_count_p90=0, multi_receive_event_count_p99=0")
+        expect(status_event[:attrs]["message"]).to eq("plugin_status: total_requests_sent=20, total_requests_failed=10, total_request_bytes_sent=100, total_compressed_request_bytes_sent=50, total_response_bytes_received=100, total_request_latency_secs=100, total_connections_created=10, total_serialization_duration_secs=100.500, total_compression_duration_secs=10.200, compression_type=deflate, compression_level=9, total_multi_receive_secs=0, multi_receive_duration_p50=10, multi_receive_duration_p90=18, multi_receive_duration_p99=19, multi_receive_event_count_p50=0, multi_receive_event_count_p90=0, multi_receive_event_count_p99=0, multi_receive_event_attributes_count_p50=0, multi_receive_event_attributes_count_p90=0, multi_receive_event_attributes_count_p99=0, flatten_values_duration_secs_p50=0, flatten_values_duration_secs_p90=0, flatten_values_duration_secs_p99=0")
       end
 
       it "send_stats is called when events list is empty, but otherwise noop" do
         quantile_estimator = Quantile::Estimator.new
-        plugin.instance_variable_set(:@multi_receive_metrics, {:multi_receive_duration_secs => quantile_estimator, :multi_receive_event_count => quantile_estimator})
+        plugin.instance_variable_set(:@metrics, {
+          :multi_receive_duration_secs => Quantile::Estimator.new,
+          :multi_receive_event_count => Quantile::Estimator.new,
+          :multi_receive_event_attributes_count => Quantile::Estimator.new,
+          :flatten_values_duration_secs => Quantile::Estimator.new
+        })
         plugin.instance_variable_set(:@client_session, mock_client_session)
         expect(plugin).to receive(:send_status)
         expect(quantile_estimator).not_to receive(:observe)
@@ -105,18 +115,23 @@ describe LogStash::Outputs::Scalyr do
         # 1. Initial send
         plugin.instance_variable_set(:@last_status_transmit_time, nil)
         plugin.instance_variable_set(:@client_session, mock_client_session)
-        expect(mock_client_session).to receive(:post_add_events).with(anything, true, anything, anything)
+        expect(mock_client_session).to receive(:post_add_events).with(anything, true, anything)
         plugin.send_status
 
         # 2. Second send
         plugin.instance_variable_set(:@last_status_transmit_time, 100)
         plugin.instance_variable_set(:@client_session, mock_client_session)
-        plugin.instance_variable_set(:@multi_receive_metrics, {:multi_receive_duration_secs => Quantile::Estimator.new, :multi_receive_event_count => Quantile::Estimator.new})
+        plugin.instance_variable_set(:@metrics, {
+          :multi_receive_duration_secs => Quantile::Estimator.new,
+          :multi_receive_event_count => Quantile::Estimator.new,
+          :multi_receive_event_attributes_count =>  Quantile::Estimator.new,
+          :flatten_values_duration_secs => Quantile::Estimator.new
+        })
         (1..20).each do |n|
-          plugin.instance_variable_get(:@multi_receive_metrics)[:multi_receive_duration_secs].observe(n)
+          plugin.instance_variable_get(:@metrics)[:multi_receive_duration_secs].observe(n)
         end
         plugin.instance_variable_set(:@multi_receive_statistics, {:total_multi_receive_secs => 0})
-        expect(mock_client_session).to receive(:post_add_events).with(anything, true, anything, anything)
+        expect(mock_client_session).to receive(:post_add_events).with(anything, true, anything)
         plugin.send_status
       end
     end
