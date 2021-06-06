@@ -486,7 +486,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
       # Record per-event level metrics (flatten duration, event attributes count). Doing this for every single
       # event would be somewhat expensive so we use sampling.
-      should_sample_event_metrics = should_sample?()
+      should_sample_event_metrics = should_sample?
 
       # flatten record
       if @flatten_nested_values
