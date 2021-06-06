@@ -138,6 +138,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   def register
     @prng = Random.new
 
+    if @event_metrics_sample_rate < 0 or @event_metrics_sample_rate > 1
+      raise LogStash::ConfigurationError, "Minimum possible value for 'event_metrics_sample_rate' is 0 (dont sample any events) and maximum is 1 (sample every event)"
+    end
+
     @node_hostname = Socket.gethostname
 
     if @log_constants and not @log_constants.all? { |x| x.is_a? String }
