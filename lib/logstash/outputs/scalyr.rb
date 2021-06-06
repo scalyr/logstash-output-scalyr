@@ -208,11 +208,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     @last_status_transmit_time = nil
     @last_status_ = false
 
-    # Per-multi-receive statistics
+    # Plugin level (either per batch or event level metrics). Other request
+    # level metrics are handled by the HTTP Client class.
     @multi_receive_statistics = {
       :total_multi_receive_secs => 0
     }
-    @metrics = get_new_metrics
+    @plugin_metrics = get_new_metrics
 
     # create a client session for uploading to Scalyr
     @running = true
@@ -652,7 +653,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     current_stats[:flatten_values_duration_secs_p99] = @metrics[:flatten_values_duration_secs].query(0.99)
 
     if @flush_quantile_estimates_on_status_send
-      @metrics = get_new_metrics
+      @logger.debug "Recreating / reseting quantile estimator classes for plugin metrics"
+      @plugin_metrics = get_new_metrics
     end
 
     current_stats

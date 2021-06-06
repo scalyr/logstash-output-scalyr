@@ -162,7 +162,7 @@ class ClientSession
     }
   end
 
-  # Get a clone of current statistics hash
+  # Get a clone of current statistics hash and calculate percentiles
   def get_stats
     current_stats = @stats.clone
 
@@ -180,6 +180,7 @@ class ClientSession
     current_stats[:bytes_sent_p99] = @latency_stats[:bytes_sent].query(0.99)
 
     if @flush_quantile_estimates_on_status_send
+      @logger.debug "Recreating / reseting quantile estimator classes for plugin metrics"
       @latency_stats = get_new_latency_stats
     end
     current_stats
