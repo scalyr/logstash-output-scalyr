@@ -27,8 +27,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   config_name "scalyr"
 
-  # For correctness reasons we need to limit this plugin to a single worker, a single worker will be single concurrency
-  # anyway but we should be explicit.
   concurrency :shared
 
   # The Scalyr API write token, these are available at https://www.scalyr.com/keys.  This is the only compulsory configuration field required for proper upload
@@ -137,6 +135,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     super
     # Request statistics are accumulated across multiple threads and must be accessed through a mutex
     @stats_lock = Mutex.new
+    @send_stats = Mutex.new
   end
 
   def close
@@ -690,49 +689,51 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # uploading to Scalyr over time.
   def send_status
 
-    status_event = {
-      :ts => (Time.now.to_f * (10**9)).round,
-      :attrs => {
-        'logfile' => "scalyr_logstash.log",
-        'plugin_id' => self.id,
+    @send_stats.synchronize do
+      status_event = {
+        :ts => (Time.now.to_f * (10**9)).round,
+        :attrs => {
+          'logfile' => "scalyr_logstash.log",
+          'plugin_id' => self.id,
+        }
       }
-    }
 
-    if !@last_status_transmit_time
-      status_event[:attrs]['message'] = "Started Scalyr LogStash output plugin."
-      status_event[:attrs]['serverHost'] = @node_hostname
-    else
-      cur_time = Time.now()
-      return if (cur_time.to_i - @last_status_transmit_time.to_i) < @status_report_interval
-      # echee TODO: get instance stats from session and create a status log line
-      msg = 'plugin_status: '
-      cnt = 0
-      @client_session.get_stats.each do |k, v|
-        val = v.instance_of?(Float) ? sprintf("%.4f", v) : v
-        val = val.nil? ? 0 : val
-        msg << ' ' if cnt > 0
-        msg << "#{k.to_s}=#{val}"
-        cnt += 1
+      if !@last_status_transmit_time
+        status_event[:attrs]['message'] = "Started Scalyr LogStash output plugin."
+        status_event[:attrs]['serverHost'] = @node_hostname
+      else
+        cur_time = Time.now()
+        return if (cur_time.to_i - @last_status_transmit_time.to_i) < @status_report_interval
+        # echee TODO: get instance stats from session and create a status log line
+        msg = 'plugin_status: '
+        cnt = 0
+        @client_session.get_stats.each do |k, v|
+          val = v.instance_of?(Float) ? sprintf("%.4f", v) : v
+          val = val.nil? ? 0 : val
+          msg << ' ' if cnt > 0
+          msg << "#{k.to_s}=#{val}"
+          cnt += 1
+        end
+        get_stats.each do |k, v|
+          val = v.instance_of?(Float) ? sprintf("%.4f", v) : v
+          val = val.nil? ? 0 : val
+          msg << ' ' if cnt > 0
+          msg << "#{k.to_s}=#{val}"
+          cnt += 1
+        end
+        status_event[:attrs]['message'] = msg
+        status_event[:attrs]['serverHost'] = @node_hostname
+        status_event[:attrs]['parser'] = @status_parser
       end
-      get_stats.each do |k, v|
-        val = v.instance_of?(Float) ? sprintf("%.4f", v) : v
-        val = val.nil? ? 0 : val
-        msg << ' ' if cnt > 0
-        msg << "#{k.to_s}=#{val}"
-        cnt += 1
-      end
-      status_event[:attrs]['message'] = msg
-      status_event[:attrs]['serverHost'] = @node_hostname
-      status_event[:attrs]['parser'] = @status_parser
-    end
-    multi_event_request = create_multi_event_request([status_event], nil, nil)
-    @client_session.post_add_events(multi_event_request[:body], true, 0)
-    @last_status_transmit_time = Time.now()
+      multi_event_request = create_multi_event_request([status_event], nil, nil)
+      @client_session.post_add_events(multi_event_request[:body], true, 0)
+      @last_status_transmit_time = Time.now()
 
-    if @log_status_messages_to_stdout
-      @logger.info msg
+      if @log_status_messages_to_stdout
+        @logger.info msg
+      end
+      status_event
     end
-    status_event
   end
 
   # Returns true if we should sample and record metrics for a specific event based on the sampling
