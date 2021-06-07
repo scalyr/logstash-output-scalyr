@@ -29,7 +29,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   # For correctness reasons we need to limit this plugin to a single worker, a single worker will be single concurrency
   # anyway but we should be explicit.
-  concurrency :single
+  concurrency :shared
 
   # The Scalyr API write token, these are available at https://www.scalyr.com/keys.  This is the only compulsory configuration field required for proper upload
   config :api_write_token, :validate => :string, :required => true
@@ -140,6 +140,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   public
   def register
+    # This prng is used exclusively to determine when to sample statistics and no security related purpose, for this
+    # reason we do not ensure thread safety for it.
     @prng = Random.new
 
     if @event_metrics_sample_rate < 0 or @event_metrics_sample_rate > 1
@@ -212,6 +214,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     @last_status_transmit_time = nil
     @last_status_ = false
 
+    # Request statistics are accumulated across multiple threads and must be accessed through a mutex
+    @stats_lock = Mutex.new
     # Plugin level (either per batch or event level metrics). Other request
     # level metrics are handled by the HTTP Client class.
     @multi_receive_statistics = {
@@ -328,9 +332,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     end
 
     if records_count > 0
-      @multi_receive_statistics[:total_multi_receive_secs] += (Time.now.to_f - start_time)
-      @plugin_metrics[:multi_receive_duration_secs].observe(Time.now.to_f - start_time)
-      @plugin_metrics[:multi_receive_event_count].observe(records_count)
+      @stats_lock.synchronize do
+        @multi_receive_statistics[:total_multi_receive_secs] += (Time.now.to_f - start_time)
+        @plugin_metrics[:multi_receive_duration_secs].observe(Time.now.to_f - start_time)
+        @plugin_metrics[:multi_receive_event_count].observe(records_count)
+      end
     end
 
     send_status
@@ -501,10 +507,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       end
 
       if should_sample_event_metrics
-        @plugin_metrics[:event_attributes_count].observe(record.count)
+        @stats_lock.synchronize do
+          @plugin_metrics[:event_attributes_count].observe(record.count)
 
-        if @flatten_nested_values
-          @plugin_metrics[:flatten_values_duration_secs].observe(flatten_nested_values_duration)
+          if @flatten_nested_values
+            @plugin_metrics[:flatten_values_duration_secs].observe(flatten_nested_values_duration)
+          end
         end
       end
 
@@ -638,33 +646,35 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   # Retrieve batch and other event level metric values
   def get_stats
-    current_stats = @multi_receive_statistics.clone
+    @stats_lock.synchronize do
+      current_stats = @multi_receive_statistics.clone
 
-    current_stats[:multi_receive_duration_p50] = @plugin_metrics[:multi_receive_duration_secs].query(0.5)
-    current_stats[:multi_receive_duration_p90] = @plugin_metrics[:multi_receive_duration_secs].query(0.9)
-    current_stats[:multi_receive_duration_p99] = @plugin_metrics[:multi_receive_duration_secs].query(0.99)
+      current_stats[:multi_receive_duration_p50] = @plugin_metrics[:multi_receive_duration_secs].query(0.5)
+      current_stats[:multi_receive_duration_p90] = @plugin_metrics[:multi_receive_duration_secs].query(0.9)
+      current_stats[:multi_receive_duration_p99] = @plugin_metrics[:multi_receive_duration_secs].query(0.99)
 
-    current_stats[:multi_receive_event_count_p50] = @plugin_metrics[:multi_receive_event_count].query(0.5)
-    current_stats[:multi_receive_event_count_p90] = @plugin_metrics[:multi_receive_event_count].query(0.9)
-    current_stats[:multi_receive_event_count_p99] = @plugin_metrics[:multi_receive_event_count].query(0.99)
+      current_stats[:multi_receive_event_count_p50] = @plugin_metrics[:multi_receive_event_count].query(0.5)
+      current_stats[:multi_receive_event_count_p90] = @plugin_metrics[:multi_receive_event_count].query(0.9)
+      current_stats[:multi_receive_event_count_p99] = @plugin_metrics[:multi_receive_event_count].query(0.99)
 
-    current_stats[:event_attributes_count_p50] = @plugin_metrics[:event_attributes_count].query(0.5)
-    current_stats[:event_attributes_count_p90] = @plugin_metrics[:event_attributes_count].query(0.9)
-    current_stats[:event_attributes_count_p99] = @plugin_metrics[:event_attributes_count].query(0.99)
+      current_stats[:event_attributes_count_p50] = @plugin_metrics[:event_attributes_count].query(0.5)
+      current_stats[:event_attributes_count_p90] = @plugin_metrics[:event_attributes_count].query(0.9)
+      current_stats[:event_attributes_count_p99] = @plugin_metrics[:event_attributes_count].query(0.99)
 
-    if @flatten_nested_values
-      # We only return those metrics in case flattening is enabled
-      current_stats[:flatten_values_duration_secs_p50] = @plugin_metrics[:flatten_values_duration_secs].query(0.5)
-      current_stats[:flatten_values_duration_secs_p90] = @plugin_metrics[:flatten_values_duration_secs].query(0.9)
-      current_stats[:flatten_values_duration_secs_p99] = @plugin_metrics[:flatten_values_duration_secs].query(0.99)
+      if @flatten_nested_values
+        # We only return those metrics in case flattening is enabled
+        current_stats[:flatten_values_duration_secs_p50] = @plugin_metrics[:flatten_values_duration_secs].query(0.5)
+        current_stats[:flatten_values_duration_secs_p90] = @plugin_metrics[:flatten_values_duration_secs].query(0.9)
+        current_stats[:flatten_values_duration_secs_p99] = @plugin_metrics[:flatten_values_duration_secs].query(0.99)
+      end
+
+      if @flush_quantile_estimates_on_status_send
+        @logger.debug "Recreating / reseting quantile estimator classes for plugin metrics"
+        @plugin_metrics = get_new_metrics
+      end
+
+      current_stats
     end
-
-    if @flush_quantile_estimates_on_status_send
-      @logger.debug "Recreating / reseting quantile estimator classes for plugin metrics"
-      @plugin_metrics = get_new_metrics
-    end
-
-    current_stats
   end
 
 

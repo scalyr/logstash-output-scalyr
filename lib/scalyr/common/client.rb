@@ -163,26 +163,28 @@ class ClientSession
 
   # Get a clone of current statistics hash and calculate percentiles
   def get_stats
-    current_stats = @stats.clone
+    @stats_lock.synchronize do
+      current_stats = @stats.clone
 
-    current_stats[:request_latency_p50] = @latency_stats[:request_latency_secs].query(0.5)
-    current_stats[:request_latency_p90] = @latency_stats[:request_latency_secs].query(0.9)
-    current_stats[:request_latency_p99] = @latency_stats[:request_latency_secs].query(0.99)
-    current_stats[:serialization_duration_secs_p50] = @latency_stats[:serialization_duration_secs].query(0.5)
-    current_stats[:serialization_duration_secs_p90] = @latency_stats[:serialization_duration_secs].query(0.9)
-    current_stats[:serialization_duration_secs_p99] = @latency_stats[:serialization_duration_secs].query(0.99)
-    current_stats[:compression_duration_secs_p50] = @latency_stats[:compression_duration_secs].query(0.5)
-    current_stats[:compression_duration_secs_p90] = @latency_stats[:compression_duration_secs].query(0.9)
-    current_stats[:compression_duration_secs_p99] = @latency_stats[:compression_duration_secs].query(0.99)
-    current_stats[:bytes_sent_p50] = @latency_stats[:bytes_sent].query(0.5)
-    current_stats[:bytes_sent_p90] = @latency_stats[:bytes_sent].query(0.9)
-    current_stats[:bytes_sent_p99] = @latency_stats[:bytes_sent].query(0.99)
+      current_stats[:request_latency_p50] = @latency_stats[:request_latency_secs].query(0.5)
+      current_stats[:request_latency_p90] = @latency_stats[:request_latency_secs].query(0.9)
+      current_stats[:request_latency_p99] = @latency_stats[:request_latency_secs].query(0.99)
+      current_stats[:serialization_duration_secs_p50] = @latency_stats[:serialization_duration_secs].query(0.5)
+      current_stats[:serialization_duration_secs_p90] = @latency_stats[:serialization_duration_secs].query(0.9)
+      current_stats[:serialization_duration_secs_p99] = @latency_stats[:serialization_duration_secs].query(0.99)
+      current_stats[:compression_duration_secs_p50] = @latency_stats[:compression_duration_secs].query(0.5)
+      current_stats[:compression_duration_secs_p90] = @latency_stats[:compression_duration_secs].query(0.9)
+      current_stats[:compression_duration_secs_p99] = @latency_stats[:compression_duration_secs].query(0.99)
+      current_stats[:bytes_sent_p50] = @latency_stats[:bytes_sent].query(0.5)
+      current_stats[:bytes_sent_p90] = @latency_stats[:bytes_sent].query(0.9)
+      current_stats[:bytes_sent_p99] = @latency_stats[:bytes_sent].query(0.99)
 
-    if @flush_quantile_estimates_on_status_send
-      @logger.debug "Recreating / reseting quantile estimator classes for plugin metrics"
-      @latency_stats = get_new_latency_stats
+      if @flush_quantile_estimates_on_status_send
+        @logger.debug "Recreating / reseting quantile estimator classes for plugin metrics"
+        @latency_stats = get_new_latency_stats
+      end
+      current_stats
     end
-    current_stats
   end
 
 
@@ -207,10 +209,12 @@ class ClientSession
 
     rescue OpenSSL::SSL::SSLError => e
       if @ssl_verify_peer and @ssl_ca_bundle_path.nil? and !File.file?(@ca_cert.path)
-        @ca_cert = Tempfile.new("ca_cert")
-        @ca_cert.write(@cert_string)
-        @ca_cert.flush
-        @http.ca_file = @ca_cert.path
+        @ca_cert.synchronize do
+          @ca_cert = Tempfile.new("ca_cert")
+          @ca_cert.write(@cert_string)
+          @ca_cert.flush
+          @http.ca_file = @ca_cert.path
+        end
         raise ClientError.new("Packaged certificate appears to have been deleted, writing a new one.", @add_events_uri)
       else
         raise e
