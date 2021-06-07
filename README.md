@@ -378,6 +378,7 @@ The changelog should also be updated with the latest version and changes of note
 To deploy the current code on your machine run these commands:
 
 ```
+rm -rf vendor/
 bundle check --path vendor/bundle || bundle install --deployment
 curl -u RUBY_USER:RUBY_PASSWORD https://rubygems.org/api/v1/api_key.yaml > ~/.gem/credentials
 chmod 0600 ~/.gem/credentials
