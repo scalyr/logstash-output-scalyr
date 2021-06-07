@@ -694,14 +694,14 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       msg = 'plugin_status: '
       cnt = 0
       @client_session.get_stats.each do |k, v|
-        val = v.instance_of?(Float) ? sprintf("%.3f", v) : v
+        val = v.instance_of?(Float) ? sprintf("%.4f", v) : v
         val = val.nil? ? 0 : val
         msg << ' ' if cnt > 0
         msg << "#{k.to_s}=#{val}"
         cnt += 1
       end
       get_stats.each do |k, v|
-        val = v.instance_of?(Float) ? sprintf("%.3f", v) : v
+        val = v.instance_of?(Float) ? sprintf("%.4f", v) : v
         val = val.nil? ? 0 : val
         msg << ' ' if cnt > 0
         msg << "#{k.to_s}=#{val}"

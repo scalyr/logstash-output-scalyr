@@ -6,6 +6,8 @@
   data to Scalyr by setting ``log_status_messages_to_stdout`` config option. By default those
   lines are logged under INFO log level and you may need to enable / configure pluggin logging
   as per https://www.elastic.co/guide/en/logstash/current/logging.html.
+- Update metric reporting code to round float values to 4 decimal points so we also record sub
+  millisecond values for per event metrics.
 
 ## 0.1.8
 
