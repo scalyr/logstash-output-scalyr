@@ -97,8 +97,13 @@ jobs: # a collection of steps
       - run:
           name: Run Micro Benchmarks
           command: |
+            gem install quantile
             echo "Flattening and serialization util results:"
+            echo ""
             ruby spec/benchmarks/flattening_and_serialization.rb
+            echo ""
+            echo "Metrics recording results:"
+            ruby spec/benchmarks/metrics_overhead.rb
             echo ""
 
   # We run micro benchmarks against cRuby just for reference purposes since plugins always run
@@ -114,8 +119,13 @@ jobs: # a collection of steps
       - run:
           name: Run Micro Benchmarks
           command: |
+            gem install quantile
             echo "Flattening and serialization util results:"
+            echo ""
             ruby spec/benchmarks/flattening_and_serialization.rb
+            echo ""
+            echo "Metrics recording results:"
+            ruby spec/benchmarks/metrics_overhead.rb
             echo ""
 
 workflows:
