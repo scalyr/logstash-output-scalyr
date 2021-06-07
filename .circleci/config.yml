@@ -113,10 +113,21 @@ jobs: # a collection of steps
 
 workflows:
   version: 2
-  unittest:
+  unittests-smoketests-benchmarks:
     jobs:
       - smoketest-git-dev
       - smoketest-rubygems-stable
       - unittest
       - microbenchmarks-jruby
       - microbenchmarks-cruby
+
+  daily-stable-smoke-tests:
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - master
+    jobs:
+       - smoketest-rubygems-stable
