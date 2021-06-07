@@ -36,7 +36,8 @@ jobs: # a collection of steps
       - store_test_results: # Upload test results for display in Test Summary: https://circleci.com/docs/2.0/collect-test-data/
           path: test_results
       # See https://circleci.com/docs/2.0/deployment-integrations/ for example deploy configs
-  smoketest:
+
+  smoketest-git-dev:
     docker:
       - image: circleci/jruby:9.2.7.0-jdk
     steps:
@@ -45,15 +46,21 @@ jobs: # a collection of steps
       - checkout # special step to check out source code to working directory
       - run:
           name: Build gem
-          command: gem build logstash-output-scalyr.gemspec
+          command: |
+            gem build logstash-output-scalyr.gemspec
+            # We rename the file so we don't need to hard code version in Dockerfile
+            mv logstash-output-scalyr-*.gem logstash-output-scalyr.gem
       - run:
           name: Run smoketest script which first builds another Docker Logstash image and installs our gem
           command: |
-            echo $pwd
             gemfile=$(ls *.gem)
+            echo "Using gemfile: ${gemfile}"
             cp $gemfile .circleci/docker/
             source .circleci/smoketest_logstash.sh yarnsh/agent-testing:latest 300 $gemfile .circleci/docker
-  microbenchmarks-jruby:
+
+  # Job which runs basic smoke tests against latest stable version on RubyGems
+  # to ensure something didn't get messed up during the publish process
+  smoketest-rubygems-stable:
     docker:
       - image: circleci/jruby:9.2.7.0-jdk
     steps:
@@ -61,31 +68,83 @@ jobs: # a collection of steps
           docker_layer_caching: false
       - checkout # special step to check out source code to working directory
       - run:
-          name: Run flattening util benchmarks
+          name: Download Gem from RubyGems
           command: |
-            echo $pwd
-            echo "Flattening util results:"
-            ruby spec/scalyr/common/flattening_benchmark.rb
-  microbenchmarks-cruby:
+            sudo apt-get update
+            sudo apt-get install -y jq
+            LATEST_VERSION=$(curl https://rubygems.org/api/v1/versions/logstash-output-scalyr/latest.json | jq .version | tr -d '"')
+            wget https://rubygems.org/downloads/logstash-output-scalyr-${LATEST_VERSION}.gem
+            # We rename the file so we don't need to hard code version in Dockerfile
+            mv logstash-output-scalyr-*.gem logstash-output-scalyr.gem
+      - run:
+          name: Run smoketest script which first builds another Docker Logstash image and installs our gem
+          command: |
+            gemfile=$(ls *.gem)
+            echo "Using gemfile: ${gemfile}"
+            cp $gemfile .circleci/docker/
+            source .circleci/smoketest_logstash.sh yarnsh/agent-testing:latest 300 $gemfile .circleci/docker
+
+  # NOTE: We need to use large resource class since for jRuby benchmark we pre-generate and store
+  # large dataset in memory
+  microbenchmarks-jruby:
     docker:
-      - image: cimg/ruby:2.7.1-node
+      - image: circleci/jruby:9.2.7.0-jdk
+    resource_class: large
     steps:
       - setup_remote_docker:
           docker_layer_caching: false
       - checkout # special step to check out source code to working directory
       - run:
-          name: Run flattening util benchmarks
+          name: Run Micro Benchmarks
           command: |
-            echo $pwd
-            echo "Flattening util results:"
-            ruby spec/scalyr/common/flattening_benchmark.rb
+            gem install quantile
+            echo "Flattening and serialization util results:"
+            echo ""
+            ruby spec/benchmarks/flattening_and_serialization.rb
+            echo ""
+            echo "Metrics recording results:"
+            ruby spec/benchmarks/metrics_overhead.rb
+            echo ""
 
+  # We run micro benchmarks against cRuby just for reference purposes since plugins always run
+  # with jRuby
+  microbenchmarks-cruby:
+    docker:
+      - image: cimg/ruby:2.7.1-node
+    resource_class: large
+    steps:
+      - setup_remote_docker:
+          docker_layer_caching: false
+      - checkout # special step to check out source code to working directory
+      - run:
+          name: Run Micro Benchmarks
+          command: |
+            gem install quantile
+            echo "Flattening and serialization util results:"
+            echo ""
+            ruby spec/benchmarks/flattening_and_serialization.rb
+            echo ""
+            echo "Metrics recording results:"
+            ruby spec/benchmarks/metrics_overhead.rb
+            echo ""
 
 workflows:
   version: 2
-  unittest:
+  unittests-smoketests-benchmarks:
     jobs:
-      - smoketest
+      - smoketest-git-dev
+      - smoketest-rubygems-stable
       - unittest
       - microbenchmarks-jruby
       - microbenchmarks-cruby
+
+  daily-stable-smoke-tests:
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - master
+    jobs:
+       - smoketest-rubygems-stable

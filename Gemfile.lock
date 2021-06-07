@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    logstash-output-scalyr (0.1.7)
+    logstash-output-scalyr (0.1.8)
       ffi (>= 1.9.18)
       logstash-codec-plain
       logstash-core-plugin-api (>= 1.60, <= 2.99)
@@ -138,6 +138,7 @@ GEM
 PLATFORMS
   java
   universal-java-1.8
+  universal-java-11
 
 DEPENDENCIES
   logstash-devutils
@@ -147,4 +148,4 @@ DEPENDENCIES
   quantile
 
 BUNDLED WITH
-   2.2.16
+   2.2.18

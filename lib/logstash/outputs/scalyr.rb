@@ -112,6 +112,16 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Whether or not to count status event uploads in the statistics such as request latency etc.
   config :record_stats_for_status, :validate => :boolean, :default => false
 
+  # Sample rate for event level metrics (flattening time, number of attributes per event, etc,).
+  # It's important to set this in case there are many events coming in per seconds, because
+  # instrumentation does add some overhead. By default, we sample 5% of the events. Keep in
+  # mind that we use simple random based sampling. Maximum possible value is 1 (aka no sampling
+  # - record metrics for every single event).
+  # We use sampling since Quantile.observe() operation is more expensive than simple counter
+  # based metric so we need to ensure recording a metric doesn't add too much overhead.
+  # Based on micro benchmark, random based sampler is about 5x faster than quantile.observe()
+  config :event_metrics_sample_rate, :validate => :number, :default => 0.05
+
   # Parser to attach to status events
   config :status_parser, :validate => :string, :default => "logstash_plugin_metrics"
 
@@ -126,6 +136,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   public
   def register
+    @prng = Random.new
+
+    if @event_metrics_sample_rate < 0 or @event_metrics_sample_rate > 1
+      raise LogStash::ConfigurationError, "Minimum possible value for 'event_metrics_sample_rate' is 0 (dont sample any events) and maximum is 1 (sample every event)"
+    end
+
     @node_hostname = Socket.gethostname
 
     if @log_constants and not @log_constants.all? { |x| x.is_a? String }
@@ -191,12 +207,13 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     @last_status_transmit_time_lock = Mutex.new
     @last_status_transmit_time = nil
     @last_status_ = false
-    
-    # Per-multi-receive statistics
+
+    # Plugin level (either per batch or event level metrics). Other request
+    # level metrics are handled by the HTTP Client class.
     @multi_receive_statistics = {
       :total_multi_receive_secs => 0
     }
-    @multi_receive_metrics = get_new_multi_receive_metrics
+    @plugin_metrics = get_new_metrics
 
     # create a client session for uploading to Scalyr
     @running = true
@@ -215,10 +232,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   end # def register
 
   # Convenience method to create a fresh quantile estimator
-  def get_new_multi_receive_metrics
+  def get_new_metrics
     return {
       :multi_receive_duration_secs => Quantile::Estimator.new,
-      :multi_receive_event_count => Quantile::Estimator.new
+      :multi_receive_event_count => Quantile::Estimator.new,
+      :event_attributes_count => Quantile::Estimator.new,
+      :flatten_values_duration_secs => Quantile::Estimator.new
     }
   end
 
@@ -252,7 +271,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         # For some reason a retry on the multi_receive may result in the request array containing `nil` elements, we
         # ignore these.
         if !multi_event_request.nil?
-          @client_session.post_add_events(multi_event_request[:body], false, multi_event_request[:serialization_duration], multi_event_request[:flatten_nested_values_duration])
+          @client_session.post_add_events(multi_event_request[:body], false, multi_event_request[:serialization_duration])
           sleep_interval = 0
           result.push(multi_event_request)
         end
@@ -306,8 +325,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
     if records_count > 0
       @multi_receive_statistics[:total_multi_receive_secs] += (Time.now.to_f - start_time)
-      @multi_receive_metrics[:multi_receive_duration_secs].observe(Time.now.to_f - start_time)
-      @multi_receive_metrics[:multi_receive_event_count].observe(records_count)
+      @plugin_metrics[:multi_receive_duration_secs].observe(Time.now.to_f - start_time)
+      @plugin_metrics[:multi_receive_event_count].observe(records_count)
     end
 
     send_status
@@ -351,8 +370,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     logs = Hash.new
     logs_ids = Hash.new
     next_log_id = 1
-
-    flatten_nested_values_duration = 0
 
     logstash_events.each {|l_event|
 
@@ -467,14 +484,24 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         record.delete('tags')
       end
 
-      # flatten record
-      flatten_nested_values_duration = 0
+      # Record per-event level metrics (flatten duration, event attributes count). Doing this for every single
+      # event would be somewhat expensive so we use sampling.
+      should_sample_event_metrics = should_sample?
 
+      # flatten record
       if @flatten_nested_values
         start_time = Time.now.to_f
-        record = Scalyr::Common::Util.flatten(record, delimiter=@flatten_nested_values_delimiter) if @flatten_nested_values
+        record = Scalyr::Common::Util.flatten(record, delimiter=@flatten_nested_values_delimiter)
         end_time = Time.now.to_f
         flatten_nested_values_duration = end_time - start_time
+      end
+
+      if should_sample_event_metrics
+        @plugin_metrics[:event_attributes_count].observe(record.count)
+
+        if @flatten_nested_values
+          @plugin_metrics[:flatten_values_duration_secs].observe(flatten_nested_values_duration)
+        end
       end
 
       # Use LogStash event.timestamp as the 'ts' Scalyr timestamp.  Note that this may be overwritten by input
@@ -526,7 +553,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           scalyr_events << scalyr_event
           append_event = false
         end
-        multi_event_request = self.create_multi_event_request(scalyr_events, current_threads, logs, flatten_nested_values_duration)
+        multi_event_request = self.create_multi_event_request(scalyr_events, current_threads, logs)
         multi_event_request_array << multi_event_request
 
         total_bytes = 0
@@ -546,11 +573,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     }
 
     # create a final request with any left over events
-    multi_event_request = self.create_multi_event_request(scalyr_events, current_threads, logs, flatten_nested_values_duration)
+    multi_event_request = self.create_multi_event_request(scalyr_events, current_threads, logs)
     multi_event_request_array << multi_event_request
     multi_event_request_array
   end
-
 
 
   # Helper method that adds a client_timestamp to a batch addEvents request body
@@ -562,11 +588,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   end
 
 
-
   # A request comprises multiple Scalyr Events.  This function creates a request hash for
   # final upload to Scalyr (from an array of events, and an optional hash of current threads)
   # Note: The request body field will be json-encoded.
-  def create_multi_event_request(scalyr_events, current_threads, current_logs, flatten_nested_values_duration = 0)
+  def create_multi_event_request(scalyr_events, current_threads, current_logs)
 
     body = {
       :session => @session_id,
@@ -602,29 +627,41 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     serialized_body = body.to_json
     end_time = Time.now.to_f
     serialization_duration = end_time - start_time
-    { :body => serialized_body, :record_count => scalyr_events.size, :serialization_duration => serialization_duration,
-      :flatten_nested_values_duration => flatten_nested_values_duration }
+    { :body => serialized_body, :record_count => scalyr_events.size, :serialization_duration => serialization_duration }
 
   end  # def create_multi_event_request
 
 
-
-  def get_batch_stats
+  # Retrieve batch and other event level metric values
+  def get_stats
     current_stats = @multi_receive_statistics.clone
 
-    current_stats[:multi_receive_duration_p50] = @multi_receive_metrics[:multi_receive_duration_secs].query(0.5)
-    current_stats[:multi_receive_duration_p90] = @multi_receive_metrics[:multi_receive_duration_secs].query(0.9)
-    current_stats[:multi_receive_duration_p99] = @multi_receive_metrics[:multi_receive_duration_secs].query(0.99)
-    current_stats[:multi_receive_event_count_p50] = @multi_receive_metrics[:multi_receive_event_count].query(0.5)
-    current_stats[:multi_receive_event_count_p90] = @multi_receive_metrics[:multi_receive_event_count].query(0.9)
-    current_stats[:multi_receive_event_count_p99] = @multi_receive_metrics[:multi_receive_event_count].query(0.99)
+    current_stats[:multi_receive_duration_p50] = @plugin_metrics[:multi_receive_duration_secs].query(0.5)
+    current_stats[:multi_receive_duration_p90] = @plugin_metrics[:multi_receive_duration_secs].query(0.9)
+    current_stats[:multi_receive_duration_p99] = @plugin_metrics[:multi_receive_duration_secs].query(0.99)
+
+    current_stats[:multi_receive_event_count_p50] = @plugin_metrics[:multi_receive_event_count].query(0.5)
+    current_stats[:multi_receive_event_count_p90] = @plugin_metrics[:multi_receive_event_count].query(0.9)
+    current_stats[:multi_receive_event_count_p99] = @plugin_metrics[:multi_receive_event_count].query(0.99)
+
+    current_stats[:event_attributes_count_p50] = @plugin_metrics[:event_attributes_count].query(0.5)
+    current_stats[:event_attributes_count_p90] = @plugin_metrics[:event_attributes_count].query(0.9)
+    current_stats[:event_attributes_count_p99] = @plugin_metrics[:event_attributes_count].query(0.99)
+
+    if @flatten_nested_values
+      # We only return those metrics in case flattening is enabled
+      current_stats[:flatten_values_duration_secs_p50] = @plugin_metrics[:flatten_values_duration_secs].query(0.5)
+      current_stats[:flatten_values_duration_secs_p90] = @plugin_metrics[:flatten_values_duration_secs].query(0.9)
+      current_stats[:flatten_values_duration_secs_p99] = @plugin_metrics[:flatten_values_duration_secs].query(0.99)
+    end
 
     if @flush_quantile_estimates_on_status_send
-      @multi_receive_metrics = get_new_multi_receive_metrics
+      @logger.debug "Recreating / reseting quantile estimator classes for plugin metrics"
+      @plugin_metrics = get_new_metrics
     end
+
     current_stats
   end
-
 
 
   # Sends a status update to Scalyr by posting a log entry under the special logfile of 'logstash_plugin.log'
@@ -655,14 +692,14 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       @client_session.get_stats.each do |k, v|
         val = v.instance_of?(Float) ? sprintf("%.3f", v) : v
         val = val.nil? ? 0 : val
-        msg << ', ' if cnt > 0
+        msg << ' ' if cnt > 0
         msg << "#{k.to_s}=#{val}"
         cnt += 1
       end
-      get_batch_stats.each do |k, v|
+      get_stats.each do |k, v|
         val = v.instance_of?(Float) ? sprintf("%.3f", v) : v
         val = val.nil? ? 0 : val
-        msg << ', ' if cnt > 0
+        msg << ' ' if cnt > 0
         msg << "#{k.to_s}=#{val}"
         cnt += 1
       end
@@ -670,12 +707,17 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       status_event[:attrs]['serverHost'] = @node_hostname
       status_event[:attrs]['parser'] = @status_parser
     end
-    multi_event_request = create_multi_event_request([status_event], nil, nil, nil)
-    @client_session.post_add_events(multi_event_request[:body], true, 0, 0)
+    multi_event_request = create_multi_event_request([status_event], nil, nil)
+    @client_session.post_add_events(multi_event_request[:body], true, 0)
     @last_status_transmit_time = Time.now()
     status_event
   end
 
+  # Returns true if we should sample and record metrics for a specific event based on the sampling
+  # rate and random value
+  def should_sample?
+    return @prng.rand(0.0..1.0) < @event_metrics_sample_rate
+  end
 
 
   # Returns true if it is time to transmit status
@@ -704,12 +746,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   end
 
 
-
   # Helper method to check if the dead-letter queue is enabled
   def dlq_enabled?
     # echee TODO submit to DLQ
     respond_to?(:execution_context) && execution_context.respond_to?(:dlq_writer) &&
         !execution_context.dlq_writer.inner_writer.is_a?(::LogStash::Util::DummyDeadLetterQueueWriter)
   end
-
 end

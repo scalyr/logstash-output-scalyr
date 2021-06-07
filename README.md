@@ -10,7 +10,7 @@ You can view documentation for this plugin [on the Scalyr website](https://app.s
 # Quick start
 
 1. Build the gem, run `gem build logstash-output-scalyr.gemspec` 
-2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-0.1.7.gem` or follow the latest official instructions on working with plugins from Logstash.
+2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-0.1.8.gem` or follow the latest official instructions on working with plugins from Logstash.
 3. Configure the output plugin (e.g. add it to a pipeline .conf)
 4. Restart Logstash 
 
@@ -320,6 +320,49 @@ If you want to run just the unit tests, you can run the command displayed below.
 ```bash
 bundle exec rspec spec/logstash/outputs/scalyr_spec.rb spec/scalyr/common/util_spec.rb
 ```
+
+## Instrumentation and metrics
+
+By default, plugin logs a special line with metrics to Scalyr every 5 minutes. This line contains
+various batch, request and event level metrics.
+
+Example line is shown below:
+
+```bash
+plugin_status: total_requests_sent=6 total_requests_failed=0 total_request_bytes_sent=240586 total_compressed_request_bytes_sent=6396 total_response_bytes_received=222 total_request_latency_secs=1.018 total_serialization_duration_secs=0.024 total_compression_duration_secs=0.046 compression_type=deflate compression_level=6 request_latency_p50=0.048 request_latency_p90=0.104 request_latency_p99=0.104 serialization_duration_secs_p50=0.003 serialization_duration_secs_p90=0.005 serialization_duration_secs_p99=0.005 compression_duration_secs_p50=0.006 compression_duration_secs_p90=0.013 compression_duration_secs_p99=0.013 bytes_sent_p50=40116 bytes_sent_p90=40116 bytes_sent_p99=40116 total_multi_receive_secs=1.404 multi_receive_duration_p50=0.083 multi_receive_duration_p90=0.192 multi_receive_duration_p99=0.192 multi_receive_event_count_p50=100 multi_receive_event_count_p90=100 multi_receive_event_count_p99=100 event_attributes_count_p50=8 event_attributes_count_p90=8 event_attributes_count_p99=8 flatten_values_duration_secs_p50=0 flatten_values_duration_secs_p90=0 flatten_values_duration_secs_p99=0
+```
+
+Those lines also have ``logstash_plugin_metrics`` ``parser`` attribute defined which means you
+can easily parse them using a parser definition similar to the one below.
+
+```javascript
+{
+    patterns: {
+      nonQuoted: "[^\"\n ]+"
+  },
+
+  formats: [
+    {
+      format: ".* $_=identifier$=$_=nonQuoted$", repeat: true
+    }
+  ]
+}
+```
+
+Do keep in mind that this line contains quite a lot of metrics so parsing it may make it more likely
+to hit server side defined per 5 minute period unique number of attributes limit in case you are already
+very close to tke limit.
+
+For various request level metrics we track totals (either counts or duration). Those metrics names start
+with ``total_`` (e.g. ``total_requests_failed``). To be able to derive average per request values you
+can do that by dividing the total value with the value of ``total_requests_sent`` metrics.
+
+Because averages are not all that useful we also track percentiles for various request, batch and
+event level metrics. Those metrics names end with ``_p{percentile}``. For example ``_p50`` represents
+50th percentile and ``_p99`` represents 99th percentile (e.g. ``request_latency_p99``).
+
+If you want to change status reporting interval you can do that by changing the
+``status_report_interval`` config option (in seconds).
 
 # Releasing
 
