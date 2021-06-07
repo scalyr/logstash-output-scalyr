@@ -109,6 +109,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # minutes.
   config :status_report_interval, :validate => :number, :default => 300
 
+  # Set to true to also log status messages with various metrics to stdout in addition to sending
+  # this data to Scalyr
+  config :log_status_messages_to_stdout, :validate => :boolean, :default => false
+
   # Whether or not to count status event uploads in the statistics such as request latency etc.
   config :record_stats_for_status, :validate => :boolean, :default => false
 
@@ -710,6 +714,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     multi_event_request = create_multi_event_request([status_event], nil, nil)
     @client_session.post_add_events(multi_event_request[:body], true, 0)
     @last_status_transmit_time = Time.now()
+
+    if @log_status_messages_to_stdout
+      @logger.info msg
+    end
     status_event
   end
 

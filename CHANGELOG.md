@@ -1,4 +1,12 @@
 # Beta
+
+## 0.1.9
+
+- Add support for logging status messages with metrics to stdout in addition to sending this
+  data to Scalyr by setting ``log_status_messages_to_stdout`` config option. By default those
+  lines are logged under INFO log level and you may need to enable / configure pluggin logging
+  as per https://www.elastic.co/guide/en/logstash/current/logging.html.
+
 ## 0.1.8
 
 - Add additional metrics.
