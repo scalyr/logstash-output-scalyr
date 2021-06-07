@@ -133,6 +133,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # these stas this might be wanted or not.
   config :flush_quantile_estimates_on_status_send, :validate => :boolean, :default => false
 
+  def initialize(*params)
+    super
+    # Request statistics are accumulated across multiple threads and must be accessed through a mutex
+    @stats_lock = Mutex.new
+  end
+
   def close
     @running = false
     @client_session.close if @client_session
@@ -214,8 +220,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     @last_status_transmit_time = nil
     @last_status_ = false
 
-    # Request statistics are accumulated across multiple threads and must be accessed through a mutex
-    @stats_lock = Mutex.new
     # Plugin level (either per batch or event level metrics). Other request
     # level metrics are handled by the HTTP Client class.
     @multi_receive_statistics = {
