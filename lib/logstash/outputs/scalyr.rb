@@ -114,7 +114,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   # Sample rate for event level metrics (flattening time, number of attributes per event, etc,).
   # It's important to set this in case there are many events coming in per seconds, because
-  # instrumentation does add some overhead. By default, we sample 0.5% of the requests. Keep in
+  # instrumentation does add some overhead. By default, we sample 5% of the events. Keep in
   # mind that we use simple random based sampling. Maximum possible value is 1 (aka no sampling
   # - record metrics for every single event).
   # We use sampling since Quantile.observe() operation is more expensive than simple counter
