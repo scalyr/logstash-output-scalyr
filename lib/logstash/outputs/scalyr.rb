@@ -133,6 +133,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # these stas this might be wanted or not.
   config :flush_quantile_estimates_on_status_send, :validate => :boolean, :default => false
 
+  # Causes this plugin to act as if it successfully uploaded the logs, while actually returning as quickly as possible
+  # after no work being done.
+  config :noop_mode, :validate => :boolean, :default => false
+
   def close
     @running = false
     @client_session.close if @client_session
@@ -257,6 +261,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   #
   public
   def multi_receive(events)
+    # Just return and pretend we did something if running in noop mode
+    return events if @noop_mode
+
     start_time = Time.now.to_f
 
     multi_event_request_array = build_multi_event_request_array(events)
