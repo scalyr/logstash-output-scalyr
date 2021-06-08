@@ -1,6 +1,7 @@
 # encoding: utf-8
 require "logstash/outputs/base"
 require "logstash/namespace"
+require "logstash/plugin_mixins/http_client"
 require "concurrent"
 require "stud/buffer"
 require "socket" # for Socket.gethostname
@@ -11,7 +12,6 @@ require 'json' # for converting event object to JSON for upload
 require 'net/http'
 require 'net/http/persistent'
 require 'net/https'
-require 'logstash/plugin_mixins/http_client'
 require 'rbzip2'
 require 'zlib'
 require 'stringio'
@@ -36,12 +36,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   # If you have an EU-based Scalyr account, please use https://eu.scalyr.com/
   config :scalyr_server, :validate => :string, :default => "https://agent.scalyr.com/"
-
-  # Path to SSL bundle file.
-  config :ssl_ca_bundle_path, :validate => :string, :default => "/etc/ssl/certs/ca-bundle.crt"
-
-  # If we should append our built-in Scalyr cert to the one we find at `ssl_ca_bundle_path`.
-  config :append_builtin_cert, :validate => :boolean, :default => true
 
   # server_attributes is a dictionary of key value pairs that represents/identifies the logstash aggregator server
   # (where this plugin is running).  Keys are arbitrary except for the 'serverHost' key which holds special meaning to
@@ -90,10 +84,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   # Set max interval in seconds between bulk retries.
   config :retry_max_interval, :validate => :number, :default => 64
-
-  # The following two settings pertain to preventing Man-in-the-middle (MITM) attacks  # echee TODO: eliminate?
-  config :ssl_verify_peer, :validate => :boolean, :default => true
-  config :ssl_verify_depth, :validate => :number, :default => 5
 
   config :max_request_buffer, :validate => :number, :default => 5500000  # echee TODO: eliminate?
   config :force_message_encoding, :validate => :string, :default => nil
@@ -233,8 +223,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     @client_session = Scalyr::Common::Client::ClientSession.new(
         @logger, @add_events_uri,
         @compression_type, @compression_level,
-        @ssl_verify_peer, @ssl_ca_bundle_path, @ssl_verify_depth,
-        @append_builtin_cert, @record_stats_for_status, @flush_quantile_estimates_on_status_send
+        @record_stats_for_status, @flush_quantile_estimates_on_status_send
     )
 
     @logger.info("Started Scalyr output plugin", :class => self.class.name)
@@ -284,9 +273,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         # For some reason a retry on the multi_receive may result in the request array containing `nil` elements, we
         # ignore these.
         if !multi_event_request.nil?
-          #@client_session.post_add_events(multi_event_request[:body], false, multi_event_request[:serialization_duration])
-          headers = {'Content-Type': 'application/json'}
-          response = client.send(:post, @add_events_uri.to_s, body: multi_event_request[:body], headers: headers)
+          @client_session.post_add_events(client, multi_event_request[:body], false, multi_event_request[:serialization_duration])
 
           sleep_interval = 0
           result.push(multi_event_request)
@@ -731,9 +718,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       end
     end
     multi_event_request = create_multi_event_request([status_event], nil, nil)
-    #@client_session.post_add_events(multi_event_request[:body], true, 0)
-    headers = {'Content-Type': 'application/json'}
-    response = client.send(:post, @add_events_uri.to_s, body: multi_event_request[:body], headers: headers)
+    @client_session.post_add_events(client, multi_event_request[:body], true, 0)
     @last_status_transmit_time = Time.now()
 
     if @log_status_messages_to_stdout
