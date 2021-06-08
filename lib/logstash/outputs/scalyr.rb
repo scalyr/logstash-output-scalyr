@@ -11,6 +11,7 @@ require 'json' # for converting event object to JSON for upload
 require 'net/http'
 require 'net/http/persistent'
 require 'net/https'
+require 'logstash/plugin_mixins/http_client'
 require 'rbzip2'
 require 'zlib'
 require 'stringio'
@@ -24,6 +25,7 @@ require "scalyr/common/util"
 # Implements the Scalyr output plugin
 #---------------------------------------------------------------------------------------------------------------------
 class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
+  include LogStash::PluginMixins::HttpClient
 
   config_name "scalyr"
 
@@ -282,7 +284,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         # For some reason a retry on the multi_receive may result in the request array containing `nil` elements, we
         # ignore these.
         if !multi_event_request.nil?
-          @client_session.post_add_events(multi_event_request[:body], false, multi_event_request[:serialization_duration])
+          #@client_session.post_add_events(multi_event_request[:body], false, multi_event_request[:serialization_duration])
+          headers = {'Content-Type': 'application/json'}
+          response = client.send(:post, @add_events_uri.to_s, body: multi_event_request[:body], headers: headers)
+
           sleep_interval = 0
           result.push(multi_event_request)
         end
@@ -313,7 +318,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         exc_data[:payload] = "\tSample payload: #{request[:body][0,1024]}..." if @logger.debug?
         if e.is_commonly_retried?
           # well-known retriable errors should be debug
-          @logger.debug(message, exc_data)
+          @logger.error(message, exc_data)
         else
           # all other failed uploads should be errors
           @logger.error(message, exc_data)
@@ -726,7 +731,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       end
     end
     multi_event_request = create_multi_event_request([status_event], nil, nil)
-    @client_session.post_add_events(multi_event_request[:body], true, 0)
+    #@client_session.post_add_events(multi_event_request[:body], true, 0)
+    headers = {'Content-Type': 'application/json'}
+    response = client.send(:post, @add_events_uri.to_s, body: multi_event_request[:body], headers: headers)
     @last_status_transmit_time = Time.now()
 
     if @log_status_messages_to_stdout
