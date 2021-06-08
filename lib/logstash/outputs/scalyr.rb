@@ -689,15 +689,14 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # uploading to Scalyr over time.
   def send_status
 
-    @send_stats.synchronize do
-      status_event = {
-        :ts => (Time.now.to_f * (10**9)).round,
-        :attrs => {
-          'logfile' => "scalyr_logstash.log",
-          'plugin_id' => self.id,
-        }
+    status_event = {
+      :ts => (Time.now.to_f * (10**9)).round,
+      :attrs => {
+        'logfile' => "scalyr_logstash.log",
+        'plugin_id' => self.id,
       }
-
+    }
+    @send_stats.synchronize do
       if !@last_status_transmit_time
         status_event[:attrs]['message'] = "Started Scalyr LogStash output plugin."
         status_event[:attrs]['serverHost'] = @node_hostname
@@ -725,15 +724,15 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         status_event[:attrs]['serverHost'] = @node_hostname
         status_event[:attrs]['parser'] = @status_parser
       end
-      multi_event_request = create_multi_event_request([status_event], nil, nil)
-      @client_session.post_add_events(multi_event_request[:body], true, 0)
-      @last_status_transmit_time = Time.now()
-
-      if @log_status_messages_to_stdout
-        @logger.info msg
-      end
-      status_event
     end
+    multi_event_request = create_multi_event_request([status_event], nil, nil)
+    @client_session.post_add_events(multi_event_request[:body], true, 0)
+    @last_status_transmit_time = Time.now()
+
+    if @log_status_messages_to_stdout
+      @logger.info msg
+    end
+    status_event
   end
 
   # Returns true if we should sample and record metrics for a specific event based on the sampling
