@@ -141,8 +141,7 @@ class ClientSession
     rescue OpenSSL::SSL::SSLError => e
       raise e
 
-    # TODO: we shouldn't be seeing this anymore, figure out what to replace it with
-    rescue Net::HTTP::Persistent::Error => e
+    rescue Manticore::ManticoreException => e
       # The underlying persistent-connection library automatically retries when there are network-related errors.
       # Eventually, it will give up and raise this generic error, at which time, we convert it to a ClientError
       raise ClientError.new(e.message, @add_events_uri)
