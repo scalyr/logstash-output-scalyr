@@ -13,3 +13,4 @@ end
 gem 'pry'
 gem 'pry-nav'
 gem 'quantile'
+gem 'manticore', platform: :jruby

@@ -1,5 +1,11 @@
 # Beta
 
+## 0.1.10.beta
+
+- Switch to shared concurrency to allow the use of multiple worker threads for increased
+  throughput.
+- Switch HTTP client library to `manticore` to work better with new shared concurrency.
+
 ## 0.1.9
 
 - Add support for logging status messages with metrics to stdout in addition to sending this

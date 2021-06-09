@@ -56,7 +56,28 @@ jobs: # a collection of steps
             gemfile=$(ls *.gem)
             echo "Using gemfile: ${gemfile}"
             cp $gemfile .circleci/docker/
-            source .circleci/smoketest_logstash.sh yarnsh/agent-testing:latest 300 $gemfile .circleci/docker
+            source .circleci/smoketest_logstash.sh yarnsh/agent-testing:latest 300 $gemfile .circleci/docker 8
+
+  smoketest-git-dev-single-worker:
+    docker:
+      - image: circleci/jruby:9.2.7.0-jdk
+    steps:
+      - setup_remote_docker:
+          docker_layer_caching: false
+      - checkout # special step to check out source code to working directory
+      - run:
+          name: Build gem
+          command: |
+            gem build logstash-output-scalyr.gemspec
+            # We rename the file so we don't need to hard code version in Dockerfile
+            mv logstash-output-scalyr-*.gem logstash-output-scalyr.gem
+      - run:
+          name: Run smoketest script which first builds another Docker Logstash image and installs our gem
+          command: |
+            gemfile=$(ls *.gem)
+            echo "Using gemfile: ${gemfile}"
+            cp $gemfile .circleci/docker/
+            source .circleci/smoketest_logstash.sh yarnsh/agent-testing:latest 300 $gemfile .circleci/docker 1
 
   # Job which runs basic smoke tests against latest stable version on RubyGems
   # to ensure something didn't get messed up during the publish process
@@ -82,7 +103,31 @@ jobs: # a collection of steps
             gemfile=$(ls *.gem)
             echo "Using gemfile: ${gemfile}"
             cp $gemfile .circleci/docker/
-            source .circleci/smoketest_logstash.sh yarnsh/agent-testing:latest 300 $gemfile .circleci/docker
+            source .circleci/smoketest_logstash.sh yarnsh/agent-testing:latest 300 $gemfile .circleci/docker 8
+
+  smoketest-rubygems-stable-single-worker:
+    docker:
+      - image: circleci/jruby:9.2.7.0-jdk
+    steps:
+      - setup_remote_docker:
+          docker_layer_caching: false
+      - checkout # special step to check out source code to working directory
+      - run:
+          name: Download Gem from RubyGems
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y jq
+            LATEST_VERSION=$(curl https://rubygems.org/api/v1/versions/logstash-output-scalyr/latest.json | jq .version | tr -d '"')
+            wget https://rubygems.org/downloads/logstash-output-scalyr-${LATEST_VERSION}.gem
+            # We rename the file so we don't need to hard code version in Dockerfile
+            mv logstash-output-scalyr-*.gem logstash-output-scalyr.gem
+      - run:
+          name: Run smoketest script which first builds another Docker Logstash image and installs our gem
+          command: |
+            gemfile=$(ls *.gem)
+            echo "Using gemfile: ${gemfile}"
+            cp $gemfile .circleci/docker/
+            source .circleci/smoketest_logstash.sh yarnsh/agent-testing:latest 300 $gemfile .circleci/docker 1
 
   # NOTE: We need to use large resource class since for jRuby benchmark we pre-generate and store
   # large dataset in memory
@@ -134,6 +179,8 @@ workflows:
     jobs:
       - smoketest-git-dev
       - smoketest-rubygems-stable
+      - smoketest-git-dev-single-worker
+      - smoketest-rubygems-stable-single-worker
       - unittest
       - microbenchmarks-jruby
       - microbenchmarks-cruby

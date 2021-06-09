@@ -78,6 +78,7 @@ describe LogStash::Outputs::Scalyr do
         mock_client_session = MockClientSession.new
         plugin1.instance_variable_set(:@last_status_transmit_time, 100)
         plugin1.instance_variable_set(:@client_session, mock_client_session)
+        plugin1.instance_variable_set(:@session_id, "some_session_id")
         plugin1.instance_variable_set(:@plugin_metrics, {
           :multi_receive_duration_secs => Quantile::Estimator.new,
           :multi_receive_event_count => Quantile::Estimator.new,
@@ -95,6 +96,7 @@ describe LogStash::Outputs::Scalyr do
         # 1. Initial send
         plugin.instance_variable_set(:@last_status_transmit_time, nil)
         plugin.instance_variable_set(:@client_session, mock_client_session)
+        plugin.instance_variable_set(:@session_id, "some_session_id")
         status_event = plugin.send_status
         expect(status_event[:attrs]["message"]).to eq("Started Scalyr LogStash output plugin.")
 
@@ -138,6 +140,7 @@ describe LogStash::Outputs::Scalyr do
         # 1. Initial send
         plugin.instance_variable_set(:@last_status_transmit_time, nil)
         plugin.instance_variable_set(:@client_session, mock_client_session)
+        plugin.instance_variable_set(:@session_id, "some_session_id")
         expect(mock_client_session).to receive(:post_add_events).with(anything, true, anything)
         plugin.send_status
 
