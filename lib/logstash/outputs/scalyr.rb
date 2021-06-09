@@ -133,11 +133,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   config :noop_mode, :validate => :boolean, :default => false
 
   # Manticore related options
-  config :connect_timeout, :validate => :number, :default => 10
-  config :socket_timeout, :validate => :number, :default => 10
-  config :request_timeout, :validate => :number, :default => 60
-  config :pool_max, :validate => :number, :default => 50
-  config :pool_max_per_route, :validate => :number, :default => 25
+  config :http_connect_timeout, :validate => :number, :default => 10
+  config :http_socket_timeout, :validate => :number, :default => 10
+  config :http_request_timeout, :validate => :number, :default => 60
+  config :http_pool_max, :validate => :number, :default => 50
+  config :http_pool_max_per_route, :validate => :number, :default => 25
 
   def initialize(*params)
     super
@@ -240,7 +240,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         @logger, @add_events_uri,
         @compression_type, @compression_level, @ssl_verify_peer, @ssl_ca_bundle_path, @append_builtin_cert,
         @record_stats_for_status, @flush_quantile_estimates_on_status_send,
-        @connect_timeout, @socket_timeout, @request_timeout, @pool_max, @pool_max_per_route
+        @http_connect_timeout, @http_socket_timeout, @http_request_timeout, @http_pool_max, @http_pool_max_per_route
     )
 
     @logger.info("Started Scalyr output plugin", :class => self.class.name)
