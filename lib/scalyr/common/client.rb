@@ -228,6 +228,8 @@ class ClientSession
       bytes_received = response.body.bytesize  # echee: double check
         # echee TODO add more statistics
 
+    # TODO: Manticore doesn't raise SSL errors as this but as "UnknownExceptions", need to dig in and see if there is a
+    # way to detect that it is from SSL.
     rescue OpenSSL::SSL::SSLError => e
       raise e
 
