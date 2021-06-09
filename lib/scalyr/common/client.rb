@@ -51,10 +51,9 @@ end
 #---------------------------------------------------------------------------------------------------------------------
 class ClientSession
 
-  def initialize(client_config, logger, add_events_uri, compression_type, compression_level,
+  def initialize(logger, add_events_uri, compression_type, compression_level,
                  ssl_verify_peer, ssl_ca_bundle_path, append_builtin_cert,
                  record_stats_for_status, flush_quantile_estimates_on_status_send)
-    @client_config = client_config
     @logger = logger
     @add_events_uri = add_events_uri  # typically /addEvents
     @compression_type = compression_type
@@ -128,8 +127,23 @@ class ClientSession
     }
   end  # def initialize
 
-  def modified_client_config
-    c = @client_config
+  def client_config
+    # TODO: Eventually expose some more of these as config options, though nothing here really needs tuning normally
+    # besides SSL
+    c = {
+      connect_timeout: 10,
+      socket_timeout: 10,
+      request_timeout: 60,
+      follow_redirects: true,
+      automatic_retries: 1,
+      retry_non_idempotent: false,
+      check_connection_timeout: 200,
+      pool_max: 50,
+      pool_max_per_route: 25,
+      cookies: true,
+      keepalive: true,
+      ssl: {}
+    }
 
     # verify peers to prevent potential MITM attacks
     if @ssl_verify_peer
@@ -154,7 +168,7 @@ class ClientSession
   end
 
   def client
-    @client ||= Manticore::Client.new(modified_client_config)
+    @client ||= Manticore::Client.new(client_config)
   end
 
   # Convenience method to create a fresh quantile estimator

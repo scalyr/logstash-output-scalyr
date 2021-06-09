@@ -1,7 +1,6 @@
 # encoding: utf-8
 require "logstash/outputs/base"
 require "logstash/namespace"
-require "logstash/plugin_mixins/http_client"
 require "concurrent"
 require "stud/buffer"
 require "socket" # for Socket.gethostname
@@ -9,9 +8,7 @@ require "thread" # for safe queueing
 require "uri" # for escaping user input
 require 'json' # for converting event object to JSON for upload
 
-require 'net/http'
-require 'net/http/persistent'
-require 'net/https'
+require 'manticore'
 require 'rbzip2'
 require 'zlib'
 require 'stringio'
@@ -25,7 +22,6 @@ require "scalyr/common/util"
 # Implements the Scalyr output plugin
 #---------------------------------------------------------------------------------------------------------------------
 class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
-  include LogStash::PluginMixins::HttpClient
 
   config_name "scalyr"
 
@@ -234,7 +230,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     # create a client session for uploading to Scalyr
     @running = true
     @client_session = Scalyr::Common::Client::ClientSession.new(
-        client_config, @logger, @add_events_uri,
+        @logger, @add_events_uri,
         @compression_type, @compression_level, @ssl_verify_peer, @ssl_ca_bundle_path, @append_builtin_cert,
         @record_stats_for_status, @flush_quantile_estimates_on_status_send
     )
