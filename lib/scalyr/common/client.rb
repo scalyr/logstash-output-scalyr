@@ -295,7 +295,7 @@ class ClientSession
       compression_duration = end_time - start_time
     end
 
-    version = 'output-logstash-scalyr 0.1.9'
+    version = 'output-logstash-scalyr 0.1.10.beta'
     post_headers = {
       'Content-Type': 'application/json',
       'User-Agent': version + ';' + RUBY_VERSION + ';' + RUBY_PLATFORM

@@ -1,6 +1,6 @@
 # Beta
 
-## 0.1.10
+## 0.1.10.beta
 
 - Switch to shared concurrency to allow the use of multiple worker threads for increased
   throughput.
