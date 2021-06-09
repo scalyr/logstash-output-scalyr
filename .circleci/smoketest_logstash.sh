@@ -38,6 +38,9 @@ gemfile=$3
 # 3. gemfile of scalyr logstash plugin
 logstash_docker_context=$4
 
+# How many workers to configure for this test, to allow testing single and multi threaded
+worker_count=$5
+
 # We don't have an easy way to update base test docker images which come bundled
 # with the smoketest.py file
 # (.circleci/docker_unified_smoke_unit/smoketest/smoketest.py ->
@@ -98,6 +101,7 @@ pushd $logstash_docker_context
 perl -pi.bak -e "s{ORIGIN1_INFILE}{$monitored_logfile1}" pipeline/scalyr.conf
 perl -pi.bak -e "s{SCALYR_API_KEY}{$SCALYR_API_KEY}" pipeline/scalyr.conf
 perl -pi.bak -e "s{SCALYR_SERVER}{$SCALYR_SERVER}" pipeline/scalyr.conf
+perl -pi.bak -e "s{WORKER_COUNT}{$worker_count}" config/pipelines.yml
 docker build -t ${agent_image} .
 popd
 

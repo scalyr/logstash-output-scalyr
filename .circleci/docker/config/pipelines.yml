@@ -10,6 +10,6 @@
 - pipeline.id: scalyr
   pipeline.batch.size: 100
   pipeline.batch.delay: 50
-  pipeline.workers: 8
+  pipeline.workers: WORKER_COUNT
   queue.type: persisted
   path.config: "/usr/share/logstash/pipeline/scalyr.conf"
