@@ -132,6 +132,13 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # after no work being done.
   config :noop_mode, :validate => :boolean, :default => false
 
+  # Manticore related options
+  config :connect_timeout, :validate => :number, :default => 10
+  config :socket_timeout, :validate => :number, :default => 10
+  config :request_timeout, :validate => :number, :default => 60
+  config :pool_max, :validate => :number, :default => 50
+  config :pool_max_per_route, :validate => :number, :default => 25
+
   def initialize(*params)
     super
     # Request statistics are accumulated across multiple threads and must be accessed through a mutex
@@ -232,7 +239,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     @client_session = Scalyr::Common::Client::ClientSession.new(
         @logger, @add_events_uri,
         @compression_type, @compression_level, @ssl_verify_peer, @ssl_ca_bundle_path, @append_builtin_cert,
-        @record_stats_for_status, @flush_quantile_estimates_on_status_send
+        @record_stats_for_status, @flush_quantile_estimates_on_status_send,
+        @connect_timeout, @socket_timeout, @request_timeout, @pool_max, @pool_max_per_route
     )
 
     @logger.info("Started Scalyr output plugin", :class => self.class.name)

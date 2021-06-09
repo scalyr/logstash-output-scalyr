@@ -53,7 +53,8 @@ class ClientSession
 
   def initialize(logger, add_events_uri, compression_type, compression_level,
                  ssl_verify_peer, ssl_ca_bundle_path, append_builtin_cert,
-                 record_stats_for_status, flush_quantile_estimates_on_status_send)
+                 record_stats_for_status, flush_quantile_estimates_on_status_send,
+                 connect_timeout, socket_timeout, request_timeout, pool_max, pool_max_per_route)
     @logger = logger
     @add_events_uri = add_events_uri  # typically /addEvents
     @compression_type = compression_type
@@ -63,6 +64,11 @@ class ClientSession
     @append_builtin_cert = append_builtin_cert
     @record_stats_for_status = record_stats_for_status
     @flush_quantile_estimates_on_status_send = flush_quantile_estimates_on_status_send
+    @connect_timeout = connect_timeout
+    @socket_timeout = socket_timeout
+    @request_timeout = request_timeout
+    @pool_max = pool_max
+    @pool_max_per_route = pool_max_per_route
 
     # A cert to use by default to avoid issues caused by the OpenSSL library not validating certs according to standard
     @cert_string = "" \
@@ -131,15 +137,15 @@ class ClientSession
     # TODO: Eventually expose some more of these as config options, though nothing here really needs tuning normally
     # besides SSL
     c = {
-      connect_timeout: 10,
-      socket_timeout: 10,
-      request_timeout: 60,
+      connect_timeout: @connect_timeout,
+      socket_timeout: @socket_timeout,
+      request_timeout: @request_timeout,
       follow_redirects: true,
       automatic_retries: 1,
       retry_non_idempotent: false,
       check_connection_timeout: 200,
-      pool_max: 50,
-      pool_max_per_route: 25,
+      pool_max: @pool_max,
+      pool_max_per_route: @pool_max_per_route,
       cookies: true,
       keepalive: true,
       ssl: {}
