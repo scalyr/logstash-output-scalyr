@@ -179,6 +179,8 @@ workflows:
     jobs:
       - smoketest-git-dev
       - smoketest-rubygems-stable
+      - smoketest-git-dev-single-worker
+      - smoketest-rubygems-stable-single-worker
       - unittest
       - microbenchmarks-jruby
       - microbenchmarks-cruby
