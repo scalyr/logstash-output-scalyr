@@ -88,7 +88,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Whether or not to verify the connection to Scalyr, only set to false for debugging.
   config :ssl_verify_peer, :validate => :boolean, :default => true
 
-  # If we should append our built-in Scalyr cert to the one we find at `cacert`.
+  # Path to SSL bundle file.
+  config :ssl_ca_bundle_path, :validate => :string, :default => "/etc/ssl/certs/ca-bundle.crt"
+
+  # If we should append our built-in Scalyr cert to the one we find at `ssl_ca_bundle_path`.
   config :append_builtin_cert, :validate => :boolean, :default => true
 
   config :max_request_buffer, :validate => :number, :default => 5500000  # echee TODO: eliminate?
@@ -232,7 +235,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     @running = true
     @client_session = Scalyr::Common::Client::ClientSession.new(
         client_config, @logger, @add_events_uri,
-        @compression_type, @compression_level, @ssl_verify_peer, @append_builtin_cert,
+        @compression_type, @compression_level, @ssl_verify_peer, @ssl_ca_bundle_path, @append_builtin_cert,
         @record_stats_for_status, @flush_quantile_estimates_on_status_send
     )
 

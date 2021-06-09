@@ -52,13 +52,15 @@ end
 class ClientSession
 
   def initialize(client_config, logger, add_events_uri, compression_type, compression_level,
-                 ssl_verify_peer, append_builtin_cert, record_stats_for_status, flush_quantile_estimates_on_status_send)
+                 ssl_verify_peer, ssl_ca_bundle_path, append_builtin_cert,
+                 record_stats_for_status, flush_quantile_estimates_on_status_send)
     @client_config = client_config
     @logger = logger
     @add_events_uri = add_events_uri  # typically /addEvents
     @compression_type = compression_type
     @compression_level = compression_level
     @ssl_verify_peer = ssl_verify_peer
+    @ssl_ca_bundle_path = ssl_ca_bundle_path
     @append_builtin_cert = append_builtin_cert
     @record_stats_for_status = record_stats_for_status
     @flush_quantile_estimates_on_status_send = flush_quantile_estimates_on_status_send
@@ -133,8 +135,8 @@ class ClientSession
     if @ssl_verify_peer
       c[:ssl][:verify] = :strict
       @ca_cert = Tempfile.new("ca_cert")
-      if !c[:ssl][:ca_file].nil? and File.file?(c[:ssl][:ca_file])
-        @ca_cert.write(File.read(c[:ssl][:ca_file]))
+      if File.file?(@ssl_ca_bundle_path)
+        @ca_cert.write(File.read(@ssl_ca_bundle_path))
         @ca_cert.flush
       end
       if @append_builtin_cert
