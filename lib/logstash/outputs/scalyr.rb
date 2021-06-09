@@ -617,7 +617,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   def create_multi_event_request(scalyr_events, current_threads, current_logs)
 
     body = {
-      :session => @session_id,
+      :session => @session_id + Thread.current.object_id.to_s,
       :token => @api_write_token,
       :events => scalyr_events,
     }
