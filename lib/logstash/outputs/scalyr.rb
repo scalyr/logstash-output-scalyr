@@ -85,6 +85,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Set max interval in seconds between bulk retries.
   config :retry_max_interval, :validate => :number, :default => 64
 
+  # Whether or not to verify the connection to Scalyr, only set to false for debugging.
+  config :ssl_verify_peer, :validate => :boolean, :default => true
+
+  # If we should append our built-in Scalyr cert to the one we find at `cacert`.
+  config :append_builtin_cert, :validate => :boolean, :default => true
+
   config :max_request_buffer, :validate => :number, :default => 5500000  # echee TODO: eliminate?
   config :force_message_encoding, :validate => :string, :default => nil
   config :replace_invalid_utf8, :validate => :boolean, :default => false
@@ -221,8 +227,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     # create a client session for uploading to Scalyr
     @running = true
     @client_session = Scalyr::Common::Client::ClientSession.new(
-        @logger, @add_events_uri,
-        @compression_type, @compression_level,
+        client_config, @logger, @add_events_uri,
+        @compression_type, @compression_level, @ssl_verify_peer, @append_builtin_cert,
         @record_stats_for_status, @flush_quantile_estimates_on_status_send
     )
 
@@ -273,7 +279,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         # For some reason a retry on the multi_receive may result in the request array containing `nil` elements, we
         # ignore these.
         if !multi_event_request.nil?
-          @client_session.post_add_events(client, multi_event_request[:body], false, multi_event_request[:serialization_duration])
+          @client_session.post_add_events(multi_event_request[:body], false, multi_event_request[:serialization_duration])
 
           sleep_interval = 0
           result.push(multi_event_request)
@@ -718,7 +724,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       end
     end
     multi_event_request = create_multi_event_request([status_event], nil, nil)
-    @client_session.post_add_events(client, multi_event_request[:body], true, 0)
+    @client_session.post_add_events(multi_event_request[:body], true, 0)
     @last_status_transmit_time = Time.now()
 
     if @log_status_messages_to_stdout
