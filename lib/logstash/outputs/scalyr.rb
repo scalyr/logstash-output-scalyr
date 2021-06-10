@@ -276,88 +276,98 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     # Just return and pretend we did something if running in noop mode
     return events if @noop_mode
 
-    start_time = Time.now.to_f
+    begin
+      start_time = Time.now.to_f
 
-    multi_event_request_array = build_multi_event_request_array(events)
-    # Loop over all array of multi-event requests, sending each multi-event to Scalyr
+      multi_event_request_array = build_multi_event_request_array(events)
+      # Loop over all array of multi-event requests, sending each multi-event to Scalyr
 
-    sleep_interval = @retry_initial_interval
-    batch_num = 1
-    total_batches = multi_event_request_array.length unless multi_event_request_array.nil?
+      sleep_interval = @retry_initial_interval
+      batch_num = 1
+      total_batches = multi_event_request_array.length unless multi_event_request_array.nil?
 
-    result = []
-    records_count = events.to_a.length
+      result = []
+      records_count = events.to_a.length
 
-    while !multi_event_request_array.to_a.empty?
-      begin
-        multi_event_request = multi_event_request_array.pop
-        # For some reason a retry on the multi_receive may result in the request array containing `nil` elements, we
-        # ignore these.
-        if !multi_event_request.nil?
-          @client_session.post_add_events(multi_event_request[:body], false, multi_event_request[:serialization_duration])
+      while !multi_event_request_array.to_a.empty?
+        begin
+          multi_event_request = multi_event_request_array.pop
+          # For some reason a retry on the multi_receive may result in the request array containing `nil` elements, we
+          # ignore these.
+          if !multi_event_request.nil?
+            @client_session.post_add_events(multi_event_request[:body], false, multi_event_request[:serialization_duration])
 
-          sleep_interval = 0
-          result.push(multi_event_request)
+            sleep_interval = 0
+            result.push(multi_event_request)
+          end
+
+        rescue OpenSSL::SSL::SSLError => e
+          # cannot rely on exception message, so we always log the following warning
+          @logger.error "SSL certificate verification failed.  " +
+          "Please make sure your certificate bundle is configured correctly and points to a valid file.  " +
+          "You can configure this with the ssl_ca_bundle_path configuration option.  " +
+          "The current value of ssl_ca_bundle_path is '#{@ssl_ca_bundle_path}'"
+          @logger.error e.message
+          @logger.error "Discarding buffer chunk without retrying."
+
+        rescue Scalyr::Common::Client::ServerError, Scalyr::Common::Client::ClientError => e
+          sleep_interval = sleep_for(sleep_interval)
+          message = "Error uploading to Scalyr (will backoff-retry)"
+          exc_data = {
+              :url => e.url.to_s,
+              :message => e.message,
+              :batch_num => batch_num,
+              :total_batches => total_batches,
+              :record_count => multi_event_request[:record_count],
+              :payload_size => multi_event_request[:body].bytesize,
+              :will_retry_in_seconds => sleep_interval,
+          }
+          exc_data[:code] = e.code if e.code
+          exc_data[:body] = e.body if @logger.debug? and e.body
+          exc_data[:payload] = "\tSample payload: #{request[:body][0,1024]}..." if @logger.debug?
+          if e.is_commonly_retried?
+            # well-known retriable errors should be debug
+            @logger.debug(message, exc_data)
+          else
+            # all other failed uploads should be errors
+            @logger.error(message, exc_data)
+          end
+          retry if @running
+
+        rescue => e
+          # Any unexpected errors should be fully logged
+          @logger.error(
+              "Unexpected error occurred while uploading to Scalyr (will backoff-retry)",
+              :error_message => e.message,
+              :error_class => e.class.name,
+              :backtrace => e.backtrace
+          )
+          @logger.debug("Failed multi_event_request", :multi_event_request => multi_event_request)
+          sleep_interval = sleep_for(sleep_interval)
+          retry if @running
         end
+      end
 
-      rescue OpenSSL::SSL::SSLError => e
-        # cannot rely on exception message, so we always log the following warning
-        @logger.error "SSL certificate verification failed.  " +
-        "Please make sure your certificate bundle is configured correctly and points to a valid file.  " +
-        "You can configure this with the ssl_ca_bundle_path configuration option.  " +
-        "The current value of ssl_ca_bundle_path is '#{@ssl_ca_bundle_path}'"
-        @logger.error e.message
-        @logger.error "Discarding buffer chunk without retrying."
-
-      rescue Scalyr::Common::Client::ServerError, Scalyr::Common::Client::ClientError => e
-        sleep_interval = sleep_for(sleep_interval)
-        message = "Error uploading to Scalyr (will backoff-retry)"
-        exc_data = {
-            :url => e.url.to_s,
-            :message => e.message,
-            :batch_num => batch_num,
-            :total_batches => total_batches,
-            :record_count => multi_event_request[:record_count],
-            :payload_size => multi_event_request[:body].bytesize,
-            :will_retry_in_seconds => sleep_interval,
-        }
-        exc_data[:code] = e.code if e.code
-        exc_data[:body] = e.body if @logger.debug? and e.body
-        exc_data[:payload] = "\tSample payload: #{request[:body][0,1024]}..." if @logger.debug?
-        if e.is_commonly_retried?
-          # well-known retriable errors should be debug
-          @logger.debug(message, exc_data)
-        else
-          # all other failed uploads should be errors
-          @logger.error(message, exc_data)
+      if records_count > 0
+        @stats_lock.synchronize do
+          @multi_receive_statistics[:total_multi_receive_secs] += (Time.now.to_f - start_time)
+          @plugin_metrics[:multi_receive_duration_secs].observe(Time.now.to_f - start_time)
+          @plugin_metrics[:multi_receive_event_count].observe(records_count)
+          @plugin_metrics[:batches_per_multi_receive].observe(total_batches)
         end
-        retry if @running
-
-      rescue => e
-        # Any unexpected errors should be fully logged
-        @logger.error(
-            "Unexpected error occurred while uploading to Scalyr (will backoff-retry)",
-            :error_message => e.message,
-            :error_class => e.class.name,
-            :backtrace => e.backtrace
-        )
-        @logger.debug("Failed multi_event_request", :multi_event_request => multi_event_request)
-        sleep_interval = sleep_for(sleep_interval)
-        retry if @running
       end
-    end
 
-    if records_count > 0
-      @stats_lock.synchronize do
-        @multi_receive_statistics[:total_multi_receive_secs] += (Time.now.to_f - start_time)
-        @plugin_metrics[:multi_receive_duration_secs].observe(Time.now.to_f - start_time)
-        @plugin_metrics[:multi_receive_event_count].observe(records_count)
-        @plugin_metrics[:batches_per_multi_receive].observe(total_batches)
-      end
-    end
+      send_status
+      return result
 
-    send_status
-    return result
+    rescue => e
+      # Any unexpected errors should be fully logged
+      @logger.error(
+          "Unexpected error occurred while executing multi_receive.",
+          :error_message => e.message,
+          :error_class => e.class.name,
+          :backtrace => e.backtrace
+      )
   end  # def multi_receive
 
 
