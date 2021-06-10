@@ -368,6 +368,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           :error_class => e.class.name,
           :backtrace => e.backtrace
       )
+    end
   end  # def multi_receive
 
 
