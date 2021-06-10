@@ -256,7 +256,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       :multi_receive_duration_secs => Quantile::Estimator.new,
       :multi_receive_event_count => Quantile::Estimator.new,
       :event_attributes_count => Quantile::Estimator.new,
-      :flatten_values_duration_secs => Quantile::Estimator.new
+      :flatten_values_duration_secs => Quantile::Estimator.new,
+      :batches_per_multi_receive => Quantile::Estimator.new
     }
   end
 
@@ -351,6 +352,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         @multi_receive_statistics[:total_multi_receive_secs] += (Time.now.to_f - start_time)
         @plugin_metrics[:multi_receive_duration_secs].observe(Time.now.to_f - start_time)
         @plugin_metrics[:multi_receive_event_count].observe(records_count)
+        @plugin_metrics[:batches_per_multi_receive].observe(total_batches)
       end
     end
 
@@ -675,6 +677,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       current_stats[:event_attributes_count_p50] = @plugin_metrics[:event_attributes_count].query(0.5)
       current_stats[:event_attributes_count_p90] = @plugin_metrics[:event_attributes_count].query(0.9)
       current_stats[:event_attributes_count_p99] = @plugin_metrics[:event_attributes_count].query(0.99)
+
+      current_stats[:batches_per_multi_receive_p50] = @plugin_metrics[:batches_per_multi_receive].query(0.5)
+      current_stats[:batches_per_multi_receive_p90] = @plugin_metrics[:batches_per_multi_receive].query(0.9)
+      current_stats[:batches_per_multi_receive_p99] = @plugin_metrics[:batches_per_multi_receive].query(0.99)
 
       if @flatten_nested_values
         # We only return those metrics in case flattening is enabled
