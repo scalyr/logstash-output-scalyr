@@ -243,7 +243,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         @http_connect_timeout, @http_socket_timeout, @http_request_timeout, @http_pool_max, @http_pool_max_per_route
     )
 
-    @logger.info("Started Scalyr output plugin", :class => self.class.name)
+    # TODO: Define version constant in one place and use this everywhere
+    @logger.info("Started Scalyr output plugin (v0.1.10.beta)", :class => self.class.name)
 
     # Finally, send a status line to Scalyr
     send_status
@@ -710,7 +711,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     }
     @send_stats.synchronize do
       if !@last_status_transmit_time
-        status_event[:attrs]['message'] = "Started Scalyr LogStash output plugin."
+        status_event[:attrs]['message'] = "Started Scalyr LogStash output plugin (v0.1.10.beta)."
         status_event[:attrs]['serverHost'] = @node_hostname
       else
         cur_time = Time.now()

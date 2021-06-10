@@ -369,7 +369,7 @@ If you want to change status reporting interval you can do that by changing the
 ## Updating version
 
 Currently references to the version need to be manually updated, files to look in for this are `logstash-putput-scalyr.gemspec`,
- `client.rb`, twice in the CircleCI `Dockerfile`, and under "Quick Start" in this `README.md`.
+ `client.rb`, twice in `scalyr.rb`, twice in the CircleCI `Dockerfile`, and under "Quick Start" in this `README.md`.
 
 The changelog should also be updated with the latest version and changes of note.
 
