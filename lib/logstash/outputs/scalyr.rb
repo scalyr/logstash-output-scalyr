@@ -321,8 +321,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             :payload_size => multi_event_request[:body].bytesize,
             :will_retry_in_seconds => sleep_interval,
         }
-        exc_data[:code] = e.response_code if e.code
-        exc_data[:body] = e.response_body if @logger.debug? and e.body
+        exc_data[:code] = e.code if e.code
+        exc_data[:body] = e.body if @logger.debug? and e.body
         exc_data[:payload] = "\tSample payload: #{request[:body][0,1024]}..." if @logger.debug?
         if e.is_commonly_retried?
           # well-known retriable errors should be debug
