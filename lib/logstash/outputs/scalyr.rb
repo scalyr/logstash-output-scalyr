@@ -297,7 +297,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           if !multi_event_request.nil?
             @client_session.post_add_events(multi_event_request[:body], false, multi_event_request[:serialization_duration])
 
-            sleep_interval = 0
+            sleep_interval = @retry_initial_interval
+            batch_num += 1
             result.push(multi_event_request)
           end
 
@@ -323,6 +324,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             # all other failed uploads should be errors
             @logger.error(message, exc_data)
           end
+          sleep_interval *= 2
           retry if @running
 
         rescue => e
@@ -335,6 +337,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           )
           @logger.debug("Failed multi_event_request", :multi_event_request => multi_event_request)
           sleep_interval = sleep_for(sleep_interval)
+          sleep_interval *= 2
           retry if @running
         end
       end
