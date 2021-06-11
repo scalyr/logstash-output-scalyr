@@ -1,5 +1,9 @@
 # Beta
 
+## 0.1.11.beta
+- Fixes to retry mechanisms.
+- More thorough catching of events, preferring to retry requests rather than crashing the plugin.
+
 ## 0.1.10.beta
 
 - Switch to shared concurrency to allow the use of multiple worker threads for increased

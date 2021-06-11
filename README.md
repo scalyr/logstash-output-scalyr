@@ -10,7 +10,7 @@ You can view documentation for this plugin [on the Scalyr website](https://app.s
 # Quick start
 
 1. Build the gem, run `gem build logstash-output-scalyr.gemspec` 
-2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-0.1.9.gem` or follow the latest official instructions on working with plugins from Logstash.
+2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-0.1.11.beta.gem` or follow the latest official instructions on working with plugins from Logstash.
 3. Configure the output plugin (e.g. add it to a pipeline .conf)
 4. Restart Logstash 
 
@@ -369,7 +369,7 @@ If you want to change status reporting interval you can do that by changing the
 ## Updating version
 
 Currently references to the version need to be manually updated, files to look in for this are `logstash-putput-scalyr.gemspec`,
- `lib/scalyr/constants.rb`, twice in the CircleCI `Dockerfile`, and under "Quick Start" in this `README.md`.
+ `lib/scalyr/constants.rb`, and under "Quick Start" in this `README.md`.
 
 The changelog should also be updated with the latest version and changes of note.
 
