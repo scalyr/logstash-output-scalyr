@@ -290,8 +290,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       records_count = events.to_a.length
 
       while !multi_event_request_array.to_a.empty?
+        multi_event_request = multi_event_request_array.pop
         begin
-          multi_event_request = multi_event_request_array.pop
           # For some reason a retry on the multi_receive may result in the request array containing `nil` elements, we
           # ignore these.
           if !multi_event_request.nil?
