@@ -301,15 +301,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             result.push(multi_event_request)
           end
 
-        rescue OpenSSL::SSL::SSLError => e
-          # cannot rely on exception message, so we always log the following warning
-          @logger.error "SSL certificate verification failed.  " +
-          "Please make sure your certificate bundle is configured correctly and points to a valid file.  " +
-          "You can configure this with the ssl_ca_bundle_path configuration option.  " +
-          "The current value of ssl_ca_bundle_path is '#{@ssl_ca_bundle_path}'"
-          @logger.error e.message
-          @logger.error "Discarding buffer chunk without retrying."
-
         rescue Scalyr::Common::Client::ServerError, Scalyr::Common::Client::ClientError => e
           sleep_interval = sleep_for(sleep_interval)
           message = "Error uploading to Scalyr (will backoff-retry)"
