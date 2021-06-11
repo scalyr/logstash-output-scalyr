@@ -98,7 +98,7 @@ describe LogStash::Outputs::Scalyr do
         plugin.instance_variable_set(:@client_session, mock_client_session)
         plugin.instance_variable_set(:@session_id, "some_session_id")
         status_event = plugin.send_status
-        expect(status_event[:attrs]["message"]).to eq("Started Scalyr LogStash output plugin.")
+        expect(status_event[:attrs]["message"]).to eq("Started Scalyr LogStash output plugin (v0.1.10.beta).")
 
         # 2. Second send
         plugin.instance_variable_set(:@last_status_transmit_time, 100)
