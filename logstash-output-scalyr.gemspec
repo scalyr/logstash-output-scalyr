@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'logstash-output-scalyr'
-  s.version         = '0.1.10.beta'
+  s.version         = '0.1.11.beta'
   s.licenses = ['Apache-2.0']
   s.summary = "Scalyr output plugin for Logstash"
   s.description     = "Sends log data collected by Logstash to Scalyr (https://www.scalyr.com)"
