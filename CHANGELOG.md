@@ -1,5 +1,9 @@
 # Beta
 
+## 0.1.12
+- Add logging of successful request retries after an error for additional clarity.
+- Add debug level logging of request body on error.
+
 ## 0.1.11.beta
 - Fixes to retry mechanisms.
 - More thorough catching of events, preferring to retry requests rather than crashing the plugin.
