@@ -292,6 +292,16 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
       while !multi_event_request_array.to_a.empty?
         multi_event_request = multi_event_request_array.pop
+        # Variables to hold information about exceptions we run into, and our handling of retries for this request. We
+        # track this to log it when the retries succeed so we can be sure logs are going through.
+        # General exception info we log in the error
+        exc_data = nil
+        # Whether the exception is commonly retried or not, for determining log level
+        exc_commonly_retried = false
+        # Count of retries attempted for this request
+        exc_retries = 0
+        # Total time spent sleeping while retrying this request due to backoff
+        exc_sleep = 0
         begin
           # For some reason a retry on the multi_receive may result in the request array containing `nil` elements, we
           # ignore these.
@@ -305,6 +315,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
         rescue Scalyr::Common::Client::ServerError, Scalyr::Common::Client::ClientError => e
           sleep_interval = sleep_for(sleep_interval)
+          exc_sleep += sleep_interval
+          exc_retries += 1
           message = "Error uploading to Scalyr (will backoff-retry)"
           exc_data = {
               :url => e.url.to_s,
@@ -325,11 +337,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           if e.is_commonly_retried?
             # well-known retriable errors should be debug
             @logger.debug(message, exc_data)
+            exc_commonly_retried = true
           else
             # all other failed uploads should be errors
             @logger.error(message, exc_data)
+            exc_commonly_retried = false
           end
-          sleep_interval *= 2
           retry if @running
 
         rescue => e
@@ -342,8 +355,24 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           )
           @logger.debug("Failed multi_event_request", :multi_event_request => multi_event_request)
           sleep_interval = sleep_for(sleep_interval)
-          sleep_interval *= 2
+          exc_data = {
+            :error_message => e.message,
+            :error_class => e.class.name,
+            :backtrace => e.backtrace,
+            :multi_event_request => multi_event_request
+          }
+          exc_sleep += sleep_interval
+          exc_retries += 1
           retry if @running
+        end
+
+        if !exc_data.nil?
+          message = "Retry successful after error."
+          if exc_commonly_retried
+            @logger.debug(message, :error_data => exc_data, :retries => exc_retries, :sleep_time => exc_sleep)
+          else
+            @logger.info(message, :error_data => exc_data, :retries => exc_retries, :sleep_time => exc_sleep)
+          end
         end
       end
 
