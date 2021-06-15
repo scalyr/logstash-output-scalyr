@@ -330,7 +330,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             exc_commonly_retried = true
           else
             # all other failed uploads should be errors
-            @logger.error(message, @exc_data)
+            @logger.error(message, exc_data)
             exc_commonly_retried = false
           end
           retry if @running
