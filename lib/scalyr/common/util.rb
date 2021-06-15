@@ -45,5 +45,12 @@ def self.flatten(obj, delimiter='_')
   return result
 end
 
+def self.truncate(content, max)
+  if content.length > max
+    return "#{content[0...(max-3)]}..."
+  end
+  return content
+end
+
 end; end; end;
 
