@@ -145,6 +145,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     # Request statistics are accumulated across multiple threads and must be accessed through a mutex
     @stats_lock = Mutex.new
     @send_stats = Mutex.new
+    @exc_data = nil
   end
 
   def close
@@ -306,7 +307,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         rescue Scalyr::Common::Client::ServerError, Scalyr::Common::Client::ClientError => e
           sleep_interval = sleep_for(sleep_interval)
           message = "Error uploading to Scalyr (will backoff-retry)"
-          exc_data = {
+          @exc_data = {
               :url => e.url.to_s,
               :message => e.message,
               :batch_num => batch_num,
@@ -315,15 +316,19 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
               :payload_size => multi_event_request[:body].bytesize,
               :will_retry_in_seconds => sleep_interval,
           }
-          exc_data[:code] = e.code if e.code
-          exc_data[:body] = e.body if @logger.debug? and e.body
-          exc_data[:payload] = "\tSample payload: #{request[:body][0,1024]}..." if @logger.debug?
+          @exc_data[:code] = e.code if e.code
+          @exc_data[:body] = e.body if @logger.debug? and e.body
+          @exc_data[:payload] = "\tSample payload: #{request[:body][0,1024]}..." if @logger.debug?
           if e.is_commonly_retried?
             # well-known retriable errors should be debug
-            @logger.debug(message, exc_data)
+            @logger.debug(message, @exc_data)
+            # If we don't log this, avoid logging the "successful retry" message
+            if !@logger.debug?
+              @exc_data = nil
+            end
           else
             # all other failed uploads should be errors
-            @logger.error(message, exc_data)
+            @logger.error(message, @exc_data)
           end
           sleep_interval *= 2
           retry if @running
@@ -340,6 +345,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           sleep_interval = sleep_for(sleep_interval)
           sleep_interval *= 2
           retry if @running
+        end
+
+        if !@exc_data.nil?
+          message = "Retry successful after error."
+          @exc_data = nil
         end
       end
 
