@@ -146,6 +146,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     @stats_lock = Mutex.new
     @send_stats = Mutex.new
     @exc_data = nil
+    @exc_commonly_retried = false
   end
 
   def close
@@ -322,13 +323,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           if e.is_commonly_retried?
             # well-known retriable errors should be debug
             @logger.debug(message, @exc_data)
-            # If we don't log this, avoid logging the "successful retry" message
-            if !@logger.debug?
-              @exc_data = nil
-            end
+            @exc_commonly_retried = true
           else
             # all other failed uploads should be errors
             @logger.error(message, @exc_data)
+            @exc_commonly_retried = false
           end
           sleep_interval *= 2
           retry if @running
@@ -349,6 +348,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
         if !@exc_data.nil?
           message = "Retry successful after error."
+          if @exc_commonly_retried
+            @logger.info(message, @exc_data)
+          else
+            @logger.debug(message, @exc_data)
+          end
           @exc_data = nil
         end
       end
