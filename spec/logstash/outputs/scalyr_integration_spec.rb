@@ -152,7 +152,8 @@ describe LogStash::Outputs::Scalyr do
             :record_count=>3,
             :total_batches=>1,
             :url=>"https://agent.scalyr.com/addEvents",
-            :will_retry_in_seconds=>2
+            :will_retry_in_seconds=>2,
+            :body=>"stubbed response"
           }
         )
       end
@@ -178,7 +179,35 @@ describe LogStash::Outputs::Scalyr do
             :record_count=>3,
             :total_batches=>1,
             :url=>"https://agent.scalyr.com/addEvents",
-            :will_retry_in_seconds=>2
+            :will_retry_in_seconds=>2,
+            :body=>"stubbed response"
+          }
+        )
+      end
+    end
+
+    context "when receiving a long non-json response" do
+      it "don't throw an error but do log one to error" do
+        stub_request(:post, "https://agent.scalyr.com/addEvents").
+          to_return(status: 500, body: "0123456789" * 52, headers: {})
+
+        plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'ssl_ca_bundle_path' => '/fakepath/nocerts', 'append_builtin_cert' => false})
+        plugin.register
+        plugin.instance_variable_set(:@running, false)
+
+        allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+        plugin.multi_receive(sample_events)
+        expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
+          {
+            :batch_num=>1,
+            :code=>500,
+            :message=>"Invalid JSON response from server",
+            :payload_size=>781,
+            :record_count=>3,
+            :total_batches=>1,
+            :url=>"https://agent.scalyr.com/addEvents",
+            :will_retry_in_seconds=>2,
+            :body=>("0123456789" * 50) + "012345678..."
           }
         )
       end
