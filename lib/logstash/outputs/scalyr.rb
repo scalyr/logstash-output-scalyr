@@ -292,9 +292,15 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
       while !multi_event_request_array.to_a.empty?
         multi_event_request = multi_event_request_array.pop
+        # Variables to hold information about exceptions we run into, and our handling of retries for this request. We
+        # track this to log it when the retries succeed so we can be sure logs are going through.
+        # General exception info we log in the error
         exc_data = nil
+        # Whether the exception is commonly retried or not, for determining log level
         exc_commonly_retried = false
+        # Count of retries attempted for this request
         exc_retries = 0
+        # Total time spent sleeping while retrying this request due to backoff
         exc_sleep = 0
         begin
           # For some reason a retry on the multi_receive may result in the request array containing `nil` elements, we
