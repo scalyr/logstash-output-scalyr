@@ -145,8 +145,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     # Request statistics are accumulated across multiple threads and must be accessed through a mutex
     @stats_lock = Mutex.new
     @send_stats = Mutex.new
-    @exc_data = nil
-    @exc_commonly_retried = false
   end
 
   def close
@@ -294,6 +292,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
       while !multi_event_request_array.to_a.empty?
         multi_event_request = multi_event_request_array.pop
+        exc_data = nil
+        exc_commonly_retried = false
+        exc_retries = 0
+        exc_sleep = 0
         begin
           # For some reason a retry on the multi_receive may result in the request array containing `nil` elements, we
           # ignore these.
@@ -307,8 +309,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
         rescue Scalyr::Common::Client::ServerError, Scalyr::Common::Client::ClientError => e
           sleep_interval = sleep_for(sleep_interval)
+          exc_sleep += sleep_interval
+          exc_retries += 1
           message = "Error uploading to Scalyr (will backoff-retry)"
-          @exc_data = {
+          exc_data = {
               :url => e.url.to_s,
               :message => e.message,
               :batch_num => batch_num,
@@ -317,19 +321,18 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
               :payload_size => multi_event_request[:body].bytesize,
               :will_retry_in_seconds => sleep_interval,
           }
-          @exc_data[:code] = e.code if e.code
-          @exc_data[:body] = e.body if @logger.debug? and e.body
-          @exc_data[:payload] = "\tSample payload: #{request[:body][0,1024]}..." if @logger.debug?
+          exc_data[:code] = e.code if e.code
+          exc_data[:body] = e.body if @logger.debug? and e.body
+          exc_data[:payload] = "\tSample payload: #{request[:body][0,1024]}..." if @logger.debug?
           if e.is_commonly_retried?
             # well-known retriable errors should be debug
-            @logger.debug(message, @exc_data)
-            @exc_commonly_retried = true
+            @logger.debug(message, exc_data)
+            exc_commonly_retried = true
           else
             # all other failed uploads should be errors
             @logger.error(message, @exc_data)
-            @exc_commonly_retried = false
+            exc_commonly_retried = false
           end
-          sleep_interval *= 2
           retry if @running
 
         rescue => e
@@ -342,18 +345,24 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           )
           @logger.debug("Failed multi_event_request", :multi_event_request => multi_event_request)
           sleep_interval = sleep_for(sleep_interval)
-          sleep_interval *= 2
+          exc_data = {
+            :error_message => e.message,
+            :error_class => e.class.name,
+            :backtrace => e.backtrace,
+            :multi_event_request => multi_event_request
+          }
+          exc_sleep += sleep_interval
+          exc_retries += 1
           retry if @running
         end
 
-        if !@exc_data.nil?
+        if !exc_data.nil?
           message = "Retry successful after error."
-          if @exc_commonly_retried
-            @logger.info(message, @exc_data)
+          if exc_commonly_retried
+            @logger.debug(message, :error_data => exc_data, :retries => exc_retries, :sleep_time => exc_sleep)
           else
-            @logger.debug(message, @exc_data)
+            @logger.info(message, :error_data => exc_data, :retries => exc_retries, :sleep_time => exc_sleep)
           end
-          @exc_data = nil
         end
       end
 
