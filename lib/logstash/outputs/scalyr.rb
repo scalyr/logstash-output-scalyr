@@ -781,19 +781,19 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         status_event[:attrs]['serverHost'] = @node_hostname
         status_event[:attrs]['parser'] = @status_parser
       end
+      multi_event_request = create_multi_event_request([status_event], nil, nil)
+      begin
+        @client_session.post_add_events(multi_event_request[:body], true, 0)
+      rescue => e
+        @logger.warn(
+          "Unexpected error occurred while uploading status to Scalyr",
+          :error_message => e.message,
+          :error_class => e.class.name
+        )
+        return
+      end
+      @last_status_transmit_time = Time.now()
     end
-    multi_event_request = create_multi_event_request([status_event], nil, nil)
-    begin
-      @client_session.post_add_events(multi_event_request[:body], true, 0)
-    rescue => e
-      @logger.warn(
-        "Unexpected error occurred while uploading status to Scalyr",
-        :error_message => e.message,
-        :error_class => e.class.name
-      )
-      return
-    end
-    @last_status_transmit_time = Time.now()
 
     if @log_status_messages_to_stdout
       @logger.info msg
