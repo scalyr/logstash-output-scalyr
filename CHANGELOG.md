@@ -1,5 +1,8 @@
 # Beta
 
+## 0.1.13
+- Fix synchronization of status message sending code to avoid duplicate logs.
+
 ## 0.1.12
 - Add logging of successful request retries after an error for additional clarity.
 - Add debug level logging of request body on error.
