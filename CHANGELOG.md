@@ -1,5 +1,8 @@
 # Beta
 
+## TBD
+- Log truncated error body for all errors to help with debugging.
+
 ## 0.1.13
 - Fix synchronization of status message sending code to avoid duplicate logs.
 
