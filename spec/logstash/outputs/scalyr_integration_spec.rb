@@ -133,6 +133,17 @@ describe LogStash::Outputs::Scalyr do
           end
         end
       end
+
+      context "when an error occurs with retries at 5" do
+        it "exits after 5 retries and emits a log" do
+              plugin = LogStash::Outputs::Scalyr.new({'retry_initial_interval' => 0.1, 'api_write_token' => '1234', 'ssl_ca_bundle_path' => '/fakepath/nocerts', 'append_builtin_cert' => false})
+              plugin.register
+              allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+              plugin.multi_receive(sample_events)
+              expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Failed to send event after 5 tries.", anything
+              )
+        end
+      end
   end
 
   describe "response_handling_tests" do
