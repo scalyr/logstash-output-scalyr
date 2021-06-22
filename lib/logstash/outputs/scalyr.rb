@@ -78,6 +78,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   # Initial interval in seconds between bulk retries. Doubled on each retry up to `retry_max_interval`
   config :retry_initial_interval, :validate => :number, :default => 1
+  # How many times to retry sending an event before giving up on it
+  config :max_retries, :validate => :number, :default => 5
+  # Whether or not to send messages that failed to send a max_retries amount of times to the DLQ or just drop them
+  config :send_to_dlq, :validate => :boolean, :default => true
 
   # Set max interval in seconds between bulk retries.
   config :retry_max_interval, :validate => :number, :default => 64
@@ -319,6 +323,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           exc_retries += 1
           message = "Error uploading to Scalyr (will backoff-retry)"
           exc_data = {
+              :error_class => e.e_class,
               :url => e.url.to_s,
               :message => e.message,
               :batch_num => batch_num,
@@ -343,7 +348,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             @logger.error(message, exc_data)
             exc_commonly_retried = false
           end
-          retry if @running
+          retry if @running and exc_retries < @max_retries
+          log_retry_failure(multi_event_request, exc_data, exc_retries, exc_sleep)
+          next
 
         rescue => e
           # Any unexpected errors should be fully logged
@@ -363,7 +370,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           }
           exc_sleep += sleep_interval
           exc_retries += 1
-          retry if @running
+          retry if @running and exc_retries < @max_retries
+          log_retry_failure(multi_event_request, exc_data, exc_retries, exc_sleep)
+          next
         end
 
         if !exc_data.nil?
@@ -400,6 +409,23 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   end  # def multi_receive
 
 
+  def log_retry_failure(multi_event_request, exc_data, exc_retries, exc_sleep)
+    message = "Failed to send #{multi_event_request[:logstash_events].length} events after #{exc_retries} tries."
+    sample_events = Array.new
+    multi_event_request[:logstash_events][0,5].each {|l_event|
+      sample_events << Scalyr::Common::Util.truncate(l_event.to_hash.to_json, 256)
+    }
+    @logger.error(message, :error_data => exc_data, :sample_events => sample_events, :retries => exc_retries, :sleep_time => exc_sleep)
+    if @dlq_writer
+      multi_event_request[:logstash_events].each {|l_event|
+        @dlq_writer.write(l_event, "#{exc_data[:message]}")
+      }
+    else
+      @logger.warn("Deal letter queue not configured, dropping #{multi_event_request[:logstash_events].length} events after #{exc_retries} tries.", :sample_events => sample_events)
+    end
+  end
+
+
   # Builds an array of multi-event requests from LogStash events
   # Each array element is a request that groups multiple events (to be posted to Scalyr's addEvents endpoint)
   #
@@ -428,6 +454,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     current_threads = Hash.new
     # Create a Scalyr event object for each record in the chunk
     scalyr_events = Array.new
+    # Track the logstash events in each chunk to send them to the dlq in case of an error
+    l_events = Array.new
 
     thread_ids = Hash.new
     next_id = 1 #incrementing thread id for the session
@@ -619,9 +647,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         # make sure we always have at least one event
         if scalyr_events.size == 0
           scalyr_events << scalyr_event
+          l_events << l_event
           append_event = false
         end
-        multi_event_request = self.create_multi_event_request(scalyr_events, current_threads, logs)
+        multi_event_request = self.create_multi_event_request(scalyr_events, l_events, current_threads, logs)
         multi_event_request_array << multi_event_request
 
         total_bytes = 0
@@ -629,19 +658,21 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         logs = Hash.new
         logs_ids = Hash.new
         scalyr_events = Array.new
+        l_events = Array.new
       end
 
       # if we haven't consumed the current event already
       # add it to the end of our array and keep track of the json bytesize
       if append_event
         scalyr_events << scalyr_event
+        l_events << l_event
         total_bytes += add_bytes
       end
 
     }
 
     # create a final request with any left over events
-    multi_event_request = self.create_multi_event_request(scalyr_events, current_threads, logs)
+    multi_event_request = self.create_multi_event_request(scalyr_events, l_events, current_threads, logs)
     multi_event_request_array << multi_event_request
     multi_event_request_array
   end
@@ -659,7 +690,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # A request comprises multiple Scalyr Events.  This function creates a request hash for
   # final upload to Scalyr (from an array of events, and an optional hash of current threads)
   # Note: The request body field will be json-encoded.
-  def create_multi_event_request(scalyr_events, current_threads, current_logs)
+  def create_multi_event_request(scalyr_events, logstash_events, current_threads, current_logs)
 
     body = {
       :session => @session_id + Thread.current.object_id.to_s,
@@ -695,7 +726,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     serialized_body = body.to_json
     end_time = Time.now.to_f
     serialization_duration = end_time - start_time
-    { :body => serialized_body, :record_count => scalyr_events.size, :serialization_duration => serialization_duration }
+    {
+      :body => serialized_body, :record_count => scalyr_events.size, :serialization_duration => serialization_duration,
+      :logstash_events => logstash_events
+    }
 
   end  # def create_multi_event_request
 
@@ -781,7 +815,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         status_event[:attrs]['serverHost'] = @node_hostname
         status_event[:attrs]['parser'] = @status_parser
       end
-      multi_event_request = create_multi_event_request([status_event], nil, nil)
+      multi_event_request = create_multi_event_request([status_event], nil, nil, nil)
       begin
         @client_session.post_add_events(multi_event_request[:body], true, 0)
       rescue => e

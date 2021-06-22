@@ -28,8 +28,11 @@ describe LogStash::Outputs::Scalyr do
               plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234'})
               plugin.register
               plugin.instance_variable_set(:@running, false)
-              expect(plugin.instance_variable_get(:@logger)).to receive(:error).with("Error uploading to Scalyr (will backoff-retry)",
+              allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+              plugin.multi_receive(sample_events)
+              expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
                 {
+                  :error_class=>"Scalyr::Common::Client::ServerError",
                   :batch_num=>1,
                   :code=>401,
                   :message=>"error/client/badParam",
@@ -41,7 +44,6 @@ describe LogStash::Outputs::Scalyr do
                   :body=>"{\n  \"message\": \"Couldn't decode API token ...234.\",\n  \"status\": \"error/client/badParam\"\n}"
                 }
               )
-              plugin.multi_receive(sample_events)
         end
       end
 
@@ -50,8 +52,11 @@ describe LogStash::Outputs::Scalyr do
               plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'ssl_ca_bundle_path' => '/fakepath/nocerts', 'append_builtin_cert' => false})
               plugin.register
               plugin.instance_variable_set(:@running, false)
-              expect(plugin.instance_variable_get(:@logger)).to receive(:error).with("Error uploading to Scalyr (will backoff-retry)",
+              allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+              plugin.multi_receive(sample_events)
+              expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
                 {
+                  :error_class=>"Manticore::UnknownException",
                   :batch_num=>1,
                   :message=>"Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty",
                   :payload_size=>781,
@@ -61,7 +66,6 @@ describe LogStash::Outputs::Scalyr do
                   :will_retry_in_seconds=>2
                 }
               )
-              plugin.multi_receive(sample_events)
         end
       end
 
@@ -74,8 +78,11 @@ describe LogStash::Outputs::Scalyr do
               plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'append_builtin_cert' => false})
               plugin.register
               plugin.instance_variable_set(:@running, false)
-              expect(plugin.instance_variable_get(:@logger)).to receive(:error).with("Error uploading to Scalyr (will backoff-retry)",
+              allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+              plugin.multi_receive(sample_events)
+              expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
                 {
+                  :error_class=>"Manticore::UnknownException",
                   :batch_num=>1,
                   :message=>"Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty",
                   :payload_size=>781,
@@ -85,7 +92,6 @@ describe LogStash::Outputs::Scalyr do
                   :will_retry_in_seconds=>2
                 }
               )
-              plugin.multi_receive(sample_events)
           end
           ensure
             `sudo mv /tmp/system_certs #{OpenSSL::X509::DEFAULT_CERT_DIR}`
@@ -111,8 +117,11 @@ describe LogStash::Outputs::Scalyr do
               plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'scalyr_server' => 'https://invalid.mitm.should.fail.test.agent.scalyr.com:443'})
               plugin.register
               plugin.instance_variable_set(:@running, false)
-              expect(plugin.instance_variable_get(:@logger)).to receive(:error).with("Error uploading to Scalyr (will backoff-retry)",
+              allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+              plugin.multi_receive(sample_events)
+              expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
                 {
+                  :error_class=>"Manticore::UnknownException",
                   :batch_num=>1,
                   :message=>"Host name 'invalid.mitm.should.fail.test.agent.scalyr.com' does not match the certificate subject provided by the peer (CN=*.scalyr.com)",
                   :payload_size=>781,
@@ -122,12 +131,22 @@ describe LogStash::Outputs::Scalyr do
                   :will_retry_in_seconds=>2
                 }
               )
-              plugin.multi_receive(sample_events)
           ensure
             # Clean up the hosts file
             `sudo truncate -s 0 /etc/hosts`
             `echo "#{hosts_bkp}" | sudo tee -a /etc/hosts`
           end
+        end
+      end
+
+      context "when an error occurs with retries at 5" do
+        it "exits after 5 retries and emits a log" do
+              plugin = LogStash::Outputs::Scalyr.new({'retry_initial_interval' => 0.1, 'api_write_token' => '1234', 'ssl_ca_bundle_path' => '/fakepath/nocerts', 'append_builtin_cert' => false})
+              plugin.register
+              allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+              plugin.multi_receive(sample_events)
+              expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Failed to send 3 events after 5 tries.", anything
+              )
         end
       end
   end
@@ -146,6 +165,7 @@ describe LogStash::Outputs::Scalyr do
         plugin.multi_receive(sample_events)
         expect(plugin.instance_variable_get(:@logger)).to have_received(:debug).with("Error uploading to Scalyr (will backoff-retry)",
           {
+            :error_class=>"Scalyr::Common::Client::ServerError",
             :batch_num=>1,
             :code=>503,
             :message=>"Invalid JSON response from server",
@@ -173,6 +193,7 @@ describe LogStash::Outputs::Scalyr do
         plugin.multi_receive(sample_events)
         expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
           {
+            :error_class=>"Scalyr::Common::Client::ServerError",
             :batch_num=>1,
             :code=>500,
             :message=>"Invalid JSON response from server",
@@ -200,6 +221,7 @@ describe LogStash::Outputs::Scalyr do
         plugin.multi_receive(sample_events)
         expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
           {
+            :error_class=>"Scalyr::Common::Client::ServerError",
             :batch_num=>1,
             :code=>500,
             :message=>"Invalid JSON response from server",
@@ -211,6 +233,22 @@ describe LogStash::Outputs::Scalyr do
             :body=>("0123456789" * 50) + "012345678..."
           }
         )
+      end
+    end
+
+    context 'when DLQ is enabled' do
+      let(:dlq_writer) { double('DLQ writer') }
+      it 'should send the event to the DLQ' do
+        stub_request(:post, "https://agent.scalyr.com/addEvents").
+          to_return(status: 500, body: "stubbed response", headers: {})
+
+        plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'ssl_ca_bundle_path' => '/fakepath/nocerts', 'append_builtin_cert' => false})
+        plugin.register
+        plugin.instance_variable_set(:@running, false)
+        plugin.instance_variable_set('@dlq_writer', dlq_writer)
+
+        expect(dlq_writer).to receive(:write).exactly(3).times.with(anything, anything)
+        plugin.multi_receive(sample_events)
       end
     end
   end
