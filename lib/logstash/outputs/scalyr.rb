@@ -409,7 +409,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
 
   def log_retry_failure(multi_event_request, exc_data, exc_retries, exc_sleep)
-    message = "Failed to send event after #{exc_retries} tries."
+    message = "Failed to send #{multi_event_request[:logstash_events].length} events after #{exc_retries} tries."
     sample_events = Array.new
     multi_event_request[:logstash_events][0,5].each {|l_event|
       sample_events << Scalyr::Common::Util.truncate(l_event.to_hash.to_json, 256)

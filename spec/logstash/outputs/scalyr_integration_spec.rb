@@ -141,7 +141,7 @@ describe LogStash::Outputs::Scalyr do
               plugin.register
               allow(plugin.instance_variable_get(:@logger)).to receive(:error)
               plugin.multi_receive(sample_events)
-              expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Failed to send event after 5 tries.", anything
+              expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Failed to send 3 events after 5 tries.", anything
               )
         end
       end
