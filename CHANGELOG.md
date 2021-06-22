@@ -1,6 +1,6 @@
 # Beta
 
-## TBD
+## 0.1.14.beta
 - Add configurable max retries for requests when running into errors.
 - Add ability to send messages to the dead letter queue if we exhaust all retries and if it is configured.
 - Log truncated error body for all errors to help with debugging.
