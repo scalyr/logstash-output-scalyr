@@ -348,7 +348,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             exc_commonly_retried = false
           end
           retry if @running and exc_retries < @max_retries
-          message = "Failed to send event after #{exc_retries} retries."
+          message = "Failed to send event after #{exc_retries} tries."
           @logger.error(message, :error_data => exc_data, :retries => exc_retries, :sleep_time => exc_sleep)
           if dlq_enabled? and @dlq_writer
             multi_event_request[:logstash_events].each {|l_event|
@@ -376,7 +376,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           exc_sleep += sleep_interval
           exc_retries += 1
           retry if @running and exc_retries < @max_retries
-          message = "Failed to send event after #{exc_retries} retries."
+          message = "Failed to send event after #{exc_retries} tries."
           @logger.error(message, :error_data => exc_data, :retries => exc_retries, :sleep_time => exc_sleep)
           if dlq_enabled? and @dlq_writer
             multi_event_request[:logstash_events].each {|l_event|

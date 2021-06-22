@@ -28,7 +28,9 @@ describe LogStash::Outputs::Scalyr do
               plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234'})
               plugin.register
               plugin.instance_variable_set(:@running, false)
-              expect(plugin.instance_variable_get(:@logger)).to receive(:error).with("Error uploading to Scalyr (will backoff-retry)",
+              allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+              plugin.multi_receive(sample_events)
+              expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
                 {
                   :batch_num=>1,
                   :code=>401,
@@ -40,7 +42,6 @@ describe LogStash::Outputs::Scalyr do
                   :will_retry_in_seconds=>2
                 }
               )
-              plugin.multi_receive(sample_events)
         end
       end
 
@@ -49,7 +50,9 @@ describe LogStash::Outputs::Scalyr do
               plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'ssl_ca_bundle_path' => '/fakepath/nocerts', 'append_builtin_cert' => false})
               plugin.register
               plugin.instance_variable_set(:@running, false)
-              expect(plugin.instance_variable_get(:@logger)).to receive(:error).with("Error uploading to Scalyr (will backoff-retry)",
+              allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+              plugin.multi_receive(sample_events)
+              expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
                 {
                   :batch_num=>1,
                   :message=>"Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty",
@@ -60,7 +63,6 @@ describe LogStash::Outputs::Scalyr do
                   :will_retry_in_seconds=>2
                 }
               )
-              plugin.multi_receive(sample_events)
         end
       end
 
@@ -73,7 +75,9 @@ describe LogStash::Outputs::Scalyr do
               plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'append_builtin_cert' => false})
               plugin.register
               plugin.instance_variable_set(:@running, false)
-              expect(plugin.instance_variable_get(:@logger)).to receive(:error).with("Error uploading to Scalyr (will backoff-retry)",
+              allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+              plugin.multi_receive(sample_events)
+              expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
                 {
                   :batch_num=>1,
                   :message=>"Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty",
@@ -84,7 +88,6 @@ describe LogStash::Outputs::Scalyr do
                   :will_retry_in_seconds=>2
                 }
               )
-              plugin.multi_receive(sample_events)
           end
           ensure
             `sudo mv /tmp/system_certs #{OpenSSL::X509::DEFAULT_CERT_DIR}`
@@ -110,7 +113,9 @@ describe LogStash::Outputs::Scalyr do
               plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'scalyr_server' => 'https://invalid.mitm.should.fail.test.agent.scalyr.com:443'})
               plugin.register
               plugin.instance_variable_set(:@running, false)
-              expect(plugin.instance_variable_get(:@logger)).to receive(:error).with("Error uploading to Scalyr (will backoff-retry)",
+              allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+              plugin.multi_receive(sample_events)
+              expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
                 {
                   :batch_num=>1,
                   :message=>"Host name 'invalid.mitm.should.fail.test.agent.scalyr.com' does not match the certificate subject provided by the peer (CN=*.scalyr.com)",
@@ -121,7 +126,6 @@ describe LogStash::Outputs::Scalyr do
                   :will_retry_in_seconds=>2
                 }
               )
-              plugin.multi_receive(sample_events)
           ensure
             # Clean up the hosts file
             `sudo truncate -s 0 /etc/hosts`
