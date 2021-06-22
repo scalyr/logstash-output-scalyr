@@ -348,13 +348,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             exc_commonly_retried = false
           end
           retry if @running and exc_retries < @max_retries
-          message = "Failed to send event after #{exc_retries} tries."
-          @logger.error(message, :error_data => exc_data, :retries => exc_retries, :sleep_time => exc_sleep)
-          if dlq_enabled? and @dlq_writer
-            multi_event_request[:logstash_events].each {|l_event|
-              @dlq_writer.write(l_event, "#{exc_data[:message]}")
-            }
-          end
+          log_retry_failure(multi_event_request, exc_data, exc_retries, exc_sleep)
           next
 
         rescue => e
@@ -376,13 +370,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           exc_sleep += sleep_interval
           exc_retries += 1
           retry if @running and exc_retries < @max_retries
-          message = "Failed to send event after #{exc_retries} tries."
-          @logger.error(message, :error_data => exc_data, :retries => exc_retries, :sleep_time => exc_sleep)
-          if dlq_enabled? and @dlq_writer
-            multi_event_request[:logstash_events].each {|l_event|
-              @dlq_writer.write(l_event, "#{exc_data[:message]}")
-            }
-          end
+          log_retry_failure(multi_event_request, exc_data, exc_retries, exc_sleep)
           next
         end
 
@@ -418,6 +406,21 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       )
     end
   end  # def multi_receive
+
+
+  def log_retry_failure(multi_event_request, exc_data, exc_retries, exc_sleep)
+    message = "Failed to send event after #{exc_retries} tries."
+    sample_events = Array.new
+    multi_event_request[:logstash_events][0,5].each {|l_event|
+      sample_events << Scalyr::Common::Util.truncate(l_event.to_hash.to_json, 256)
+    }
+    @logger.error(message, :error_data => exc_data, :sample_events => sample_events, :retries => exc_retries, :sleep_time => exc_sleep)
+    if dlq_enabled? and @dlq_writer
+      multi_event_request[:logstash_events].each {|l_event|
+        @dlq_writer.write(l_event, "#{exc_data[:message]}")
+      }
+    end
+  end
 
 
   # Builds an array of multi-event requests from LogStash events
