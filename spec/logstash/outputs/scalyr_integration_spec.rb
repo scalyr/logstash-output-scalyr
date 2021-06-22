@@ -39,7 +39,8 @@ describe LogStash::Outputs::Scalyr do
                   :record_count=>3,
                   :total_batches=>1,
                   :url=>"https://agent.scalyr.com/addEvents",
-                  :will_retry_in_seconds=>2
+                  :will_retry_in_seconds=>2,
+                  :body=>"{\n  \"message\": \"Couldn't decode API token ...234.\",\n  \"status\": \"error/client/badParam\"\n}"
                 }
               )
         end

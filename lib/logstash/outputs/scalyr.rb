@@ -334,7 +334,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           exc_data[:code] = e.code if e.code
           if @logger.debug? and e.body
             exc_data[:body] = e.body
-          elsif e.message == "Invalid JSON response from server" and e.body
+          elsif e.body
             exc_data[:body] = Scalyr::Common::Util.truncate(e.body, 512)
           end
           exc_data[:payload] = "\tSample payload: #{request[:body][0,1024]}..." if @logger.debug?
@@ -813,11 +813,20 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       begin
         @client_session.post_add_events(multi_event_request[:body], true, 0)
       rescue => e
-        @logger.warn(
-          "Unexpected error occurred while uploading status to Scalyr",
-          :error_message => e.message,
-          :error_class => e.class.name
-        )
+        if e.body
+          @logger.warn(
+            "Unexpected error occurred while uploading status to Scalyr",
+            :error_message => e.message,
+            :error_class => e.class.name,
+            :body => Scalyr::Common::Util.truncate(e.body, 512)
+          )
+        else
+          @logger.warn(
+            "Unexpected error occurred while uploading status to Scalyr",
+            :error_message => e.message,
+            :error_class => e.class.name
+          )
+        end
         return
       end
       @last_status_transmit_time = Time.now()
