@@ -1,5 +1,9 @@
 # Beta
 
+## TBD
+- Add configurable max retries for requests when running into errors.
+- Add ability to send messages to the dead letter queue if we exhaust all retries and if it is configured.
+
 ## 0.1.13
 - Fix synchronization of status message sending code to avoid duplicate logs.
 
