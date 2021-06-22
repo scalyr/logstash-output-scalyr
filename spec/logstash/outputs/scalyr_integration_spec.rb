@@ -235,6 +235,22 @@ describe LogStash::Outputs::Scalyr do
         )
       end
     end
+
+    context 'when DLQ is enabled' do
+      let(:dlq_writer) { double('DLQ writer') }
+      it 'should send the event to the DLQ' do
+        stub_request(:post, "https://agent.scalyr.com/addEvents").
+          to_return(status: 500, body: "stubbed response", headers: {})
+
+        plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'ssl_ca_bundle_path' => '/fakepath/nocerts', 'append_builtin_cert' => false})
+        plugin.register
+        plugin.instance_variable_set(:@running, false)
+        plugin.instance_variable_set('@dlq_writer', dlq_writer)
+
+        expect(dlq_writer).to receive(:write).exactly(3).times.with(anything, anything)
+        plugin.multi_receive(sample_events)
+      end
+    end
   end
 
 end

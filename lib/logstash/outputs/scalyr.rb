@@ -416,7 +416,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       sample_events << Scalyr::Common::Util.truncate(l_event.to_hash.to_json, 256)
     }
     @logger.error(message, :error_data => exc_data, :sample_events => sample_events, :retries => exc_retries, :sleep_time => exc_sleep)
-    if dlq_enabled? and @dlq_writer
+    if @dlq_writer
       multi_event_request[:logstash_events].each {|l_event|
         @dlq_writer.write(l_event, "#{exc_data[:message]}")
       }
