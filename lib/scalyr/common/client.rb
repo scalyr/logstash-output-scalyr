@@ -7,13 +7,14 @@ module Scalyr; module Common; module Client
 #---------------------------------------------------------------------------------------------------------------------
 class ServerError < StandardError
 
-  attr_reader :code, :url, :body
+  attr_reader :code, :url, :body, :e_class
 
-  def initialize(msg=nil, code=nil, url=nil, body=nil)
+  def initialize(msg=nil, code=nil, url=nil, body=nil, e_class="Scalyr::Common::Client::ServerError")
     super(msg)
     @code = code.to_i
     @url = url
     @body = body
+    @e_class = e_class
   end
 
   def is_commonly_retried?
@@ -33,13 +34,14 @@ end
 #---------------------------------------------------------------------------------------------------------------------
 class ClientError < StandardError
 
-  attr_reader :code, :url, :body
+  attr_reader :code, :url, :body, :e_class
 
-  def initialize(msg=nil, url=nil)
+  def initialize(msg=nil, url=nil, e_class="Scalyr::Common::Client::ClientError")
     super(msg)
     @code = nil  # currently no way to get this from Net::HTTP::Persistent::Error
     @url = url
     @body = nil
+    @e_class = e_class
   end
 
   def is_commonly_retried?
@@ -236,15 +238,10 @@ class ClientSession
       bytes_received = response.body.bytesize  # echee: double check
         # echee TODO add more statistics
 
-    # TODO: Manticore doesn't raise SSL errors as this but as "UnknownExceptions", need to dig in and see if there is a
-    # way to detect that it is from SSL.
-    rescue OpenSSL::SSL::SSLError => e
-      raise e
-
     rescue Manticore::ManticoreException => e
       # The underlying persistent-connection library automatically retries when there are network-related errors.
       # Eventually, it will give up and raise this generic error, at which time, we convert it to a ClientError
-      raise ClientError.new(e.message, @add_events_uri)
+      raise ClientError.new(e.message, @add_events_uri, e.class.name)
 
     ensure
       if @record_stats_for_status or !is_status

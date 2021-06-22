@@ -32,6 +32,7 @@ describe LogStash::Outputs::Scalyr do
               plugin.multi_receive(sample_events)
               expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
                 {
+                  :error_class=>"Scalyr::Common::Client::ServerError",
                   :batch_num=>1,
                   :code=>401,
                   :message=>"error/client/badParam",
@@ -55,6 +56,7 @@ describe LogStash::Outputs::Scalyr do
               plugin.multi_receive(sample_events)
               expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
                 {
+                  :error_class=>"Manticore::UnknownException",
                   :batch_num=>1,
                   :message=>"Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty",
                   :payload_size=>781,
@@ -80,6 +82,7 @@ describe LogStash::Outputs::Scalyr do
               plugin.multi_receive(sample_events)
               expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
                 {
+                  :error_class=>"Manticore::UnknownException",
                   :batch_num=>1,
                   :message=>"Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty",
                   :payload_size=>781,
@@ -118,6 +121,7 @@ describe LogStash::Outputs::Scalyr do
               plugin.multi_receive(sample_events)
               expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
                 {
+                  :error_class=>"Manticore::UnknownException",
                   :batch_num=>1,
                   :message=>"Host name 'invalid.mitm.should.fail.test.agent.scalyr.com' does not match the certificate subject provided by the peer (CN=*.scalyr.com)",
                   :payload_size=>781,
@@ -161,6 +165,7 @@ describe LogStash::Outputs::Scalyr do
         plugin.multi_receive(sample_events)
         expect(plugin.instance_variable_get(:@logger)).to have_received(:debug).with("Error uploading to Scalyr (will backoff-retry)",
           {
+            :error_class=>"Scalyr::Common::Client::ServerError",
             :batch_num=>1,
             :code=>503,
             :message=>"Invalid JSON response from server",
@@ -188,6 +193,7 @@ describe LogStash::Outputs::Scalyr do
         plugin.multi_receive(sample_events)
         expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
           {
+            :error_class=>"Scalyr::Common::Client::ServerError",
             :batch_num=>1,
             :code=>500,
             :message=>"Invalid JSON response from server",
@@ -215,6 +221,7 @@ describe LogStash::Outputs::Scalyr do
         plugin.multi_receive(sample_events)
         expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
           {
+            :error_class=>"Scalyr::Common::Client::ServerError",
             :batch_num=>1,
             :code=>500,
             :message=>"Invalid JSON response from server",

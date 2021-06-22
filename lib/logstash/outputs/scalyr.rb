@@ -323,6 +323,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           exc_retries += 1
           message = "Error uploading to Scalyr (will backoff-retry)"
           exc_data = {
+              :error_class => e.e_class,
               :url => e.url.to_s,
               :message => e.message,
               :batch_num => batch_num,
