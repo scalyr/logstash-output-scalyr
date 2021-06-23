@@ -138,8 +138,8 @@ class ClientSession
   end  # def initialize
 
   def client_config
-    # TODO: Eventually expose some more of these as config options, though nothing here really needs tuning normally
-    # besides SSL
+    # NOTE: This method is not thread safe and needs to be called only once in synchronized manner in case
+    # multiple threads re-use the same client instance and post_add_events() method.
     c = {
       connect_timeout: @connect_timeout,
       socket_timeout: @socket_timeout,
