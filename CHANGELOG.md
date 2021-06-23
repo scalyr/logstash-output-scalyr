@@ -1,5 +1,9 @@
 # Beta
 
+## TBD
+- Catch errors relating to Bignum conversions present in the `json` library and manually convert to string as
+a workaround.
+
 ## 0.1.14.beta
 - Add configurable max retries for requests when running into errors.
 - Add ability to send messages to the dead letter queue if we exhaust all retries and if it is configured.
