@@ -392,9 +392,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           @plugin_metrics[:multi_receive_event_count].observe(records_count)
           @plugin_metrics[:batches_per_multi_receive].observe(total_batches)
         end
+
+        send_status
       end
 
-      send_status
       return result
 
     rescue => e
