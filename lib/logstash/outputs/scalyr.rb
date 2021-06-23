@@ -269,6 +269,13 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     send_status(initial_send_status_client_session)
     initial_send_status_client_session.close
 
+    # We also "prime" the main HTTP client here, one which is used for sending subsequent requests.
+    # Here priming just means setting up the client parameters without opening any connections.
+    # Since client writes certs to a temporary file there could be a race in case we don't do that
+    # here since multi_receive() is multi threaded. An alternative would be to put a look around
+    # client init method (aka client_config())
+    @client_session.client
+
   end # def register
 
   # Convenience method to create a fresh quantile estimator
