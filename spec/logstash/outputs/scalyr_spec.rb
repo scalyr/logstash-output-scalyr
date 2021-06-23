@@ -319,10 +319,9 @@ describe LogStash::Outputs::Scalyr do
       end
     end
 
-    context "when configured to convert Bignums" do
+    context "when receiving an event with Bignums" do
       config = {
           'api_write_token' => '1234',
-          'convert_bignums' => true,
       }
       plugin = LogStash::Outputs::Scalyr.new(config)
       it "converts Bignums to strings" do
