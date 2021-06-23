@@ -76,9 +76,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   config :flat_tag_prefix, :validate => :string, :default => 'tag_'
   config :flat_tag_value, :default => 1
 
-  # Whether or not to convert Bigint values to strings to avoid JSON encoding errors
-  config :convert_bignums, :validate => :boolean, :default => false
-
   # Initial interval in seconds between bulk retries. Doubled on each retry up to `retry_max_interval`
   config :retry_initial_interval, :validate => :number, :default => 1
   # How many times to retry sending an event before giving up on it
@@ -593,11 +590,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         flatten_nested_values_duration = end_time - start_time
       end
 
-      # convert bignums to strings to avoid json errors
-      if @convert_bignums
-        Scalyr::Common::Util.convert_bignums(record)
-      end
-
       if should_sample_event_metrics
         @stats_lock.synchronize do
           @plugin_metrics[:event_attributes_count].observe(record.count)
@@ -643,6 +635,17 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           ).force_encoding('UTF-8')
         end
         event_json = scalyr_event.to_json
+      rescue Java::JavaLang::ClassCastException => e
+        # Most likely we ran into the issue described here: https://github.com/flori/json/issues/336
+        # Because of the version of jruby logstash works with we don't have the option to just update this away,
+        # so if we run into it we convert bignums into strings so we can get the data in at least.
+        # This is fixed in JRuby 9.2.7, which includes json 2.2.0
+        Scalyr::Common::Util.convert_bignums(scalyr_event)
+        event_json = scalyr_event.to_json
+        log_json = nil
+        if add_log
+          log_json = logs[log_identifier].to_json
+        end
       end
 
       # generate new request if json size of events in the array exceed maximum request buffer size
