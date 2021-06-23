@@ -76,6 +76,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   config :flat_tag_prefix, :validate => :string, :default => 'tag_'
   config :flat_tag_value, :default => 1
 
+  # Whether or not to convert Bigint values to strings to avoid JSON encoding errors
+  config :convert_bignums, :validate => :boolean, :default => false
+
   # Initial interval in seconds between bulk retries. Doubled on each retry up to `retry_max_interval`
   config :retry_initial_interval, :validate => :number, :default => 1
   # How many times to retry sending an event before giving up on it
@@ -588,6 +591,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         record = Scalyr::Common::Util.flatten(record, delimiter=@flatten_nested_values_delimiter)
         end_time = Time.now.to_f
         flatten_nested_values_duration = end_time - start_time
+      end
+
+      # convert bignums to strings to avoid json errors
+      if @convert_bignums
+        Scalyr::Common::Util.convert_bignums(record)
       end
 
       if should_sample_event_metrics
