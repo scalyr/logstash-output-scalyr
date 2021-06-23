@@ -2,7 +2,7 @@
 
 ## 0.1.15.beta
 - Only call ``send_status`` method at the end of ``multi_receive()`` if there is at least one
-  record in the batch.
+  record in the batch when ``report_status_for_empty_batches`` config option is set to ``false``.
 - Update ``register()`` method to use a separate short-lived client session for sending initial
   client status.
 

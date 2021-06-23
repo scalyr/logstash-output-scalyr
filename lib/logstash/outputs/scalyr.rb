@@ -109,6 +109,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # minutes.
   config :status_report_interval, :validate => :number, :default => 300
 
+  # True to also call send_status when multi_receive() is called with no events.
+  # In some situations (e.g. when logstash is configured with multiple scalyr
+  # plugins conditionally where most are idle) you may want to set this to false
+  config :report_status_for_empty_batches, :validate => :boolean, :default => true
+
   # Set to true to also log status messages with various metrics to stdout in addition to sending
   # this data to Scalyr
   config :log_status_messages_to_stdout, :validate => :boolean, :default => false
@@ -403,7 +408,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           @plugin_metrics[:multi_receive_event_count].observe(records_count)
           @plugin_metrics[:batches_per_multi_receive].observe(total_batches)
         end
+      end
 
+      if @report_status_for_empty_batches or records_count > 0
         send_status
       end
 
