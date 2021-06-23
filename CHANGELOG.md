@@ -1,5 +1,11 @@
 # Beta
 
+## 0.1.15.beta
+- Only call ``send_status`` method at the end of ``multi_receive()`` if there is at least one
+  record in the batch.
+- Update ``register()`` method to use a separate short-lived client session for sending initial
+  client status.
+
 ## 0.1.14.beta
 - Add configurable max retries for requests when running into errors.
 - Add ability to send messages to the dead letter queue if we exhaust all retries and if it is configured.

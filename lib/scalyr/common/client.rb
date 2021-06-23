@@ -267,6 +267,7 @@ class ClientSession
 
 
   def close
+    @client.close if @client
   end  # def close
 
 
