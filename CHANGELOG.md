@@ -1,8 +1,17 @@
 # Beta
 
 ## TBD
-- Catch errors relating to Bignum conversions present in the `json` library and manually convert to string as
+- Catch errors relating to Bignum conversions present in the ``json`` library and manually convert to string as
 a workaround.
+
+## 0.1.16.beta
+- Fix race condition in ``register()`` method.
+
+## 0.1.15.beta
+- Only call ``send_status`` method at the end of ``multi_receive()`` if there is at least one
+  record in the batch when ``report_status_for_empty_batches`` config option is set to ``false``.
+- Update ``register()`` method to use a separate short-lived client session for sending initial
+  client status.
 
 ## 0.1.14.beta
 - Add configurable max retries for requests when running into errors.

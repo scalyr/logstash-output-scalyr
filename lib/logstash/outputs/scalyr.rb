@@ -109,6 +109,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # minutes.
   config :status_report_interval, :validate => :number, :default => 300
 
+  # True to also call send_status when multi_receive() is called with no events.
+  # In some situations (e.g. when logstash is configured with multiple scalyr
+  # plugins conditionally where most are idle) you may want to set this to false
+  config :report_status_for_empty_batches, :validate => :boolean, :default => true
+
   # Set to true to also log status messages with various metrics to stdout in addition to sending
   # this data to Scalyr
   config :log_status_messages_to_stdout, :validate => :boolean, :default => false
@@ -251,7 +256,25 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     @logger.info(sprintf("Started Scalyr output plugin (%s)." % [PLUGIN_VERSION]), :class => self.class.name)
 
     # Finally, send a status line to Scalyr
-    send_status
+    # We use a special separate short lived client session for sending the initial client status.
+    # This is done to avoid the overhead in case single logstash instance has many scalyr output 
+    # plugins configured with conditionals and majority of them are inactive (aka receive no data).
+    # This way we don't need to keep idle long running connection open.
+    initial_send_status_client_session = Scalyr::Common::Client::ClientSession.new(
+        @logger, @add_events_uri,
+        @compression_type, @compression_level, @ssl_verify_peer, @ssl_ca_bundle_path, @append_builtin_cert,
+        @record_stats_for_status, @flush_quantile_estimates_on_status_send,
+        @http_connect_timeout, @http_socket_timeout, @http_request_timeout, @http_pool_max, @http_pool_max_per_route
+    )
+    send_status(initial_send_status_client_session)
+    initial_send_status_client_session.close
+
+    # We also "prime" the main HTTP client here, one which is used for sending subsequent requests.
+    # Here priming just means setting up the client parameters without opening any connections.
+    # Since client writes certs to a temporary file there could be a race in case we don't do that
+    # here since multi_receive() is multi threaded. An alternative would be to put a look around
+    # client init method (aka client_config())
+    @client_session.client
 
   end # def register
 
@@ -394,7 +417,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         end
       end
 
-      send_status
+      if @report_status_for_empty_batches or records_count > 0
+        send_status
+      end
+
       return result
 
     rescue => e
@@ -789,7 +815,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Finally, note that there could be multiple instances of this plugin (one per worker), in which case each worker
   # thread sends their own status updates.  This is intentional so that we know how much data each worker thread is
   # uploading to Scalyr over time.
-  def send_status
+  def send_status(client_session = nil)
+    client_session = @client_session if client_session.nil?
 
     status_event = {
       :ts => (Time.now.to_f * (10**9)).round,
@@ -808,7 +835,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         # echee TODO: get instance stats from session and create a status log line
         msg = 'plugin_status: '
         cnt = 0
-        @client_session.get_stats.each do |k, v|
+        client_session.get_stats.each do |k, v|
           val = v.instance_of?(Float) ? sprintf("%.4f", v) : v
           val = val.nil? ? 0 : val
           msg << ' ' if cnt > 0
@@ -828,7 +855,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       end
       multi_event_request = create_multi_event_request([status_event], nil, nil, nil)
       begin
-        @client_session.post_add_events(multi_event_request[:body], true, 0)
+        client_session.post_add_events(multi_event_request[:body], true, 0)
       rescue => e
         if e.body
           @logger.warn(
