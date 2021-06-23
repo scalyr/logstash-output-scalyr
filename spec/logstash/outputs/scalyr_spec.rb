@@ -318,5 +318,27 @@ describe LogStash::Outputs::Scalyr do
                                                  })
       end
     end
+
+    context "when configured to convert Bignums" do
+      config = {
+          'api_write_token' => '1234',
+          'convert_bignums' => true,
+      }
+      plugin = LogStash::Outputs::Scalyr.new(config)
+      it "converts Bignums to strings" do
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        e = LogStash::Event.new
+        e.set('bignumber', 2000023030042002050202030320240)
+        result = plugin.build_multi_event_request_array([e])
+        body = JSON.parse(result[0][:body])
+        expect(body['events'].size).to eq(1)
+        expect(body['events'][0]['attrs']).to eq({
+                                                     "bignumber" => "2000023030042002050202030320240",
+                                                     "parser" => "logstashParser",
+                                                     "serverHost" => "Logstash",
+                                                 })
+      end
+    end
   end
 end
