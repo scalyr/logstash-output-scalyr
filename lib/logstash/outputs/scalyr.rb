@@ -240,7 +240,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     # Plugin level (either per batch or event level metrics). Other request
     # level metrics are handled by the HTTP Client class.
     @multi_receive_statistics = {
-      :total_multi_receive_secs => 0
+      :total_multi_receive_secs => 0,
+      :total_events_processed => 0,
+      :successful_events_processed => 0,
+      :failed_events_processed => 0,
+      :total_retry_count => 0
     }
     @plugin_metrics = get_new_metrics
 
@@ -344,6 +348,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           sleep_interval = sleep_for(sleep_interval)
           exc_sleep += sleep_interval
           exc_retries += 1
+          @stats_lock.synchronize do
+            @multi_receive_statistics[:total_retry_count] += 1
+          end
           message = "Error uploading to Scalyr (will backoff-retry)"
           exc_data = {
               :error_class => e.e_class,
@@ -393,9 +400,17 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           }
           exc_sleep += sleep_interval
           exc_retries += 1
+          @stats_lock.synchronize do
+            @multi_receive_statistics[:total_retry_count] += 1
+          end
           retry if @running and exc_retries < @max_retries
           log_retry_failure(multi_event_request, exc_data, exc_retries, exc_sleep)
           next
+        end
+
+        @stats_lock.synchronize do
+          @multi_receive_statistics[:total_events_processed] += multi_event_request[:logstash_events].length
+          @multi_receive_statistics[:successful_events_processed] += multi_event_request[:logstash_events].length
         end
 
         if !exc_data.nil?
@@ -436,6 +451,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
 
   def log_retry_failure(multi_event_request, exc_data, exc_retries, exc_sleep)
+    @stats_lock.synchronize do
+      @multi_receive_statistics[:total_events_processed] += multi_event_request[:logstash_events].length
+      @multi_receive_statistics[:failed_events_processed] += multi_event_request[:logstash_events].length
+    end
     message = "Failed to send #{multi_event_request[:logstash_events].length} events after #{exc_retries} tries."
     sample_events = Array.new
     multi_event_request[:logstash_events][0,5].each {|l_event|

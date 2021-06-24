@@ -1,5 +1,8 @@
 # Beta
 
+## TBD
+- Add metrics for successfully sent and failed logstash events, and retries.
+
 ## 0.1.16.beta
 - Fix race condition in ``register()`` method.
 
