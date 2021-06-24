@@ -496,8 +496,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
       record = l_event.to_hash
 
-      record[:testbig] = 2230504953406034924503240234032
-
       # Create optional threads hash if serverHost is non-nil
       # echee: TODO I don't think threads are necessary.  Too much info?
       # they seem to be a second level of granularity within a logfile
