@@ -240,7 +240,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     # Plugin level (either per batch or event level metrics). Other request
     # level metrics are handled by the HTTP Client class.
     @multi_receive_statistics = {
-      :total_multi_receive_secs => 0
+      :total_multi_receive_secs => 0,
+      :total_bignum_json_errors => 0
     }
     @plugin_metrics = get_new_metrics
 
@@ -495,6 +496,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
       record = l_event.to_hash
 
+      record[:testbig] = 2230504953406034924503240234032
+
       # Create optional threads hash if serverHost is non-nil
       # echee: TODO I don't think threads are necessary.  Too much info?
       # they seem to be a second level of granularity within a logfile
@@ -666,6 +669,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         # Because of the version of jruby logstash works with we don't have the option to just update this away,
         # so if we run into it we convert bignums into strings so we can get the data in at least.
         # This is fixed in JRuby 9.2.7, which includes json 2.2.0
+        @logger.warn("Error serializing events to JSON, likely due to the presence of Bignum values. Converting Bignum values to strings.")
+        @stats_lock.synchronize do
+          @multi_receive_statistics[:total_bignum_json_errors] += 1
+        end
         Scalyr::Common::Util.convert_bignums(scalyr_event)
         event_json = scalyr_event.to_json
         log_json = nil
@@ -760,7 +767,16 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
     # We time serialization to get some insight on how long it takes to serialize the request body
     start_time = Time.now.to_f
-    serialized_body = body.to_json
+    begin
+      serialized_body = body.to_json
+    rescue Java::JavaLang::ClassCastException => e
+      @logger.warn("Error serializing events to JSON, likely due to the presence of Bignum values. Converting Bignum values to strings.")
+      @stats_lock.synchronize do
+        @multi_receive_statistics[:total_bignum_json_errors] += 1
+      end
+      Scalyr::Common::Util.convert_bignums(body)
+      serialized_body = body.to_json
+    end
     end_time = Time.now.to_f
     serialization_duration = end_time - start_time
     {
