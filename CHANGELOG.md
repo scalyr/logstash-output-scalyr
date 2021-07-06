@@ -1,5 +1,8 @@
 # Beta
 
+## TBD
+- Make array flattening optional during nested value flattening with the `flatten_nested_arrays` configuration option.
+
 ## 0.1.17.beta
 - Catch errors relating to Bignum conversions present in the ``json`` library and manually convert to string as
 a workaround.
