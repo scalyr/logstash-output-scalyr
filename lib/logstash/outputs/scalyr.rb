@@ -241,7 +241,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     # level metrics are handled by the HTTP Client class.
     @multi_receive_statistics = {
       :total_multi_receive_secs => 0,
-      :total_bignum_json_errors => 0
+      :total_bignum_json_errors => 0,
+      :total_successful_json_conversions => 0
     }
     @plugin_metrics = get_new_metrics
 
@@ -646,6 +647,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         log_json = nil
         if add_log
           log_json = logs[log_identifier].to_json
+        end
+        @stats_lock.synchronize do
+          @multi_receive_statistics[:total_successful_json_conversions] += 1
         end
       rescue JSON::GeneratorError, Encoding::UndefinedConversionError => e
         @logger.warn "#{e.class}: #{e.message}"
