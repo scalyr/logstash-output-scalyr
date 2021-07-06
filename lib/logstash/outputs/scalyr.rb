@@ -241,8 +241,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     # level metrics are handled by the HTTP Client class.
     @multi_receive_statistics = {
       :total_multi_receive_secs => 0,
-      :total_bignum_json_errors => 0,
-      :total_successful_json_conversions => 0
+      :total_java_class_cast_errors => 0
     }
     @plugin_metrics = get_new_metrics
 
@@ -648,9 +647,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         if add_log
           log_json = logs[log_identifier].to_json
         end
-        @stats_lock.synchronize do
-          @multi_receive_statistics[:total_successful_json_conversions] += 1
-        end
       rescue JSON::GeneratorError, Encoding::UndefinedConversionError => e
         @logger.warn "#{e.class}: #{e.message}"
 
@@ -673,7 +669,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         # This is fixed in JRuby 9.2.7, which includes json 2.2.0
         @logger.warn("Error serializing events to JSON, likely due to the presence of Bignum values. Converting Bignum values to strings.")
         @stats_lock.synchronize do
-          @multi_receive_statistics[:total_bignum_json_errors] += 1
+          @multi_receive_statistics[:total_java_class_cast_errors] += 1
         end
         Scalyr::Common::Util.convert_bignums(scalyr_event)
         event_json = scalyr_event.to_json
@@ -774,7 +770,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     rescue Java::JavaLang::ClassCastException => e
       @logger.warn("Error serializing events to JSON, likely due to the presence of Bignum values. Converting Bignum values to strings.")
       @stats_lock.synchronize do
-        @multi_receive_statistics[:total_bignum_json_errors] += 1
+        @multi_receive_statistics[:total_java_class_cast_errors] += 1
       end
       Scalyr::Common::Util.convert_bignums(body)
       serialized_body = body.to_json
