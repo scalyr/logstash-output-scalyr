@@ -612,7 +612,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       # flatten record
       if @flatten_nested_values
         start_time = Time.now.to_f
-        record = Scalyr::Common::Util.flatten(record, delimiter=@flatten_nested_values_delimiter, flatten_arrays=flatten_nested_arrays)
+        record = Scalyr::Common::Util.flatten(record, delimiter=@flatten_nested_values_delimiter, flatten_arrays=@flatten_nested_arrays)
         end_time = Time.now.to_f
         flatten_nested_values_duration = end_time - start_time
       end
