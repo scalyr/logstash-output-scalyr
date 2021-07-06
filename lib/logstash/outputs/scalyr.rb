@@ -68,7 +68,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # If true, nested values will be flattened (which changes keys to delimiter-separated concatenation of all
   # nested keys).
   config :flatten_nested_values, :validate => :boolean, :default => false
-  config :flatten_nested_values_delimiter, :validate => :string, :default => "_" 
+  config :flatten_nested_values_delimiter, :validate => :string, :default => "_"
+  config :flatten_nested_arrays, :validate => :boolean, :default => true
 
   # If true, the 'tags' field will be flattened into key-values where each key is a tag and each value is set to
   # :flat_tag_value
@@ -244,7 +245,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       :total_events_processed => 0,
       :successful_events_processed => 0,
       :failed_events_processed => 0,
-      :total_retry_count => 0
+      :total_retry_count => 0,
+      :total_java_class_cast_errors => 0
     }
     @plugin_metrics = get_new_metrics
 
@@ -630,7 +632,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       # flatten record
       if @flatten_nested_values
         start_time = Time.now.to_f
-        record = Scalyr::Common::Util.flatten(record, delimiter=@flatten_nested_values_delimiter)
+        record = Scalyr::Common::Util.flatten(record, delimiter=@flatten_nested_values_delimiter, flatten_arrays=@flatten_nested_arrays)
         end_time = Time.now.to_f
         flatten_nested_values_duration = end_time - start_time
       end
@@ -680,6 +682,21 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           ).force_encoding('UTF-8')
         end
         event_json = scalyr_event.to_json
+      rescue Java::JavaLang::ClassCastException => e
+        # Most likely we ran into the issue described here: https://github.com/flori/json/issues/336
+        # Because of the version of jruby logstash works with we don't have the option to just update this away,
+        # so if we run into it we convert bignums into strings so we can get the data in at least.
+        # This is fixed in JRuby 9.2.7, which includes json 2.2.0
+        @logger.warn("Error serializing events to JSON, likely due to the presence of Bignum values. Converting Bignum values to strings.")
+        @stats_lock.synchronize do
+          @multi_receive_statistics[:total_java_class_cast_errors] += 1
+        end
+        Scalyr::Common::Util.convert_bignums(scalyr_event)
+        event_json = scalyr_event.to_json
+        log_json = nil
+        if add_log
+          log_json = logs[log_identifier].to_json
+        end
       end
 
       # generate new request if json size of events in the array exceed maximum request buffer size
@@ -768,7 +785,16 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
     # We time serialization to get some insight on how long it takes to serialize the request body
     start_time = Time.now.to_f
-    serialized_body = body.to_json
+    begin
+      serialized_body = body.to_json
+    rescue Java::JavaLang::ClassCastException => e
+      @logger.warn("Error serializing events to JSON, likely due to the presence of Bignum values. Converting Bignum values to strings.")
+      @stats_lock.synchronize do
+        @multi_receive_statistics[:total_java_class_cast_errors] += 1
+      end
+      Scalyr::Common::Util.convert_bignums(body)
+      serialized_body = body.to_json
+    end
     end_time = Time.now.to_f
     serialization_duration = end_time - start_time
     {

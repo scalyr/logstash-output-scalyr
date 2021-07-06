@@ -172,6 +172,9 @@ jobs: # a collection of steps
             echo "Metrics recording results:"
             ruby spec/benchmarks/metrics_overhead.rb
             echo ""
+            echo "Bignum converting results:"
+            ruby spec/benchmarks/bignum_fixing.rb
+            echo ""
 
 workflows:
   version: 2

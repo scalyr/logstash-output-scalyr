@@ -132,6 +132,70 @@ describe Scalyr::Common::Util do
     expect(Scalyr::Common::Util.flatten(din)).to eq(dout)
   end
 
+  it "flattens a single-level array, no array flattening" do
+    din = [1, 2, 3]
+    dout = [1, 2, 3]
+    expect(Scalyr::Common::Util.flatten(din, "_", flatten_arrays=false)).to eq(dout)
+  end
+
+  it "flattens a multi-level array, no array flattening" do
+    din = ['a', 'b', ['c', ['d', 'e', 'f'], 'g'], 'h', 'i']
+    dout = ['a', 'b', ['c', ['d', 'e', 'f'], 'g'], 'h', 'i']
+    expect(Scalyr::Common::Util.flatten(din, "_", flatten_arrays=false)).to eq(dout)
+  end
+
+  it "flattens a hash that contains an array, no array flattening" do
+    din = {
+        'a' => 1,
+        'c' => [100, 200, 300]
+    }
+    dout = {
+        'a' => 1,
+        'c' => [100, 200, 300]
+    }
+    expect(Scalyr::Common::Util.flatten(din, "_", flatten_arrays=false)).to eq(dout)
+  end
+
+  it "flattens a hash that contains an array that contains a hash, no array flattening" do
+    din = {
+        'a' => 1,
+        'c' => [
+            100,
+            {'d' => 1000, 'e' => 2000},
+            300
+        ]
+    }
+    dout = {
+        'a' => 1,
+        'c' => [
+            100,
+            {'d' => 1000, 'e' => 2000},
+            300
+        ]
+    }
+    expect(Scalyr::Common::Util.flatten(din, "_", flatten_arrays=false)).to eq(dout)
+  end
+
+  it "flattens a hash that contains an array that contains a hash that contains an array, no array flattening" do
+    din = {
+        'a' => 1,
+        'c' => [
+            100,
+            {'d' => 1000, 'e' => 2000, 'f' => [4, 5, 6]},
+            300
+        ]
+    }
+    dout = {
+        'a' => 1,
+        'c' => [
+            100,
+            {'d' => 1000, 'e' => 2000, 'f' => [4, 5, 6]},
+            300
+        ]
+    }
+    expect(Scalyr::Common::Util.flatten(din, "_", flatten_arrays=false)).to eq(dout)
+  end
+
   it "accepts custom delimiters" do
     din = {
         'a' => 1,

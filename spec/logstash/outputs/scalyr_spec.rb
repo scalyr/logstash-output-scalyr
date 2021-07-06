@@ -273,9 +273,41 @@ describe LogStash::Outputs::Scalyr do
         expect(body['events'].size).to eq(3)
         expect(body['events'][2]['attrs']).to eq({
                                                      "nested.a" => 1,
-                                                     "nested.b_0" => 3,
-                                                     "nested.b_1" => 4,
-                                                     "nested.b_2" => 5,
+                                                     "nested.b.0" => 3,
+                                                     "nested.b.1" => 4,
+                                                     "nested.b.2" => 5,
+                                                     'seq' => 3,
+                                                     'source_file' => 'my file 3',
+                                                     'source_host' => 'my host 3',
+                                                     'serverHost' => 'Logstash',
+                                                     "tag_prefix_t1" => "true",
+                                                     "tag_prefix_t2" => "true",
+                                                     "tag_prefix_t3" => "true",
+                                                     "parser" => "logstashParser",
+                                                 })
+      end
+    end
+
+    context "when configured to flatten values with custom delimiter, no array flattening" do
+      config = {
+          'api_write_token' => '1234',
+          'flatten_tags' => true,
+          'flat_tag_value' => 'true',
+          'flat_tag_prefix' => 'tag_prefix_',
+          'flatten_nested_values' => true,  # this converts into string 'true'
+          'flatten_nested_arrays' => false,
+          'flatten_nested_values_delimiter' => ".",
+      }
+      plugin = LogStash::Outputs::Scalyr.new(config)
+      it "flattens nested values with a period" do
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        result = plugin.build_multi_event_request_array(sample_events)
+        body = JSON.parse(result[0][:body])
+        expect(body['events'].size).to eq(3)
+        expect(body['events'][2]['attrs']).to eq({
+                                                     "nested.a" => 1,
+                                                     "nested.b" => [3, 4, 5],
                                                      'seq' => 3,
                                                      'source_file' => 'my file 3',
                                                      'source_host' => 'my host 3',
@@ -340,6 +372,24 @@ describe LogStash::Outputs::Scalyr do
                                                      "tags" => ["t1", "t2", "t3"],
                                                      "parser" => "logstashParser",
                                                  })
+      end
+    end
+
+    context "when receiving an event with Bignums" do
+      config = {
+          'api_write_token' => '1234',
+      }
+      plugin = LogStash::Outputs::Scalyr.new(config)
+      it "doesn't throw an error" do
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        e = LogStash::Event.new
+        e.set('bignumber', 2000023030042002050202030320240)
+        allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+        result = plugin.build_multi_event_request_array([e])
+        body = JSON.parse(result[0][:body])
+        expect(body['events'].size).to eq(1)
+        expect(plugin.instance_variable_get(:@logger)).to_not receive(:error)
       end
     end
   end
