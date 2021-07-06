@@ -1,6 +1,7 @@
 # Beta
 
 ## TBD
+- Add metrics for successfully sent and failed logstash events, and retries.
 - Make array flattening optional during nested value flattening with the `flatten_nested_arrays` configuration option.
 
 ## 0.1.17.beta
