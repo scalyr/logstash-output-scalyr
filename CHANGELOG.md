@@ -1,5 +1,9 @@
 # Beta
 
+## TBD
+- Catch errors relating to Bignum conversions present in the ``json`` library and manually convert to string as
+a workaround.
+
 ## 0.1.16.beta
 - Fix race condition in ``register()`` method.
 

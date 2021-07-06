@@ -52,5 +52,26 @@ def self.truncate(content, max)
   return content
 end
 
+def self.convert_bignums(obj)
+  if obj.respond_to?(:has_key?) and obj.respond_to?(:each)
+    # input object is a hash
+    obj.each do |key, value|
+      obj[key] = convert_bignums(value)
+    end
+
+  elsif obj.respond_to?(:each)
+    # input object is an array or set
+    obj.each_with_index do |value, index|
+      obj[index] = convert_bignums(value)
+    end
+
+  elsif obj.is_a? Bignum
+    return obj.to_s
+
+  else
+    return obj
+  end
+end
+
 end; end; end;
 

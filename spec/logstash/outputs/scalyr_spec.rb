@@ -342,5 +342,23 @@ describe LogStash::Outputs::Scalyr do
                                                  })
       end
     end
+
+    context "when receiving an event with Bignums" do
+      config = {
+          'api_write_token' => '1234',
+      }
+      plugin = LogStash::Outputs::Scalyr.new(config)
+      it "doesn't throw an error" do
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        e = LogStash::Event.new
+        e.set('bignumber', 2000023030042002050202030320240)
+        allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+        result = plugin.build_multi_event_request_array([e])
+        body = JSON.parse(result[0][:body])
+        expect(body['events'].size).to eq(1)
+        expect(plugin.instance_variable_get(:@logger)).to_not receive(:error)
+      end
+    end
   end
 end
