@@ -68,7 +68,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # If true, nested values will be flattened (which changes keys to delimiter-separated concatenation of all
   # nested keys).
   config :flatten_nested_values, :validate => :boolean, :default => false
-  config :flatten_nested_values_delimiter, :validate => :string, :default => "_" 
+  config :flatten_nested_values_delimiter, :validate => :string, :default => "_"
+  config :flatten_nested_arrays, :validate => :boolean, :default => true
 
   # If true, the 'tags' field will be flattened into key-values where each key is a tag and each value is set to
   # :flat_tag_value
@@ -612,7 +613,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       # flatten record
       if @flatten_nested_values
         start_time = Time.now.to_f
-        record = Scalyr::Common::Util.flatten(record, delimiter=@flatten_nested_values_delimiter)
+        record = Scalyr::Common::Util.flatten(record, delimiter=@flatten_nested_values_delimiter, flatten_arrays=@flatten_nested_arrays)
         end_time = Time.now.to_f
         flatten_nested_values_duration = end_time - start_time
       end
