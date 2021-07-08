@@ -1,6 +1,6 @@
 # Beta
 
-## TBD
+## 0.1.19.beta
 - Undo a change to nested value flattening functionality to keep existing formatting. This change can be re-enabled
 by setting the `fix_deep_flattening_delimiters` configuration option to true.
 
