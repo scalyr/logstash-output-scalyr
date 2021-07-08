@@ -212,6 +212,42 @@ describe Scalyr::Common::Util do
     expect(Scalyr::Common::Util.flatten(din, ':')).to eq(dout)
   end
 
+  it "accepts custom delimiters with greater depth" do
+    din = {
+        'a' => 1,
+        'b' => {
+            'c' => {
+              'e' => 100
+            },
+            'd' => 200,
+        }
+    }
+    dout = {
+        'a' => 1,
+        'b:c_e' => 100,
+        'b:d' => 200,
+    }
+    expect(Scalyr::Common::Util.flatten(din, ':')).to eq(dout)
+  end
+
+  it "accepts custom delimiters with greater depth and deep delimiters fix" do
+    din = {
+        'a' => 1,
+        'b' => {
+            'c' => {
+              'e' => 100
+            },
+            'd' => 200,
+        }
+    }
+    dout = {
+        'a' => 1,
+        'b:c:e' => 100,
+        'b:d' => 200,
+    }
+    expect(Scalyr::Common::Util.flatten(din, ':', true, true)).to eq(dout)
+  end
+
   it "stringifies non-string keys" do
     din = {
         'a' => 1,

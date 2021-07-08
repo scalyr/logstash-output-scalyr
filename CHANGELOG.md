@@ -1,5 +1,9 @@
 # Beta
 
+## TBD
+- Undo a change to nested value flattening functionality to keep existing formatting. This change can be re-enabled
+by setting the `fix_deep_flattening_delimiters` configuration option to true.
+
 ## 0.1.18.beta
 - Add metrics for successfully sent and failed logstash events, and retries.
 - Make array flattening optional during nested value flattening with the `flatten_nested_arrays` configuration option.
