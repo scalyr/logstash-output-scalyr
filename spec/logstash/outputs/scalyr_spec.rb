@@ -273,9 +273,9 @@ describe LogStash::Outputs::Scalyr do
         expect(body['events'].size).to eq(3)
         expect(body['events'][2]['attrs']).to eq({
                                                      "nested.a" => 1,
-                                                     "nested.b.0" => 3,
-                                                     "nested.b.1" => 4,
-                                                     "nested.b.2" => 5,
+                                                     "nested.b_0" => 3,
+                                                     "nested.b_1" => 4,
+                                                     "nested.b_2" => 5,
                                                      'seq' => 3,
                                                      'source_file' => 'my file 3',
                                                      'source_host' => 'my host 3',
