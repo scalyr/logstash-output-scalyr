@@ -6,7 +6,7 @@ module Scalyr; module Common; module Util;
 # Please see rspec util_spec.rb for expected behavior.
 # Includes a known bug where defined delimiter will not be used for nesting levels past the first, this is kept
 # because some queries and dashboards already rely on the broken functionality.
-def self.flatten(obj, delimiter='_', flatten_arrays=true)
+def self.flatten(obj, delimiter='_', flatten_arrays=true, fix_deep_flattening_delimiters=false)
 
   # base case is input object is not enumerable, in which case simply return it
   if !obj.respond_to?(:each)
@@ -22,7 +22,7 @@ def self.flatten(obj, delimiter='_', flatten_arrays=true)
     # input object is a hash
     obj.each do |key, value|
       if (flatten_arrays and value.respond_to?(:each)) or value.respond_to?(:has_key?)
-        flatten(value, '_', flatten_arrays).each do |subkey, subvalue|
+        flatten(value, fix_deep_flattening_delimiters ? delimiter : '_', flatten_arrays).each do |subkey, subvalue|
           result["#{key}#{delimiter}#{subkey}"] = subvalue
         end
       else
@@ -35,7 +35,7 @@ def self.flatten(obj, delimiter='_', flatten_arrays=true)
     # input object is an array or set
     obj.each_with_index do |value, index|
       if value.respond_to?(:each)
-        flatten(value, '_', flatten_arrays).each do |subkey, subvalue|
+        flatten(value, fix_deep_flattening_delimiters ? delimiter : '_', flatten_arrays).each do |subkey, subvalue|
           result["#{index}#{delimiter}#{subkey}"] = subvalue
         end
       else
