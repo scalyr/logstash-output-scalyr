@@ -409,6 +409,37 @@ describe LogStash::Outputs::Scalyr do
       end
     end
 
+    context "when configured to flatten with max keys configured to 3" do
+      config = {
+          'api_write_token' => '1234',
+          'flatten_nested_values' => true,  # this converts into string 'true'
+          'flattening_max_key_count' => 3,
+      }
+      plugin = LogStash::Outputs::Scalyr.new(config)
+      it "does not flatten" do
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        allow(plugin.instance_variable_get(:@logger)).to receive(:warn)
+        result = plugin.build_multi_event_request_array(sample_events)
+        body = JSON.parse(result[0][:body])
+        expect(body['events'].size).to eq(3)
+        expect(body['events'][2]['attrs']).to eq({
+                                                     "nested" => {'a'=>1, 'b'=>[3,4,5]},
+                                                     'seq' => 3,
+                                                     'source_file' => 'my file 3',
+                                                     'source_host' => 'my host 3',
+                                                     'serverHost' => 'Logstash',
+                                                     "tags" => ["t1", "t2", "t3"],
+                                                     "parser" => "logstashParser",
+                                                 })
+        expect(plugin.instance_variable_get(:@logger)).to have_received(:warn).with("Error while flattening record",
+          {
+            :error_message=>"Resulting flattened object will contain more keys than the configured flattening_max_key_count of 3",
+          }
+        ).exactly(3).times
+      end
+    end
+
     context "when receiving an event with Bignums" do
       config = {
           'api_write_token' => '1234',

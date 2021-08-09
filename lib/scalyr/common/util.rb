@@ -6,7 +6,7 @@ module Scalyr; module Common; module Util;
 # Please see rspec util_spec.rb for expected behavior.
 # Includes a known bug where defined delimiter will not be used for nesting levels past the first, this is kept
 # because some queries and dashboards already rely on the broken functionality.
-def self.flatten(hash_obj, delimiter='_', flatten_arrays=true, fix_deep_flattening_delimiters=false)
+def self.flatten(hash_obj, delimiter='_', flatten_arrays=true, fix_deep_flattening_delimiters=false, max_key_count=-1)
 
   # base case is input object is not enumerable, in which case simply return it
   if !hash_obj.respond_to?(:each)
@@ -65,6 +65,10 @@ def self.flatten(hash_obj, delimiter='_', flatten_arrays=true, fix_deep_flatteni
         end
       end
       result[result_key] = obj
+
+      if max_key_count > -1 and result.keys.count > max_key_count
+        raise RuntimeError.new("Resulting flattened object will contain more keys than the configured flattening_max_key_count of #{max_key_count}")
+      end
 
       throw_away = key_list.pop
       until key_list_width.empty? or key_list_width[-1] > 1
