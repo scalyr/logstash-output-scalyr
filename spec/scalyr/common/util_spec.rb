@@ -283,4 +283,23 @@ describe Scalyr::Common::Util do
   it "raises exception if a non-dict is provided" do
     expect {Scalyr::Common::Util.flatten(1)}.to raise_error(TypeError)
   end
+
+  it "flattens a hash 5000 layers deep" do
+    din = {
+        'a' => {},
+    }
+    hash = din
+    for i in 0...4999
+      hash = hash["a"]
+      hash["a"] = {}
+      if i == 4998
+        hash["a"] = "b"
+      end
+    end
+
+    dout = {
+        'a' + "_a" * 4999 => "b",
+    }
+    expect(Scalyr::Common::Util.flatten(din, '_')).to eq(dout)
+  end
 end
