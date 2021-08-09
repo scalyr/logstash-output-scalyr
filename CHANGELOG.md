@@ -1,5 +1,10 @@
 # Beta
 
+## 0.1.20.beta
+- Rewrite flattening function to no longer be recursive, to help avoid maxing out the stack.
+- Added a configurable value `flattening_max_key_count` to create a limit on how large of a record we can flatten.
+It limits the maximum amount of keys we can have in the final flattened record. Defaults to unlimited.
+
 ## 0.1.19.beta
 - Undo a change to nested value flattening functionality to keep existing formatting. This change can be re-enabled
 by setting the `fix_deep_flattening_delimiters` configuration option to true.
