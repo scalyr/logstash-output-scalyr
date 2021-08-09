@@ -6,47 +6,76 @@ module Scalyr; module Common; module Util;
 # Please see rspec util_spec.rb for expected behavior.
 # Includes a known bug where defined delimiter will not be used for nesting levels past the first, this is kept
 # because some queries and dashboards already rely on the broken functionality.
-def self.flatten(obj, delimiter='_', flatten_arrays=true, fix_deep_flattening_delimiters=false)
+def self.flatten(hash_obj, delimiter='_', flatten_arrays=true, fix_deep_flattening_delimiters=false)
 
   # base case is input object is not enumerable, in which case simply return it
-  if !obj.respond_to?(:each)
+  if !hash_obj.respond_to?(:each)
     raise TypeError.new('Input must be a hash or array')
   end
+  # case where we pass in a valid array, but don't want to flatten arrays
+  if !hash_obj.respond_to?(:has_key?) and !flatten_arrays
+    return hash_obj
+  end
 
+  stack = []
+  stack << hash_obj
+  key_stack = []
+  key_stack << ""
+  key_list = []
+  key_list_width = []
   result = Hash.new
-  # require 'pry'
-  # binding.pry
+  test_key = 0
+  #Debugging
+  #require 'pry'
+  #binding.pry
 
-  if obj.respond_to?(:has_key?)
+  until stack.empty?
+    obj = stack.pop
+    key_list << key_stack.pop
 
-    # input object is a hash
-    obj.each do |key, value|
-      if (flatten_arrays and value.respond_to?(:each)) or value.respond_to?(:has_key?)
-        flatten(value, fix_deep_flattening_delimiters ? delimiter : '_', flatten_arrays).each do |subkey, subvalue|
-          result["#{key}#{delimiter}#{subkey}"] = subvalue
-        end
-      else
-        result["#{key}"] = value
+    # Case when object is a hash
+    if obj.respond_to?(:has_key?)
+      key_list_width << obj.keys.count
+      obj.each do |key, value|
+        key_stack << key
+        stack << value
       end
-    end
 
-  elsif flatten_arrays
-
-    # input object is an array or set
-    obj.each_with_index do |value, index|
-      if value.respond_to?(:each)
-        flatten(value, fix_deep_flattening_delimiters ? delimiter : '_', flatten_arrays).each do |subkey, subvalue|
-          result["#{index}#{delimiter}#{subkey}"] = subvalue
-        end
-      else
-        result["#{index}"] = value
+    # Case when object is an array we intend to flatten
+    elsif flatten_arrays and obj.respond_to?(:each)
+      key_list_width << obj.count
+      obj.each_with_index do |value, index|
+        key_stack << index
+        stack << value
       end
+
+    else
+      result_key = ""
+      delim = delimiter
+      key_list.each_with_index do |key, index|
+        # We have a blank key at the start of the key list to avoid issues with calling pop, so we ignore delimiter
+        # for the first two keys
+        if index > 1
+          result_key += "#{delim}#{key}"
+          if not fix_deep_flattening_delimiters
+            delim = "_"
+          end
+        else
+          result_key += "#{key}"
+        end
+      end
+      result[result_key] = obj
+
+      throw_away = key_list.pop
+      until key_list_width.empty? or key_list_width[-1] > 1
+        throw_away = key_list_width.pop
+        throw_away = key_list.pop
+      end
+      if not key_list_width.empty?
+        key_list_width[-1] -= 1
+      end
+
     end
-
-  else
-
-    result = obj
-
   end
 
   return result
