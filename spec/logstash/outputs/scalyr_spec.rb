@@ -435,6 +435,7 @@ describe LogStash::Outputs::Scalyr do
         expect(plugin.instance_variable_get(:@logger)).to have_received(:warn).with("Error while flattening record",
           {
             :error_message=>"Resulting flattened object will contain more keys than the configured flattening_max_key_count of 3",
+            :sample_keys=>["serverHost", "parser", "tags_2", "tags_1"]
           }
         ).exactly(3).times
       end

@@ -1,5 +1,13 @@
 module Scalyr; module Common; module Util;
 
+class MaxKeyCountError < StandardError
+  attr_reader :message, :sample_keys
+
+  def initialize(message, sample_keys)
+    @message = message
+    @sample_keys = sample_keys
+  end
+end
 
 # Flattens a hash or array, returning a hash where keys are a delimiter-separated string concatenation of all
 # nested keys.  Returned keys are always strings.  If a non-hash or array is provided, raises TypeError.
@@ -67,7 +75,10 @@ def self.flatten(hash_obj, delimiter='_', flatten_arrays=true, fix_deep_flatteni
       result[result_key] = obj
 
       if max_key_count > -1 and result.keys.count > max_key_count
-        raise RuntimeError.new("Resulting flattened object will contain more keys than the configured flattening_max_key_count of #{max_key_count}")
+        raise MaxKeyCountError.new(
+          "Resulting flattened object will contain more keys than the configured flattening_max_key_count of #{max_key_count}",
+          result.keys[0..6]
+        )
       end
 
       throw_away = key_list.pop

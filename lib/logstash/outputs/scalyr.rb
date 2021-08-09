@@ -636,8 +636,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         start_time = Time.now.to_f
         begin
           record = Scalyr::Common::Util.flatten(record, delimiter=@flatten_nested_values_delimiter, flatten_arrays=@flatten_nested_arrays, fix_deep_flattening_delimiters=@fix_deep_flattening_delimiters, max_key_count=@flattening_max_key_count)
-        rescue RuntimeError => e
-          @logger.warn("Error while flattening record", :error_message => e.message)
+        rescue Scalyr::Common::Util::MaxKeyCountError => e
+          @logger.warn("Error while flattening record", :error_message => e.message, :sample_keys => e.sample_keys)
         end
         end_time = Time.now.to_f
         flatten_nested_values_duration = end_time - start_time
