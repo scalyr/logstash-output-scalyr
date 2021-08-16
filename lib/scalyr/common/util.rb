@@ -42,7 +42,7 @@ def self.flatten(hash_obj, delimiter='_', flatten_arrays=true, fix_deep_flatteni
     key_list << key_stack.pop
 
     # Case when object is a hash
-    if obj.respond_to?(:has_key?)
+    if obj.respond_to?(:has_key?) and obj.keys.count > 0
       key_list_width << obj.keys.count
       obj.each do |key, value|
         key_stack << key
@@ -50,12 +50,12 @@ def self.flatten(hash_obj, delimiter='_', flatten_arrays=true, fix_deep_flatteni
       end
 
     # Case when object is an array we intend to flatten
-    elsif flatten_arrays and obj.respond_to?(:each)
-      key_list_width << obj.count
-      obj.each_with_index do |value, index|
-        key_stack << index
-        stack << value
-      end
+    elsif flatten_arrays and obj.respond_to?(:each) and obj.count > 0
+        key_list_width << obj.count
+        obj.each_with_index do |value, index|
+          key_stack << index
+          stack << value
+        end
 
     else
       result_key = ""
