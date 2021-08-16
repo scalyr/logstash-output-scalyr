@@ -1,5 +1,8 @@
 # Beta
 
+## 0.1.21.beta
+- Fix issue with iterative flattening function when dealing with empty collections.
+
 ## 0.1.20.beta
 - Rewrite flattening function to no longer be recursive, to help avoid maxing out the stack.
 - Added a configurable value `flattening_max_key_count` to create a limit on how large of a record we can flatten.
