@@ -321,6 +321,12 @@ If you want to run just the unit tests, you can run the command displayed below.
 bundle exec rspec spec/logstash/outputs/scalyr_spec.rb spec/scalyr/common/util_spec.rb
 ```
 
+Or to run a single test function defined on line XXX
+
+```bash
+bundle exec rspec spec/scalyr/common/util_spec.rb:XXX
+```
+
 ## Instrumentation and metrics
 
 By default, plugin logs a special line with metrics to Scalyr every 5 minutes. This line contains
