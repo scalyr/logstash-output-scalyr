@@ -86,6 +86,27 @@ LARGE_OBJECT_OUT = {
   "wired" => true,
 }
 
+LARGE_OBJECT_OUT_NO_FLATTEN_ARRAYS = {
+  "accountId" => 12345,
+  "caller" => "api/foo:480",
+  "cycleId" => 6789,
+  "elapsed" => 74.86664,
+  "gatewayIp" => "10.0.0.1",
+  "gatewayMac" => "fa:fa:fa:fa",
+  "level" => "info",
+  "msg" => "assign active task foobar",
+  "relevance" => 0,
+  "scannerIp" => "10.0.0.2",
+  "task_FooProps_10_TcpPorts" => [22, 23, 25, 80, 55, 8000, 8080],
+  "task_FooProps_10_UdpPorts" => [],
+  "task_Id" => 1211111181111111400,
+  "task_Ips" => ["127.0.0.1", "127.0.0.2", "127.0.0.3", "127.0.0.4", "127.0.0.5"],
+  "task_Subnet" => "127.0.0.0/24",
+  "task_TaskTypes" => [4, 11, 10, 12, 17, 14],
+  "ts" => "2020-08-11T02:26:17.078Z",
+  "uuid" => "a405a4b58810e3aaa078f751bd32baa8b60aaad1",
+  "wired" => true,
+}
 describe Scalyr::Common::Util do
   it "does not flatten an already-flat dict" do
     din = {
@@ -296,6 +317,10 @@ describe Scalyr::Common::Util do
 
   it "flattens large hash correctly" do
     expect(Scalyr::Common::Util.flatten(LARGE_OBJECT_IN, "_", flatten_arrays=true)).to eq(LARGE_OBJECT_OUT)
+  end
+
+  it "flattens large hash correctly not flatten arrays" do
+    expect(Scalyr::Common::Util.flatten(LARGE_OBJECT_IN, "_", flatten_arrays=false)).to eq(LARGE_OBJECT_OUT_NO_FLATTEN_ARRAYS)
   end
 
   it "accepts custom delimiters" do
