@@ -68,6 +68,7 @@ LARGE_OBJECT_OUT = {
   "task_FooProps_10_TcpPorts_4" => 55,
   "task_FooProps_10_TcpPorts_5" => 8000,
   "task_FooProps_10_TcpPorts_6" => 8080,
+  "task_FooProps_10_UdpPorts" => [],
   "task_Id" => 1211111181111111400,
   "task_Ips_0" => "127.0.0.1",
   "task_Ips_1" => "127.0.0.2",
@@ -321,6 +322,63 @@ describe Scalyr::Common::Util do
 
   it "flattens large hash correctly not flatten arrays" do
     expect(Scalyr::Common::Util.flatten(LARGE_OBJECT_IN, "_", flatten_arrays=false)).to eq(LARGE_OBJECT_OUT_NO_FLATTEN_ARRAYS)
+  end
+
+  it "flattens hash containing empty list correctly" do
+    obj_in = {
+      "abc" => 123,
+      "array" => [],
+      "hash" => {
+        "value" => "abc123",
+        "another_array" => []
+      }
+    }
+
+    obj_out = {
+      "abc" => 123,
+      "array" => [],
+      "hash_value" => "abc123",
+      "hash_another_array" => []
+    }
+    expect(Scalyr::Common::Util.flatten(obj_in, "_", flatten_arrays=true)).to eq(obj_out)
+  end
+
+  it "flattens hash containing empty list correctly not flatten arrays" do
+    obj_in = {
+      "abc" => 123,
+      "array" => [],
+      "hash" => {
+        "value" => "abc123",
+        "another_array" => []
+      }
+    }
+
+    obj_out = {
+      "abc" => 123,
+      "array" => [],
+      "hash_value" => "abc123",
+      "hash_another_array" => []
+    }
+    expect(Scalyr::Common::Util.flatten(obj_in, "_", flatten_arrays=false)).to eq(obj_out)
+  end
+
+  it "flattens hash containing empty hash correctly" do
+    obj_in = {
+      "abc" => 123,
+      "empty_hash" => {},
+      "hash" => {
+        "value" => "abc123",
+        "another_hash" => {}
+      }
+    }
+
+    obj_out = {
+      "abc" => 123,
+      "empty_hash" => {},
+      "hash_value" => "abc123",
+      "hash_another_hash" => {}
+    }
+    expect(Scalyr::Common::Util.flatten(obj_in, "_", flatten_arrays=true)).to eq(obj_out)
   end
 
   it "accepts custom delimiters" do
