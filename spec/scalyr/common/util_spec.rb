@@ -381,6 +381,55 @@ describe Scalyr::Common::Util do
     expect(Scalyr::Common::Util.flatten(obj_in, "_", flatten_arrays=true)).to eq(obj_out)
   end
 
+  it "flattens hash containing nested bignum correctly" do
+    obj_in = {
+      "abc" => 123,
+      "hash" => {
+        "value" => 2000023030042002050202030320240
+      }
+    }
+
+    obj_out = {
+      "abc" => 123,
+      "hash_value" => 2000023030042002050202030320240
+    }
+    expect(Scalyr::Common::Util.flatten(obj_in, "_", flatten_arrays=true)).to eq(obj_out)
+  end
+
+  it "flattens hash containing nested boolean correctly" do
+    obj_in = {
+      "abc" => 123,
+      "hash" => {
+        "value" => true,
+        "otherValue" => false
+      }
+    }
+
+    obj_out = {
+      "abc" => 123,
+      "hash_value" => true,
+      "hash_otherValue" => false
+    }
+    expect(Scalyr::Common::Util.flatten(obj_in, "_", flatten_arrays=true)).to eq(obj_out)
+  end
+
+  it "flattens hash containing nested float correctly" do
+    obj_in = {
+      "abc" => 123,
+      "hash" => {
+        "value" => 321.12345,
+        "otherValue" => 0.0000003
+      }
+    }
+
+    obj_out = {
+      "abc" => 123,
+      "hash_value" => 321.12345,
+      "hash_otherValue" => 0.0000003
+    }
+    expect(Scalyr::Common::Util.flatten(obj_in, "_", flatten_arrays=true)).to eq(obj_out)
+  end
+
   it "accepts custom delimiters" do
     din = {
         'a' => 1,
