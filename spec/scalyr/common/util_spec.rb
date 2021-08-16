@@ -144,6 +144,20 @@ describe Scalyr::Common::Util do
     expect(Scalyr::Common::Util.flatten(din, "_", flatten_arrays=false)).to eq(dout)
   end
 
+  it "flattens a hash that contains an array with hashes, no array flattening" do
+    din = {
+        'a' => 1,
+        "b" => {"a": "a"},
+        'c' => { "f" => [100, 200, {"g" => 1}] }
+    }
+    dout = {
+        'a' => 1,
+        "b_a" => "a",
+        'c_f' => [100, 200, {"g" => 1}]
+    }
+    expect(Scalyr::Common::Util.flatten(din, "_", flatten_arrays=false)).to eq(dout)
+  end
+
   it "flattens a hash that contains an array, no array flattening" do
     din = {
         'a' => 1,
