@@ -1,6 +1,90 @@
 # encoding: utf-8
 require "scalyr/common/util"
 
+LARGE_OBJECT_IN = {
+  "level": "info",
+  "ts": "2020-08-11T02:26:17.078Z",
+  "caller": "api/foo:480",
+  "msg": "assign active task foobar",
+  "accountId": 12345,
+  "cycleId": 6789,
+  "uuid": "a405a4b58810e3aaa078f751bd32baa8b60aaad1",
+  "task": {
+    "Id": 1211111181111111400,
+    "TaskTypes": [
+      4,
+      11,
+      10,
+      12,
+      17,
+      14
+    ],
+    "Ips": [
+      "127.0.0.1",
+      "127.0.0.2",
+      "127.0.0.3",
+      "127.0.0.4",
+      "127.0.0.5",
+    ],
+    "FooProps": {
+      "10": {
+        "TcpPorts": [
+          22,
+          23,
+          25,
+          80,
+          55,
+          8000,
+          8080,
+        ],
+        "UdpPorts": []
+      }
+    },
+    "Subnet": "127.0.0.0/24"
+  },
+  "relevance": 0,
+  "scannerIp": "10.0.0.2",
+  "gatewayIp": "10.0.0.1",
+  "gatewayMac": "fa:fa:fa:fa",
+  "wired": true,
+  "elapsed": 74.86664
+}
+
+LARGE_OBJECT_OUT = {
+  "accountId" => 12345,
+  "caller" => "api/foo:480",
+  "cycleId" => 6789,
+  "elapsed" => 74.86664,
+  "gatewayIp" => "10.0.0.1",
+  "gatewayMac" => "fa:fa:fa:fa",
+  "level" => "info",
+  "msg" => "assign active task foobar",
+  "relevance" => 0,
+  "scannerIp" => "10.0.0.2",
+  "task_FooProps_10_TcpPorts_0" => 22,
+  "task_FooProps_10_TcpPorts_1" => 23,
+  "task_FooProps_10_TcpPorts_2" => 25,
+  "task_FooProps_10_TcpPorts_3" => 80,
+  "task_FooProps_10_TcpPorts_4" => 55,
+  "task_FooProps_10_TcpPorts_5" => 8000,
+  "task_FooProps_10_TcpPorts_6" => 8080,
+  "task_Id" => 1211111181111111400,
+  "task_Ips_0" => "127.0.0.1",
+  "task_Ips_1" => "127.0.0.2",
+  "task_Ips_2" => "127.0.0.3",
+  "task_Ips_3" => "127.0.0.4",
+  "task_Ips_4" => "127.0.0.5",
+  "task_Subnet" => "127.0.0.0/24",
+  "task_TaskTypes_0" => 4,
+  "task_TaskTypes_1" => 11,
+  "task_TaskTypes_2" => 10,
+  "task_TaskTypes_3" => 12,
+  "task_TaskTypes_4" => 17,
+  "task_TaskTypes_5" => 14,
+  "ts" => "2020-08-11T02:26:17.078Z",
+  "uuid" => "a405a4b58810e3aaa078f751bd32baa8b60aaad1",
+  "wired" => true,
+}
 
 describe Scalyr::Common::Util do
   it "does not flatten an already-flat dict" do
@@ -208,6 +292,10 @@ describe Scalyr::Common::Util do
         ]
     }
     expect(Scalyr::Common::Util.flatten(din, "_", flatten_arrays=false)).to eq(dout)
+  end
+
+  it "flattens large hash correctly" do
+    expect(Scalyr::Common::Util.flatten(LARGE_OBJECT_IN, "_", flatten_arrays=true)).to eq(LARGE_OBJECT_OUT)
   end
 
   it "accepts custom delimiters" do
