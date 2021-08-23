@@ -470,7 +470,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         @dlq_writer.write(l_event, "#{exc_data[:message]}")
       }
     else
-      @logger.warn("Deal letter queue not configured, dropping #{multi_event_request[:logstash_events].length} events after #{exc_retries} tries.", :sample_events => sample_events)
+      @logger.warn("Dead letter queue not configured, dropping #{multi_event_request[:logstash_events].length} events after #{exc_retries} tries.", :sample_events => sample_events)
     end
   end
 
