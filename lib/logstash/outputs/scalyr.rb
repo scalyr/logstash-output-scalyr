@@ -374,8 +374,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           end
           exc_data[:payload] = "\tSample payload: #{request[:body][0,1024]}..." if @logger.debug?
           if e.is_commonly_retried?
-            # well-known retriable errors should be debug
-            @logger.debug(message, exc_data)
+            # well-known retriable errors should be info
+            @logger.info(message, exc_data)
             exc_commonly_retried = true
           else
             # all other failed uploads should be errors
