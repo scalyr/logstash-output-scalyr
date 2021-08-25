@@ -7,6 +7,12 @@ require "json"
 require 'webmock/rspec'
 WebMock.allow_net_connect!
 
+RSpec.configure do |rspec|
+  rspec.expect_with :rspec do |c|
+    c.max_formatted_output_length = nil
+  end
+end
+
 describe LogStash::Outputs::Scalyr do
   let(:sample_events) {
     events = []
