@@ -289,6 +289,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Convenience method to create a fresh quantile estimator
   def get_new_metrics
     return {
+      :build_multi_duration_secs => Quantile::Estimator.new,
       :multi_receive_duration_secs => Quantile::Estimator.new,
       :multi_receive_event_count => Quantile::Estimator.new,
       :event_attributes_count => Quantile::Estimator.new,
@@ -313,17 +314,25 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     return events if @noop_mode
 
     begin
+      records_count = events.to_a.length
+
+      # We also time the duration of the build_multi_event_request_array method
       start_time = Time.now.to_f
 
       multi_event_request_array = build_multi_event_request_array(events)
-      # Loop over all array of multi-event requests, sending each multi-event to Scalyr
 
+      if records_count > 0
+        @stats_lock.synchronize do
+          @plugin_metrics[:build_multi_duration_secs].observe(Time.now.to_f - start_time)
+        end
+      end
+
+      # Loop over all array of multi-event requests, sending each multi-event to Scalyr
       sleep_interval = @retry_initial_interval
       batch_num = 1
       total_batches = multi_event_request_array.length unless multi_event_request_array.nil?
 
       result = []
-      records_count = events.to_a.length
 
       while !multi_event_request_array.to_a.empty?
         multi_event_request = multi_event_request_array.pop
@@ -815,6 +824,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   def get_stats
     @stats_lock.synchronize do
       current_stats = @multi_receive_statistics.clone
+
+      current_stats[:build_multi_duration_secs_p50] = @plugin_metrics[:build_multi_duration_secs].query(0.5)
+      current_stats[:build_multi_duration_secs_p90] = @plugin_metrics[:build_multi_duration_secs].query(0.9)
+      current_stats[:build_multi_duration_secs_p99] = @plugin_metrics[:build_multi_duration_secs].query(0.99)
 
       current_stats[:multi_receive_duration_p50] = @plugin_metrics[:multi_receive_duration_secs].query(0.5)
       current_stats[:multi_receive_duration_p90] = @plugin_metrics[:multi_receive_duration_secs].query(0.9)

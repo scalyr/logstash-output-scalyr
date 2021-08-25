@@ -1,5 +1,8 @@
 # Beta
 
+## 0.1.22.beta
+- Add new plugin metric for tracking the duration of ``build_multi_event_request_array`` method.
+
 ## 0.1.21.beta
 - Fix issue with iterative flattening function when dealing with empty collections.
 
