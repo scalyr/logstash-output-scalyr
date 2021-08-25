@@ -157,7 +157,7 @@ DEPENDENCIES
   manticore (~> 0.7.1)
   pry
   pry-nav
-  quantile
+  quantile (~> 0.2.1)
   webmock
 
 BUNDLED WITH
