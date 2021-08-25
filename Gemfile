@@ -16,5 +16,5 @@ end
 
 gem 'pry'
 gem 'pry-nav'
-gem 'quantile'
-gem 'manticore', platform: :jruby
+gem 'quantile', '~> 0.2.1'
+gem 'manticore', '~> 0.7.1', platform: :jruby

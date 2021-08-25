@@ -82,7 +82,7 @@ GEM
       rspec (~> 3.0)
       rspec-wait
       stud (>= 0.0.20)
-    manticore (0.6.4-java)
+    manticore (0.7.1-java)
       openssl_pkcs8_pure
     method_source (0.8.2)
     minitar (0.5.4)
@@ -154,7 +154,7 @@ PLATFORMS
 DEPENDENCIES
   logstash-devutils
   logstash-output-scalyr!
-  manticore
+  manticore (~> 0.7.1)
   pry
   pry-nav
   quantile
