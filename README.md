@@ -1,4 +1,3 @@
-
 [![CircleCI](https://circleci.com/gh/scalyr/logstash-output-scalyr.svg?style=svg)](https://circleci.com/gh/scalyr/logstash-output-scalyr)
 
 # [Scalyr output plugin for Logstash (Beta release)]
@@ -10,7 +9,7 @@ You can view documentation for this plugin [on the Scalyr website](https://app.s
 # Quick start
 
 1. Build the gem, run `gem build logstash-output-scalyr.gemspec` 
-2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-0.1.22.beta.gem` or follow the latest official instructions on working with plugins from Logstash.
+2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-0.1.25.beta.gem` or follow the latest official instructions on working with plugins from Logstash.
 3. Configure the output plugin (e.g. add it to a pipeline .conf)
 4. Restart Logstash 
 
