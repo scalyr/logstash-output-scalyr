@@ -746,6 +746,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       else
         # If size estimation is disabled we simply append the event and handle splitting later on (if needed)
         append_event = true
+        add_bytes = 0
       end
 
       # if we haven't consumed the current event already
