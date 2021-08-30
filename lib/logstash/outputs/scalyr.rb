@@ -829,7 +829,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
     serialized_request_size = serialized_body.bytesize
 
-    if serialized_request_size >= @max_request_buffer
+    # We give it "buffer" since the splitting code allows for some slack and doesn't take into account top-level non-event attributes
+    if not @estimate_each_event_size and serialized_request_size >= @max_request_buffer + 10000
       # TODO: If we end up here is estimate config opsion is false, split the request here into multiple ones
       @logger.warn("Serialized request size (#{serialized_request_size}) is larger than max_request_buffer (#{max_request_buffer})!")
     end
