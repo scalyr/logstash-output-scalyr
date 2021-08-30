@@ -759,9 +759,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
     }
 
-    # create a final request with any left over events
-    multi_event_request = self.create_multi_event_request(scalyr_events, l_events, current_threads, logs)
-    multi_event_request_array << multi_event_request
+    # create a final request with any left over events (and make sure there is at least one event)
+    if scalyr_events.size >= 1
+      multi_event_request = self.create_multi_event_request(scalyr_events, l_events, current_threads, logs)
+      multi_event_request_array << multi_event_request
+    end
+
     multi_event_request_array
   end
 
