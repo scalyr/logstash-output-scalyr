@@ -190,6 +190,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       @logger.warn "Maximum request buffer > 6 MB.  This may result in requests being rejected by Scalyr."
     end
 
+    if not @estimate_each_event_size
+      @logger.warn("estimate_each_event_size config option is false, this means very large batches may be rejected or partially processed by the server")
+    end
+
     @dlq_writer = dlq_enabled? ? execution_context.dlq_writer : nil
 
     @message_encoding = nil
@@ -830,7 +834,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     serialized_request_size = serialized_body.bytesize
 
     # We give it "buffer" since the splitting code allows for some slack and doesn't take into account top-level non-event attributes
-    if not @estimate_each_event_size and serialized_request_size >= @max_request_buffer + 10000
+    if not @estimate_each_event_size and serialized_request_size >= @max_request_buffer + 5000
       # TODO: If we end up here is estimate config opsion is false, split the request here into multiple ones
       @logger.warn("Serialized request size (#{serialized_request_size}) is larger than max_request_buffer (#{max_request_buffer})!")
     end
