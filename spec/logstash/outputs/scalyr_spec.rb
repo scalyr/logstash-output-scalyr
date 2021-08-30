@@ -393,7 +393,7 @@ describe LogStash::Outputs::Scalyr do
     end
 
     context "split large batches into multiple scalyr requests" do
-      it "estimate_each_event_size is true explicit (default)" do
+      it "estimate_each_event_size is true explicit (default) batch split into 3 scalyr requests" do
         config = {
             'api_write_token' => '1234',
             'flatten_tags' => true,
@@ -434,7 +434,7 @@ describe LogStash::Outputs::Scalyr do
                                                  })
       end
 
-      it "estimate_each_event_size is true implicit (default)" do
+      it "estimate_each_event_size is true implicit (default) batch split into 3 scalyr requests" do
         config = {
             'api_write_token' => '1234',
             'flatten_tags' => true,
@@ -474,8 +474,7 @@ describe LogStash::Outputs::Scalyr do
                                                  })
       end
 
-
-      it "estimate_each_event_size is false" do
+      it "estimate_each_event_size is false batch not split into multiple scalyr requests" do
         config = {
             'api_write_token' => '1234',
             'flatten_tags' => true,
