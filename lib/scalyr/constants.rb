@@ -1,2 +1,2 @@
 # encoding: utf-8
-PLUGIN_VERSION = "v0.1.25.beta"
+PLUGIN_VERSION = "v0.1.26.beta"
