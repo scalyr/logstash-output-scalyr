@@ -140,10 +140,16 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Whether or not to create fresh quantile estimators after a status send. Depending on what you want to gather from
   # these stas this might be wanted or not.
   config :flush_quantile_estimates_on_status_send, :validate => :boolean, :default => false
-  
+
   # Causes this plugin to act as if it successfully uploaded the logs, while actually returning as quickly as possible
   # after no work being done.
   config :noop_mode, :validate => :boolean, :default => false
+
+  # Set to true to disable estimiating the size of each serialized event to make sure we don't go over the max request
+  # size (5.5) and split batch into multiple Scalyr requests, if needed. Since this estimation is not "free", especially
+  # for large batches, it may make sense to disable this option when logstash batch size is configured in a way that
+  # Scalyr single request limit won't be reached.
+  config :estimate_each_event_size, :validate => :boolean, :default => true
 
   # Manticore related options
   config :http_connect_timeout, :validate => :number, :default => 10
@@ -672,67 +678,74 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         scalyr_event[:log] = logs_ids[log_identifier]
       end
 
-      # get json string of event to keep track of how many bytes we are sending
-      begin
-        event_json = scalyr_event.to_json
-        log_json = nil
-        if add_log
-          log_json = logs[log_identifier].to_json
-        end
-      rescue JSON::GeneratorError, Encoding::UndefinedConversionError => e
-        @logger.warn "#{e.class}: #{e.message}"
+      if @estimate_each_event_size
+        # get json string of event to keep track of how many bytes we are sending
+        begin
+          event_json = scalyr_event.to_json
+          log_json = nil
+          if add_log
+            log_json = logs[log_identifier].to_json
+          end
+        rescue JSON::GeneratorError, Encoding::UndefinedConversionError => e
+          @logger.warn "#{e.class}: #{e.message}"
 
-        # Send the faulty event to a label @ERROR block and allow to handle it there (output to exceptions file for ex)
-        # TODO
-        # atime = Fluent::EventTime.new( sec, nsec )
-        # router.emit_error_event(serverHost, time, record, e)
+          # Send the faulty event to a label @ERROR block and allow to handle it there (output to exceptions file for ex)
+          # TODO
+          # atime = Fluent::EventTime.new( sec, nsec )
+          # router.emit_error_event(serverHost, time, record, e)
 
-        scalyr_event[:attrs].each do |key, value|
-          @logger.debug "\t#{key} (#{value.encoding.name}): '#{value}'"
-          scalyr_event[:attrs][key] = value.encode(
-              "UTF-8", :invalid => :replace, :undef => :replace, :replace => "<?>"
-          ).force_encoding('UTF-8')
+          scalyr_event[:attrs].each do |key, value|
+            @logger.debug "\t#{key} (#{value.encoding.name}): '#{value}'"
+            scalyr_event[:attrs][key] = value.encode(
+                "UTF-8", :invalid => :replace, :undef => :replace, :replace => "<?>"
+            ).force_encoding('UTF-8')
+          end
+          event_json = scalyr_event.to_json
+        rescue Java::JavaLang::ClassCastException => e
+          # Most likely we ran into the issue described here: https://github.com/flori/json/issues/336
+          # Because of the version of jruby logstash works with we don't have the option to just update this away,
+          # so if we run into it we convert bignums into strings so we can get the data in at least.
+          # This is fixed in JRuby 9.2.7, which includes json 2.2.0
+          @logger.warn("Error serializing events to JSON, likely due to the presence of Bignum values. Converting Bignum values to strings.")
+          @stats_lock.synchronize do
+            @multi_receive_statistics[:total_java_class_cast_errors] += 1
+          end
+          Scalyr::Common::Util.convert_bignums(scalyr_event)
+          event_json = scalyr_event.to_json
+          log_json = nil
+          if add_log
+            log_json = logs[log_identifier].to_json
+          end
         end
-        event_json = scalyr_event.to_json
-      rescue Java::JavaLang::ClassCastException => e
-        # Most likely we ran into the issue described here: https://github.com/flori/json/issues/336
-        # Because of the version of jruby logstash works with we don't have the option to just update this away,
-        # so if we run into it we convert bignums into strings so we can get the data in at least.
-        # This is fixed in JRuby 9.2.7, which includes json 2.2.0
-        @logger.warn("Error serializing events to JSON, likely due to the presence of Bignum values. Converting Bignum values to strings.")
-        @stats_lock.synchronize do
-          @multi_receive_statistics[:total_java_class_cast_errors] += 1
-        end
-        Scalyr::Common::Util.convert_bignums(scalyr_event)
-        event_json = scalyr_event.to_json
-        log_json = nil
-        if add_log
-          log_json = logs[log_identifier].to_json
-        end
-      end
 
-      # generate new request if json size of events in the array exceed maximum request buffer size
-      append_event = true
-      add_bytes =  event_json.bytesize
-      if log_json
-        add_bytes = add_bytes + log_json.bytesize
-      end
-      if total_bytes + add_bytes > @max_request_buffer
-        # make sure we always have at least one event
-        if scalyr_events.size == 0
-          scalyr_events << scalyr_event
-          l_events << l_event
-          append_event = false
+        # generate new request if json size of events in the array exceed maximum request buffer size
+        append_event = true
+        add_bytes = event_json.bytesize
+        if log_json
+          add_bytes = add_bytes + log_json.bytesize
         end
-        multi_event_request = self.create_multi_event_request(scalyr_events, l_events, current_threads, logs)
-        multi_event_request_array << multi_event_request
 
-        total_bytes = 0
-        current_threads = Hash.new
-        logs = Hash.new
-        logs_ids = Hash.new
-        scalyr_events = Array.new
-        l_events = Array.new
+        if total_bytes + add_bytes > @max_request_buffer
+          # make sure we always have at least one event
+          if scalyr_events.size == 0
+            scalyr_events << scalyr_event
+            l_events << l_event
+            append_event = false
+          end
+
+          multi_event_request = self.create_multi_event_request(scalyr_events, l_events, current_threads, logs)
+          multi_event_request_array << multi_event_request
+
+          total_bytes = 0
+          current_threads = Hash.new
+          logs = Hash.new
+          logs_ids = Hash.new
+          scalyr_events = Array.new
+          l_events = Array.new
+        end
+      else
+        # If size estimation is disabled we simply append the event and handle splitting later on (if needed)
+        append_event = true
       end
 
       # if we haven't consumed the current event already
@@ -809,6 +822,14 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     end
     end_time = Time.now.to_f
     serialization_duration = end_time - start_time
+
+    serialized_request_size = serialized_body.bytesize
+
+    if serialized_request_size >= @max_request_buffer
+      # TODO: If we end up here is estimate config opsion is false, split the request here into multiple ones
+      @logger.warn("Serialized request size (#{serialized_request_size}) is larger than max_request_buffer (#{max_request_buffer})!")
+    end
+
     {
       :body => serialized_body, :record_count => scalyr_events.size, :serialization_duration => serialization_duration,
       :logstash_events => logstash_events

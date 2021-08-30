@@ -1,5 +1,8 @@
 # Beta
 
+## 0.1.23.beta
+- Add testing support for disabling estimation of serialized event size for each event in the batch.
+
 ## 0.1.22.beta
 - Add new plugin metric for tracking the duration of ``build_multi_event_request_array`` method.
 - Update internal dependencies (``manticore``) to latest stable version.
