@@ -1,5 +1,9 @@
 # Beta
 
+## 0.1.26.beta
+- Add support for new ``json_library`` config option. Valid values are ``stdlib`` (default) are ``jrjackson``. The later may offer 2-4x faster JSON serialization.
+
+
 ## 0.1.23.beta
 - Add testing support for disabling estimation of serialized event size for each event in the batch.
 

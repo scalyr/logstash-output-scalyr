@@ -142,6 +142,7 @@ jobs: # a collection of steps
       - run:
           name: Run Micro Benchmarks
           command: |
+            gem install jrjackson
             gem install quantile
             echo "Flattening and serialization util results:"
             echo ""
@@ -149,6 +150,12 @@ jobs: # a collection of steps
             echo ""
             echo "Metrics recording results:"
             ruby spec/benchmarks/metrics_overhead.rb
+            echo ""
+            echo "Bignum converting results:"
+            ruby spec/benchmarks/bignum_fixing.rb
+            echo ""
+            echo "json serialization:"
+            ruby spec/benchmarks/json_serialization.rb
             echo ""
 
   # We run micro benchmarks against cRuby just for reference purposes since plugins always run
@@ -174,7 +181,6 @@ jobs: # a collection of steps
             echo ""
             echo "Bignum converting results:"
             ruby spec/benchmarks/bignum_fixing.rb
-            echo ""
 
 workflows:
   version: 2

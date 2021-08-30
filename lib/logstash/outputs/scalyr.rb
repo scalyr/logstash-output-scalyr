@@ -13,6 +13,7 @@ require 'rbzip2'
 require 'zlib'
 require 'stringio'
 require 'quantile'
+require 'jrjackson'
 
 require 'scalyr/common/client'
 require "scalyr/common/util"
@@ -151,6 +152,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Scalyr single request limit won't be reached.
   config :estimate_each_event_size, :validate => :boolean, :default => true
 
+  # Library to use for JSON serialization. Valid values are "stdlib" and "jrjackson". The later may offer 2-4 performance
+  # improvements on serialization.
+  config :json_library, :validate => :string, :default => "stdlib"
+
   # Manticore related options
   config :http_connect_timeout, :validate => :number, :default => 10
   config :http_socket_timeout, :validate => :number, :default => 10
@@ -192,6 +197,20 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
     if not @estimate_each_event_size
       @logger.warn("estimate_each_event_size config option is false, this means very large batches may be rejected or partially processed by the server")
+    end
+
+    if @json_library != "stdlib" and @json_library != "jrjackson"
+      raise LogStash::ConfigurationError, "json_library config option needs to be either stdlib or jrjackson"
+    end
+
+    if @json_library == "stdlib"
+      define_singleton_method "json_encode" do |data|
+        data.to_json
+      end
+    elsif @json_library == "jrjackson"
+      define_singleton_method "json_encode" do |data|
+        JrJackson::Json.dump(data)
+      end
     end
 
     @dlq_writer = dlq_enabled? ? execution_context.dlq_writer : nil
@@ -685,10 +704,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       if @estimate_each_event_size
         # get json string of event to keep track of how many bytes we are sending
         begin
-          event_json = scalyr_event.to_json
+          event_json = self.json_encode(scalyr_event)
           log_json = nil
           if add_log
-            log_json = logs[log_identifier].to_json
+            log_json = self.json_encode(logs[log_identifier])
           end
         rescue JSON::GeneratorError, Encoding::UndefinedConversionError => e
           @logger.warn "#{e.class}: #{e.message}"
@@ -704,7 +723,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
                 "UTF-8", :invalid => :replace, :undef => :replace, :replace => "<?>"
             ).force_encoding('UTF-8')
           end
-          event_json = scalyr_event.to_json
+          event_json = self.json_encode(scalyr_event)
         rescue Java::JavaLang::ClassCastException => e
           # Most likely we ran into the issue described here: https://github.com/flori/json/issues/336
           # Because of the version of jruby logstash works with we don't have the option to just update this away,
@@ -715,10 +734,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             @multi_receive_statistics[:total_java_class_cast_errors] += 1
           end
           Scalyr::Common::Util.convert_bignums(scalyr_event)
-          event_json = scalyr_event.to_json
+          event_json = self.json_encode(scalyr_event)
           log_json = nil
           if add_log
-            log_json = logs[log_identifier].to_json
+            log_json = self.json_encode(logs[log_identifier])
           end
         end
 
@@ -819,14 +838,14 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     # We time serialization to get some insight on how long it takes to serialize the request body
     start_time = Time.now.to_f
     begin
-      serialized_body = body.to_json
+      serialized_body = self.json_encode(body)
     rescue Java::JavaLang::ClassCastException => e
       @logger.warn("Error serializing events to JSON, likely due to the presence of Bignum values. Converting Bignum values to strings.")
       @stats_lock.synchronize do
         @multi_receive_statistics[:total_java_class_cast_errors] += 1
       end
       Scalyr::Common::Util.convert_bignums(body)
-      serialized_body = body.to_json
+      serialized_body = self.json_encode(body)
     end
     end_time = Time.now.to_f
     serialization_duration = end_time - start_time
