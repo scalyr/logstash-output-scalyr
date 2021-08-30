@@ -316,16 +316,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     begin
       records_count = events.to_a.length
 
-      # We also time the duration of the build_multi_event_request_array method
+      # We also time the duration of the build_multi_event_request_array method. To avoid locking twice,
+      # we store the duration value here and record metric at the end.
       start_time = Time.now.to_f
 
       multi_event_request_array = build_multi_event_request_array(events)
-
-      if records_count > 0
-        @stats_lock.synchronize do
-          @plugin_metrics[:build_multi_duration_secs].observe(Time.now.to_f - start_time)
-        end
-      end
+      build_multi_duration_secs = Time.now.to_f - start_time
 
       # Loop over all array of multi-event requests, sending each multi-event to Scalyr
       sleep_interval = @retry_initial_interval
@@ -439,6 +435,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       if records_count > 0
         @stats_lock.synchronize do
           @multi_receive_statistics[:total_multi_receive_secs] += (Time.now.to_f - start_time)
+          @plugin_metrics[:build_multi_duration_secs].observe(build_multi_duration_secs)
           @plugin_metrics[:multi_receive_duration_secs].observe(Time.now.to_f - start_time)
           @plugin_metrics[:multi_receive_event_count].observe(records_count)
           @plugin_metrics[:batches_per_multi_receive].observe(total_batches)
