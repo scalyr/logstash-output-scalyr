@@ -434,6 +434,47 @@ describe LogStash::Outputs::Scalyr do
                                                  })
       end
 
+      it "estimate_each_event_size is true implicit (default)" do
+        config = {
+            'api_write_token' => '1234',
+            'flatten_tags' => true,
+            'flat_tag_value' => 'true',
+            'flat_tag_prefix' => 'tag_prefix_',
+            'flatten_nested_values' => true,  # this converts into string 'true'
+            'max_request_buffer' => 10,
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        result = plugin.build_multi_event_request_array(sample_events)
+        expect(result.size).to eq(3)
+
+        body = JSON.parse(result[0][:body])
+        expect(body['events'].size).to eq(1)
+
+        body = JSON.parse(result[1][:body])
+        expect(body['events'].size).to eq(1)
+
+        body = JSON.parse(result[2][:body])
+        expect(body['events'].size).to eq(1)
+        expect(body['events'][0]['attrs']).to eq({
+                                                     "nested_a" => 1,
+                                                     "nested_b_0" => 3,
+                                                     "nested_b_1" => 4,
+                                                     "nested_b_2" => 5,
+                                                     'seq' => 3,
+                                                     'source_file' => 'my file 3',
+                                                     'source_host' => 'my host 3',
+                                                     'serverHost' => 'Logstash',
+                                                     "tag_prefix_t1" => "true",
+                                                     "tag_prefix_t2" => "true",
+                                                     "tag_prefix_t3" => "true",
+                                                     "parser" => "logstashParser",
+                                                 })
+      end
+
+
       it "estimate_each_event_size is false" do
         config = {
             'api_write_token' => '1234',
