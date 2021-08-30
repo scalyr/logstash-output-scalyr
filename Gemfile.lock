@@ -152,6 +152,7 @@ PLATFORMS
   universal-java-11
 
 DEPENDENCIES
+  jrjackson
   logstash-devutils
   logstash-output-scalyr!
   manticore (~> 0.7.1)

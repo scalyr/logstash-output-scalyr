@@ -2,37 +2,13 @@ require 'benchmark'
 require 'json'
 
 require_relative '../../lib/scalyr/common/util'
+require_relative './util'
 
 # NOTE: When using jRuby using multiple iterations with the same dataset doesn't make
 # sense since it will just use JITed version of the code which will be very fast. If we
 # wanted to accurately measure using multiple iterations we would need te different
 # input data for each iteration.
 ITERATIONS = 500
-
-def rand_str(len)
-  return (0...len).map { (65 + rand(26)).chr }.join
-end
-
-def generate_hash(widths)
-  result = {}
-  if widths.empty?
-    return rand_str(20)
-  else
-    widths[0].times do
-      result[rand_str(9)] = generate_hash(widths[1..widths.length])
-    end
-    return result
-  end
-end
-
-def generate_data_array_for_spec(spec)
-  data = []
-  ITERATIONS.times do
-    data << generate_hash(spec)
-  end
-
-  data
-end
 
 def run_benchmark_and_print_results(data, run_benchmark_func)
   puts ""
@@ -69,7 +45,6 @@ DATASETS = {
   :keys_960 => generate_data_array_for_spec([12, 5, 4, 4]),
   :keys_2700 => generate_data_array_for_spec([14, 8, 6, 4])
 }
-
 
 puts "Using %s iterations" % [ITERATIONS]
 puts ""
