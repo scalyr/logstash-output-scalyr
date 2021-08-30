@@ -42,7 +42,7 @@ GEM
     i18n (0.6.9)
     insist (1.0.0)
     jar-dependencies (0.4.0)
-    jrjackson (0.4.8-java)
+    jrjackson (0.4.14-java)
     jruby-openssl (0.9.19-java)
     kramdown (1.14.0)
     logstash-codec-plain (3.0.6)
@@ -152,7 +152,7 @@ PLATFORMS
   universal-java-11
 
 DEPENDENCIES
-  jrjackson
+  jrjackson (~> 0.4.14)
   logstash-devutils
   logstash-output-scalyr!
   manticore (~> 0.7.1)

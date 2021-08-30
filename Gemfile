@@ -12,10 +12,10 @@ end
 
 group :test do
   gem "webmock"
-  gem "jrjackson"
 end
 
 gem 'pry'
 gem 'pry-nav'
 gem 'quantile', '~> 0.2.1'
 gem 'manticore', '~> 0.7.1', platform: :jruby
+gem 'jrjackson', '~> 0.4.14', platform: :jruby

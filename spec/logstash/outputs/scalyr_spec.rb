@@ -60,6 +60,7 @@ describe LogStash::Outputs::Scalyr do
                                                      'log_constants' => ['tags'],
                                                      'flatten_nested_values' => true,
                                                  })
+      plugin.register
 
       mock_client_session = MockClientSession.new
 
@@ -75,6 +76,7 @@ describe LogStash::Outputs::Scalyr do
                                                      'log_constants' => ['tags'],
                                                      'flatten_nested_values' => false,
                                                  })
+        plugin1.register()
         mock_client_session = MockClientSession.new
         plugin1.instance_variable_set(:@last_status_transmit_time, 100)
         plugin1.instance_variable_set(:@client_session, mock_client_session)
@@ -580,6 +582,58 @@ describe LogStash::Outputs::Scalyr do
         body = JSON.parse(result[0][:body])
         expect(body['events'].size).to eq(1)
         expect(plugin.instance_variable_get(:@logger)).to_not receive(:error)
+      end
+    end
+
+    context "when using custom json library" do
+      it "stdlib (implicit)" do
+        config = {
+            'api_write_token' => '1234',
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        e = LogStash::Event.new
+        e.set('bignumber', 20)
+        result = plugin.build_multi_event_request_array([e])
+        body = JSON.parse(result[0][:body])
+        expect(result[0][:body]).to include('{"monitor":"pluginLogstash"}')
+        expect(body['events'].size).to eq(1)
+      end
+
+      it "stdlib (explicit)" do
+        config = {
+            'api_write_token' => '1234',
+            'json_library' => 'stdlib'
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        e = LogStash::Event.new
+        e.set('bignumber', 20)
+        result = plugin.build_multi_event_request_array([e])
+        body = JSON.parse(result[0][:body])
+        expect(result[0][:body]).to include('{"monitor":"pluginLogstash"}')
+        expect(body['events'].size).to eq(1)
+      end
+
+      it "jrjackson" do
+        config = {
+            'api_write_token' => '1234',
+            'json_library' => 'jrjackson'
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        e = LogStash::Event.new
+        e.set('bignumber', 20)
+        result = plugin.build_multi_event_request_array([e])
+        body = JSON.parse(result[0][:body])
+        expect(result[0][:body]).to include('{"monitor":"pluginLogstash"}')
+        expect(body['events'].size).to eq(1)
       end
     end
   end
