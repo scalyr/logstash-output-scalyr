@@ -926,7 +926,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     }
     @send_stats.synchronize do
       if !@last_status_transmit_time
-        status_event[:attrs]['message'] = sprintf("Started Scalyr LogStash output plugin (%s)." % [PLUGIN_VERSION])
+        status_event[:attrs]['message'] = sprintf("Started Scalyr LogStash output plugin %s (compression_type=%s,compression_level=%s,json_library=%s). " % 
+                                                  [PLUGIN_VERSION, @compression_type, @compression_type, @json_library])
         status_event[:attrs]['serverHost'] = @node_hostname
       else
         cur_time = Time.now()
