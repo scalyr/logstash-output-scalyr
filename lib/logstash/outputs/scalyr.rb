@@ -136,7 +136,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # mind that we use simple random based sampling. Maximum possible value is 1 (aka no sampling
   # - record metrics for every single event).
   # We use sampling since Quantile.observe() operation is more expensive than simple counter
-  # based metric so we need to ensure recording a metric doesn't add too much ov2132131erhead.
+  # based metric so we need to ensure recording a metric doesn't add too much overhead.
   # Based on micro benchmark, random based sampler is about 5x faster than quantile.observe()
   config :event_metrics_sample_rate, :validate => :number, :default => 0.05
 
