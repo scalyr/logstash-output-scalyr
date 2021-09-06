@@ -49,6 +49,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # (Warning: events with an existing 'serverHost' field, it will be overwritten)
   config :serverhost_field, :validate => :string, :default => 'serverHost'
 
+  # Set to true to not put "serverHost" attribute as part of session level attributes. This may come handy in combination
+  # with a logstash filter which sets "__origServerHost" event-level attribute. In this case this event level attribute
+  # will be used for event serverHost attribute
+  config :dont_use_session_level_serverhost_attribute, :validate => :boolean, :default => false
+
   # The 'logfile' fieldname has special meaning for the Scalyr UI.  Traditionally, it represents the origin logfile
   # which users can search for in a dedicated widget in the Scalyr UI. If your Events capture this in a different field
   # you can specify that fieldname here and the Scalyr Output Plugin will rename it to 'logfile' before upload.
@@ -131,7 +136,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # mind that we use simple random based sampling. Maximum possible value is 1 (aka no sampling
   # - record metrics for every single event).
   # We use sampling since Quantile.observe() operation is more expensive than simple counter
-  # based metric so we need to ensure recording a metric doesn't add too much overhead.
+  # based metric so we need to ensure recording a metric doesn't add too much ov2132131erhead.
   # Based on micro benchmark, random based sampler is about 5x faster than quantile.observe()
   config :event_metrics_sample_rate, :validate => :number, :default => 0.05
 
@@ -203,13 +208,15 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       raise LogStash::ConfigurationError, "json_library config option needs to be either stdlib or jrjackson"
     end
 
+    @json_library = "stdlib"
+
     if @json_library == "stdlib"
       define_singleton_method "json_encode" do |data|
         data.to_json
       end
     elsif @json_library == "jrjackson"
       define_singleton_method "json_encode" do |data|
-        JrJackson::Json.dump(data)
+        JrJackson::Json.dump(data, { "use_smallintx" => true })
       end
     end
 
@@ -242,7 +249,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     end
 
     # See if we should use the hostname as the server_attributes.serverHost
-    if @use_hostname_for_serverhost
+    if @use_hostname_for_serverhost and not @dont_use_session_level_serverhost_attribute
       if @server_attributes.nil?
         @server_attributes = {}
       end
@@ -615,7 +622,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       end
 
       # Set a default if no serverHost value is present.
-      if serverHost.nil?
+      if serverHost.nil? and not @dont_use_session_level_serverhost_attribute
         record['serverHost'] = "Logstash"
       end
 
