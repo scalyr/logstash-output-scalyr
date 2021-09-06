@@ -192,6 +192,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
     @node_hostname = Socket.gethostname
 
+    if @use_hostname_for_serverhost and @dont_use_session_level_serverhost_attribute
+      raise LogStash::ConfigurationError, "'use_hostname_for_serverhost' and 'dont_use_session_level_serverhost_attribute' config options are mutually exclusive."
+    end
+
     if @log_constants and not @log_constants.all? { |x| x.is_a? String }
       raise LogStash::ConfigurationError, "All elements of 'log_constants' must be strings."
     end
