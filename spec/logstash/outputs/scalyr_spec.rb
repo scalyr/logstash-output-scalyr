@@ -567,6 +567,40 @@ describe LogStash::Outputs::Scalyr do
       end
     end
 
+    context "serverHost attribute" do
+      it "when not using dont_use_session_level_serverhost_attribute config option serverHost event level attribute is set" do
+        config = {
+            'api_write_token' => '1234',
+            'dont_use_session_level_serverhost_attribute' => false,
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        e = LogStash::Event.new
+        result = plugin.build_multi_event_request_array([e])
+        body = JSON.parse(result[0][:body])
+        expect(body['events'].size).to eq(1)
+        expect(body['events'][0]['attrs']["serverHost"]).to eq("Logstash")
+      end
+
+      it "when using dont_use_session_level_serverhost_attribute config option serverHost event level attribute is not set" do
+        config = {
+            'api_write_token' => '1234',
+            'dont_use_session_level_serverhost_attribute' => true,
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        e = LogStash::Event.new
+        result = plugin.build_multi_event_request_array([e])
+        body = JSON.parse(result[0][:body])
+        expect(body['events'].size).to eq(1)
+        expect(body['events'][0]['attrs']["serverHost"]).to eq(nil)
+      end
+    end
+
     context "when receiving an event with Bignums" do
       config = {
           'api_write_token' => '1234',
