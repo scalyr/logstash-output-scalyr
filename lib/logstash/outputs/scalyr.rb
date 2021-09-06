@@ -297,7 +297,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         @http_connect_timeout, @http_socket_timeout, @http_request_timeout, @http_pool_max, @http_pool_max_per_route
     )
 
-    @logger.info(sprintf("Started Scalyr output plugin (%s)." % [PLUGIN_VERSION]), :class => self.class.name)
+    @logger.info(sprintf("Started Scalyr LogStash output plugin %s (compression_type=%s,compression_level=%s,json_library=%s)." %
+                         [PLUGIN_VERSION, @compression_type, @compression_type, @json_library]), :class => self.class.name)
 
     # Finally, send a status line to Scalyr
     # We use a special separate short lived client session for sending the initial client status.
@@ -933,7 +934,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     }
     @send_stats.synchronize do
       if !@last_status_transmit_time
-        status_event[:attrs]['message'] = sprintf("Started Scalyr LogStash output plugin %s (compression_type=%s,compression_level=%s,json_library=%s). " % 
+        status_event[:attrs]['message'] = sprintf("Started Scalyr LogStash output plugin %s (compression_type=%s,compression_level=%s,json_library=%s)." %
                                                   [PLUGIN_VERSION, @compression_type, @compression_type, @json_library])
         status_event[:attrs]['serverHost'] = @node_hostname
       else
