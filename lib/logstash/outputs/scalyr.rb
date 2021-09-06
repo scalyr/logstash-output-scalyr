@@ -212,15 +212,13 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       raise LogStash::ConfigurationError, "json_library config option needs to be either stdlib or jrjackson"
     end
 
-    @json_library = "stdlib"
-
     if @json_library == "stdlib"
       define_singleton_method "json_encode" do |data|
         data.to_json
       end
     elsif @json_library == "jrjackson"
       define_singleton_method "json_encode" do |data|
-        JrJackson::Json.dump(data, { "use_smallintx" => true })
+        JrJackson::Json.dump(data)
       end
     end
 
