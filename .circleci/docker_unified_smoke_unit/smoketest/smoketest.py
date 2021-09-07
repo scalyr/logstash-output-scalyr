@@ -698,7 +698,7 @@ class DockerSmokeTestActor(SmokeTestActor):
         """Dictionary of query field key-vals (besides serverHost, logfile, filters)"""
         raise NotImplementedError
 
-    def _verify_queried_attributes(self, att, stream_name, process_name):
+    def _verify_queried_attributes(self, session_att, att, stream_name, process_name):
         if att.get("containerName") != process_name:
             return False
         return True
@@ -741,8 +741,11 @@ class DockerSmokeTestActor(SmokeTestActor):
                     if len(matches) == 0:
                         return False
                     att = matches[0]["attributes"]
+                    session_id = matches[0]["session"]
+                    session_att = data["sessions"][session_id]
                     return self._verify_queried_attributes(
-                        att, stream_name, process_name
+                        session_att=session_att, att=att, stream_name=stream_name,
+                        process_name=process_name
                     )
 
                 return False  # Non-ok response
@@ -775,8 +778,10 @@ class DockerJsonActor(DockerSmokeTestActor):
     def _get_extra_query_attributes(self, stream_name, process_name):
         return {"$stream": stream_name}
 
-    def _verify_queried_attributes(self, att, stream_name, process_name):
-        if not super()._verify_queried_attributes(att, stream_name, process_name):
+    def _verify_queried_attributes(self, session_att, att, stream_name, process_name):
+        if not super()._verify_queried_attributes(session_att=session_att, att=att,
+                                                  stream_name=stream_name,
+                                                  process_name=process_name):
             return False
         if not all(
             [att.get("stream") in stream_name, att.get("monitor") == "agentDocker"]
@@ -795,8 +800,10 @@ class DockerSyslogActor(DockerSmokeTestActor):
     def _get_mapped_logfile_prefix(self):
         return "/var/log/scalyr-agent-2/containers"
 
-    def _verify_queried_attributes(self, att, stream_name, process_name):
-        if not super()._verify_queried_attributes(att, stream_name, process_name):
+    def _verify_queried_attributes(self, session_att, att, stream_name, process_name):
+        if not super()._verify_queried_attributes(session_att=session_att, att=att,
+                                                  stream_name=stream_name,
+                                                  process_name=process_name):
             return False
         if not all(
             [
@@ -828,7 +835,7 @@ class K8sActor(DockerSmokeTestActor):
     def _get_extra_query_attributes(self, stream_name, process_name):
         return {"$stream": stream_name}
 
-    def _verify_queried_attributes(self, att, stream_name, process_name):
+    def _verify_queried_attributes(self, session_att, att, stream_name, process_name):
         """
         Here's example JSON response for k8s
 
@@ -908,12 +915,15 @@ class LogstashActor(DockerSmokeTestActor):
         # no server-side parser has been defined so cannot filter on $stream
         return {}
 
-    def _verify_queried_attributes(self, att, stream_name, process_name):
+    def _verify_queried_attributes(self, session_att, att, stream_name, process_name):
         if not all(
             [
                 # att.get('stream') in stream.name,  # we haven't setup server-side parser so $stream is not available
                 # Since the input streams are locally mounted, the event origins are all the same as the agent hostname
-                att.get("serverHost") == self._agent_hostname,
+                # NOTE: serverHost is part of session attribute and it's already verified by the
+                # main search query
+                session_att.get("serverHost") == self._agent_hostname,
+                # att.get("serverHost") == self._agent_hostname,
                 # the following fields are added on in the logstash pipeline config
                 # and should appear in every event
                 att.get("output_attribute1") == "output_value1",

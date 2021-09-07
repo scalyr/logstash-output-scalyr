@@ -19,6 +19,9 @@ require 'scalyr/common/client'
 require "scalyr/common/util"
 require "scalyr/constants"
 
+# Special event level attribute name which can be used for setting event level serverHost attribute
+EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME = '__origServerHost'
+
 
 #---------------------------------------------------------------------------------------------------------------------
 # Implements the Scalyr output plugin
@@ -43,16 +46,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   # Related to the server_attributes dictionary above, if you do not define the 'serverHost' key in server_attributes,
   # the plugin will automatically set it, using the aggregator hostname as value, if this value is true.
-  config :use_hostname_for_serverhost, :validate => :boolean, :default => false
+  config :use_hostname_for_serverhost, :validate => :boolean, :default => true
 
   # Field that represents the origin of the log event.
   # (Warning: events with an existing 'serverHost' field, it will be overwritten)
   config :serverhost_field, :validate => :string, :default => 'serverHost'
-
-  # Set to true to not put "serverHost" attribute as part of session level attributes. This may come handy in combination
-  # with a logstash filter which sets "__origServerHost" event-level attribute. In this case this event level attribute
-  # will be used for event serverHost attribute
-  config :dont_use_session_level_serverhost_attribute, :validate => :boolean, :default => false
 
   # The 'logfile' fieldname has special meaning for the Scalyr UI.  Traditionally, it represents the origin logfile
   # which users can search for in a dedicated widget in the Scalyr UI. If your Events capture this in a different field
@@ -192,10 +190,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
     @node_hostname = Socket.gethostname
 
-    if @use_hostname_for_serverhost and @dont_use_session_level_serverhost_attribute
-      raise LogStash::ConfigurationError, "'use_hostname_for_serverhost' and 'dont_use_session_level_serverhost_attribute' config options are mutually exclusive."
-    end
-
     if @log_constants and not @log_constants.all? { |x| x.is_a? String }
       raise LogStash::ConfigurationError, "All elements of 'log_constants' must be strings."
     end
@@ -250,12 +244,13 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       @server_attributes = new_attributes
     end
 
-    # See if we should use the hostname as the server_attributes.serverHost
-    if @use_hostname_for_serverhost and not @dont_use_session_level_serverhost_attribute
-      if @server_attributes.nil?
+    # See if we should use the hostname as the server_attributes.serverHost (aka if fixed serverHost is not
+    # defined as part of server_attributes config option)
+    if @server_attributes.nil?
         @server_attributes = {}
-      end
+    end
 
+    if @use_hostname_for_serverhost
       # only set serverHost if it doesn't currently exist in server_attributes
       # Note: Use strings rather than symbols for the key, because keys coming
       # from the config file will be strings
@@ -266,6 +261,13 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
     # Add monitor server attribute to identify this as coming from a plugin
     @server_attributes['monitor'] = 'pluginLogstash'
+
+    # We create a fixed copy without host here so we can reference this later if needed to avoid
+    # some of the copy + manipulate overhead per batch
+    @server_attributes_without_serverhost = @server_attributes.clone
+    if @server_attributes_without_serverhost.key? "serverHost"
+      @server_attributes_without_serverhost.delete "serverHost"
+    end
 
     @scalyr_server << '/' unless @scalyr_server.end_with?('/')
 
@@ -515,7 +517,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         @dlq_writer.write(l_event, "#{exc_data[:message]}")
       }
     else
-      @logger.warn("Deal letter queue not configured, dropping #{multi_event_request[:logstash_events].length} events after #{exc_retries} tries.", :sample_events => sample_events)
+      @logger.warn("Dead letter queue not configured, dropping #{multi_event_request[:logstash_events].length} events after #{exc_retries} tries.", :sample_events => sample_events)
     end
   end
 
@@ -558,6 +560,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     logs = Hash.new
     logs_ids = Hash.new
     next_log_id = 1
+
+    batch_has_event_level_server_host = false
 
     logstash_events.each {|l_event|
 
@@ -624,26 +628,31 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         record['logfile'] = "/logstash/#{serverHost}"
       end
 
-      # Set a default if no serverHost value is present.
-      if serverHost.nil? and not @dont_use_session_level_serverhost_attribute
-        record['serverHost'] = "Logstash"
+      # Rename serverHost (if exists) to __origServerHost so sources filtering works correctly
+      # It's important that this happens at the very end of the event processing in this function.
+      record_has_server_host_attribute = record.key? 'serverHost'
+      batch_has_event_level_server_host |= record_has_server_host_attribute
+
+      if record_has_server_host_attribute
+        record[EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME] = record['serverHost']
+        record.delete('serverHost')
       end
 
+      # To reduce duplication of common event-level attributes, we "fold" them into top-level "logs" attribute
+      # and reference log entry inside the event
       log_identifier = nil
       add_log = false
       if serverHost
        log_identifier = serverHost + record['logfile']
       end
+
       if log_identifier and not logs.key? log_identifier
         add_log = true
         logs[log_identifier] = {
           'id' => next_log_id,
           'attrs' => Hash.new
         }
-        if not record['serverHost'].to_s.empty?
-          logs[log_identifier]['attrs']['serverHost'] = record['serverHost']
-          record.delete('serverHost')
-        end
+
         if not record['logfile'].to_s.empty?
           logs[log_identifier]['attrs']['logfile'] = record['logfile']
           record.delete('logfile')
@@ -656,8 +665,19 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             end
           }
         end
+
         logs_ids[log_identifier] = next_log_id
         next_log_id += 1
+      end
+
+      # If we already contain "logs" entry for this record, we remove duplicated serverHost from
+      # the event attributes since it's already part of the log level attributes which are
+      # referenced by the event.
+      if log_identifier and logs.key? log_identifier
+        if not record[EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME].to_s.empty?
+          logs[log_identifier]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME] = record[EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]
+          record.delete(EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME)
+        end
       end
 
       # Delete unwanted fields from record
@@ -705,7 +725,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         :attrs => record
       }
 
-      # optionally set thread
+      # optionally set thread and referenced log file
       if serverHost
         scalyr_event[:thread] = thread_id.to_s
         scalyr_event[:log] = logs_ids[log_identifier]
@@ -766,7 +786,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             append_event = false
           end
 
-          multi_event_request = self.create_multi_event_request(scalyr_events, l_events, current_threads, logs)
+          multi_event_request = self.create_multi_event_request(scalyr_events, l_events, current_threads, logs, batch_has_event_level_server_host)
           multi_event_request_array << multi_event_request
 
           total_bytes = 0
@@ -775,6 +795,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           logs_ids = Hash.new
           scalyr_events = Array.new
           l_events = Array.new
+          batch_has_event_level_server_host = false
         end
       else
         # If size estimation is disabled we simply append the event and handle splitting later on (if needed)
@@ -794,7 +815,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
     # create a final request with any left over events (and make sure there is at least one event)
     if scalyr_events.size >= 1
-      multi_event_request = self.create_multi_event_request(scalyr_events, l_events, current_threads, logs)
+      multi_event_request = self.create_multi_event_request(scalyr_events, l_events, current_threads, logs, batch_has_event_level_server_host)
       multi_event_request_array << multi_event_request
     end
 
@@ -814,7 +835,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # A request comprises multiple Scalyr Events.  This function creates a request hash for
   # final upload to Scalyr (from an array of events, and an optional hash of current threads)
   # Note: The request body field will be json-encoded.
-  def create_multi_event_request(scalyr_events, logstash_events, current_threads, current_logs)
+  def create_multi_event_request(scalyr_events, logstash_events, current_threads, current_logs, batch_has_event_level_server_host = false)
 
     body = {
       :session => @session_id + Thread.current.object_id.to_s,
@@ -843,7 +864,13 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     end
 
     # add serverAttributes
-    body[:sessionInfo] = @server_attributes if @server_attributes
+    # If serverHost is defined on any of the events, we don't send it via sessionInfo since
+    # sesionInfo has the higest priority and would always overwritte the event level one
+    if batch_has_event_level_server_host
+      body[:sessionInfo] = @server_attributes_without_serverhost if @server_attributes_without_serverhost
+    else
+      body[:sessionInfo] = @server_attributes if @server_attributes
+    end
 
     # We time serialization to get some insight on how long it takes to serialize the request body
     start_time = Time.now.to_f
@@ -938,7 +965,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       if !@last_status_transmit_time
         status_event[:attrs]['message'] = sprintf("Started Scalyr LogStash output plugin %s (compression_type=%s,compression_level=%s,json_library=%s)." %
                                                   [PLUGIN_VERSION, @compression_type, @compression_type, @json_library])
-        status_event[:attrs]['serverHost'] = @node_hostname
+        status_event[:attrs][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME] = @node_hostname
       else
         cur_time = Time.now()
         return if (cur_time.to_i - @last_status_transmit_time.to_i) < @status_report_interval
@@ -960,7 +987,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           cnt += 1
         end
         status_event[:attrs]['message'] = msg
-        status_event[:attrs]['serverHost'] = @node_hostname
+        status_event[:attrs][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME] = @node_hostname
         status_event[:attrs]['parser'] = @status_parser
       end
       multi_event_request = create_multi_event_request([status_event], nil, nil, nil)
