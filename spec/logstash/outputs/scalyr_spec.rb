@@ -6,6 +6,7 @@ require "logstash/event"
 require "json"
 require "quantile"
 
+NODE_HOSTNAME = Socket.gethostname
 
 class MockClientSession
   DEFAULT_STATS = {
@@ -103,7 +104,7 @@ describe LogStash::Outputs::Scalyr do
         plugin.instance_variable_set(:@client_session, mock_client_session)
         plugin.instance_variable_set(:@session_id, "some_session_id")
         status_event = plugin.send_status
-        expect(status_event[:attrs]["message"]).to eq("Started Scalyr LogStash output plugin (%s)." % [PLUGIN_VERSION])
+        expect(status_event[:attrs]["message"]).to eq("Started Scalyr LogStash output plugin %s (compression_type=deflate,compression_level=deflate,json_library=stdlib)." % [PLUGIN_VERSION])
 
         # 2. Second send
         plugin.instance_variable_set(:@last_status_transmit_time, 100)
@@ -210,7 +211,7 @@ describe LogStash::Outputs::Scalyr do
         body = JSON.parse(result[0][:body])
         expect(body['events'].size).to eq(3)
         logattrs2 = body['logs'][2]['attrs']
-        expect(logattrs2.fetch('serverHost', nil)).to eq('my host 3')
+        expect(logattrs2.fetch(EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME, nil)).to eq('my host 3')
         expect(logattrs2.fetch('logfile', nil)).to eq('/logstash/my host 3')
         expect(logattrs2.fetch('tags', nil)).to eq(['t1', 't2', 't3'])
       end
@@ -240,7 +241,7 @@ describe LogStash::Outputs::Scalyr do
         body = JSON.parse(result[0][:body])
         expect(body['events'].size).to eq(3)
         logattrs2 = body['logs'][2]['attrs']
-        expect(logattrs2.fetch('serverHost', nil)).to eq('my host 3')
+        expect(logattrs2.fetch(EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME, nil)).to eq('my host 3')
         expect(logattrs2.fetch('logfile', nil)).to eq('/logstash/my host 3')
       end
     end
@@ -258,7 +259,7 @@ describe LogStash::Outputs::Scalyr do
         body = JSON.parse(result[0][:body])
         expect(body['events'].size).to eq(3)
         logattrs2 = body['logs'][2]['attrs']
-        expect(logattrs2.fetch('serverHost', nil)).to eq('my host 3')
+        expect(logattrs2.fetch(EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME, nil)).to eq('my host 3')
         expect(logattrs2.fetch('logfile', nil)).to eq('my file 3')
       end
     end
@@ -287,7 +288,6 @@ describe LogStash::Outputs::Scalyr do
                                                      'seq' => 3,
                                                      'source_file' => 'my file 3',
                                                      'source_host' => 'my host 3',
-                                                     'serverHost' => 'Logstash',
                                                      "tag_prefix_t1" => "true",
                                                      "tag_prefix_t2" => "true",
                                                      "tag_prefix_t3" => "true",
@@ -321,7 +321,6 @@ describe LogStash::Outputs::Scalyr do
                                                      'seq' => 3,
                                                      'source_file' => 'my file 3',
                                                      'source_host' => 'my host 3',
-                                                     'serverHost' => 'Logstash',
                                                      "tag_prefix_t1" => "true",
                                                      "tag_prefix_t2" => "true",
                                                      "tag_prefix_t3" => "true",
@@ -353,7 +352,6 @@ describe LogStash::Outputs::Scalyr do
                                                      'seq' => 3,
                                                      'source_file' => 'my file 3',
                                                      'source_host' => 'my host 3',
-                                                     'serverHost' => 'Logstash',
                                                      "tag_prefix_t1" => "true",
                                                      "tag_prefix_t2" => "true",
                                                      "tag_prefix_t3" => "true",
@@ -385,7 +383,6 @@ describe LogStash::Outputs::Scalyr do
                                                      'seq' => 3,
                                                      'source_file' => 'my file 3',
                                                      'source_host' => 'my host 3',
-                                                     'serverHost' => 'Logstash',
                                                      "tag_prefix_t1" => "true",
                                                      "tag_prefix_t2" => "true",
                                                      "tag_prefix_t3" => "true",
@@ -428,7 +425,6 @@ describe LogStash::Outputs::Scalyr do
                                                      'seq' => 3,
                                                      'source_file' => 'my file 3',
                                                      'source_host' => 'my host 3',
-                                                     'serverHost' => 'Logstash',
                                                      "tag_prefix_t1" => "true",
                                                      "tag_prefix_t2" => "true",
                                                      "tag_prefix_t3" => "true",
@@ -468,7 +464,6 @@ describe LogStash::Outputs::Scalyr do
                                                      'seq' => 3,
                                                      'source_file' => 'my file 3',
                                                      'source_host' => 'my host 3',
-                                                     'serverHost' => 'Logstash',
                                                      "tag_prefix_t1" => "true",
                                                      "tag_prefix_t2" => "true",
                                                      "tag_prefix_t3" => "true",
@@ -503,7 +498,6 @@ describe LogStash::Outputs::Scalyr do
                                                      'seq' => 3,
                                                      'source_file' => 'my file 3',
                                                      'source_host' => 'my host 3',
-                                                     'serverHost' => 'Logstash',
                                                      "tag_prefix_t1" => "true",
                                                      "tag_prefix_t2" => "true",
                                                      "tag_prefix_t3" => "true",
@@ -528,7 +522,6 @@ describe LogStash::Outputs::Scalyr do
                                                      'seq' => 3,
                                                      'source_file' => 'my file 3',
                                                      'source_host' => 'my host 3',
-                                                     'serverHost' => 'Logstash',
                                                      "tags" => ["t1", "t2", "t3"],
                                                      "parser" => "logstashParser",
                                                  })
@@ -554,16 +547,275 @@ describe LogStash::Outputs::Scalyr do
                                                      'seq' => 3,
                                                      'source_file' => 'my file 3',
                                                      'source_host' => 'my host 3',
-                                                     'serverHost' => 'Logstash',
                                                      "tags" => ["t1", "t2", "t3"],
                                                      "parser" => "logstashParser",
                                                  })
         expect(plugin.instance_variable_get(:@logger)).to have_received(:warn).with("Error while flattening record",
           {
             :error_message=>"Resulting flattened object will contain more keys than the configured flattening_max_key_count of 3",
-            :sample_keys=>["serverHost", "parser", "tags_2", "tags_1"]
+            :sample_keys=>["parser", "tags_2", "tags_1", "tags_0"]
           }
         ).exactly(3).times
+      end
+    end
+
+    context "serverHost attribute handling" do
+      it "no serverHost defined in server_attributes, no serverHost defined on event level - should use node hostname as the default session level value" do
+        config = {
+            'api_write_token' => '1234',
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        e = LogStash::Event.new
+        result = plugin.build_multi_event_request_array([e])
+        body = JSON.parse(result[0][:body])
+        expect(body['sessionInfo']['serverHost']).to eq(NODE_HOSTNAME)
+
+        expect(body['logs']).to eq([])
+        expect(body['events'].size).to eq(1)
+        expect(body['events'][0]['attrs']["serverHost"]).to eq(nil)
+      end
+
+      it "serverHost defined in server_attributes, nothing defined on event level - server_attributes value should be used" do
+        config = {
+            'api_write_token' => '1234',
+            'server_attributes' => {'serverHost' => 'fooHost'}
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        e = LogStash::Event.new
+        result = plugin.build_multi_event_request_array([e])
+        body = JSON.parse(result[0][:body])
+        expect(body['sessionInfo']['serverHost']).to eq('fooHost')
+        expect(body['events'].size).to eq(1)
+        expect(body['events'][0]['attrs']["serverHost"]).to eq(nil)
+      end
+
+      # sessionInfo serverHost always has precedence this means it's important that we don't include it if event level attribute is set, otherwise
+      # session level one would simply always overwrite event level one which would be ignored
+      it "serverHost defined in server_attributes (explicitly defined), event level serverHost defined - event level value should be used" do
+        config = {
+            'api_write_token' => '1234',
+            'server_attributes' => {'serverHost' => 'fooHost', 'attr1' => 'val1'}
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        expect(plugin.server_attributes['serverHost']).to eq('fooHost')
+
+        e1 = LogStash::Event.new
+        e1.set('a1', 'v1')
+        e1.set('serverHost', 'event-host-1')
+
+        e2 = LogStash::Event.new
+        e2.set('a2', 'v2')
+        e2.set('serverHost', 'event-host-2')
+
+        e3 = LogStash::Event.new
+        e3.set('a3', 'v3')
+        e3.set('serverHost', 'event-host-2')
+
+        e4 = LogStash::Event.new
+        e4.set('a4', 'v4')
+        e4.set('serverHost', 'event-host-1')
+
+        result = plugin.build_multi_event_request_array([e1, e2, e3, e4])
+        body = JSON.parse(result[0][:body])
+        expect(body['sessionInfo']['serverHost']).to eq(nil)
+        expect(body['sessionInfo']['attr1']).to eq('val1')
+
+        expect(body['logs'].size).to eq(2)
+        expect(body['logs'][0]['id']).to eq(1)
+        expect(body['logs'][0]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq('event-host-1')
+        expect(body['logs'][1]['id']).to eq(2)
+        expect(body['logs'][1]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq('event-host-2')
+
+        expect(body['events'].size).to eq(4)
+        expect(body['events'][0]['log']).to eq(1)
+        expect(body['events'][0]['attrs']["serverHost"]).to eq(nil)
+        expect(body['events'][0]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+
+        expect(body['events'][1]['log']).to eq(2)
+        expect(body['events'][1]['attrs']["serverHost"]).to eq(nil)
+        expect(body['events'][1]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+
+        expect(body['events'][2]['log']).to eq(2)
+        expect(body['events'][2]['attrs']["serverHost"]).to eq(nil)
+        expect(body['events'][2]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+
+        expect(body['events'][3]['log']).to eq(1)
+        expect(body['events'][3]['attrs']["serverHost"]).to eq(nil)
+        expect(body['events'][3]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+      end
+
+      it "serverHost defined in server_attributes (defined via node hostname), event level serverHost defined - event level value should be used" do
+        config = {
+            'api_write_token' => '1234',
+            'server_attributes' => {'attr1' => 'val1'}
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+
+        expect(plugin.server_attributes['serverHost']).to eq(NODE_HOSTNAME)
+
+        e1 = LogStash::Event.new
+        e1.set('a1', 'v1')
+        e1.set('serverHost', 'event-host-1')
+
+        e2 = LogStash::Event.new
+        e2.set('a2', 'v2')
+        e2.set('serverHost', 'event-host-2')
+
+        e3 = LogStash::Event.new
+        e3.set('a3', 'v3')
+        e3.set('serverHost', 'event-host-2')
+
+        e4 = LogStash::Event.new
+        e4.set('a4', 'v4')
+        e4.set('serverHost', 'event-host-1')
+
+        result = plugin.build_multi_event_request_array([e1, e2, e3, e4])
+        body = JSON.parse(result[0][:body])
+        expect(body['sessionInfo']['serverHost']).to eq(nil)
+        expect(body['sessionInfo']['attr1']).to eq('val1')
+
+        expect(body['logs'].size).to eq(2)
+        expect(body['logs'][0]['id']).to eq(1)
+        expect(body['logs'][0]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq('event-host-1')
+        expect(body['logs'][1]['id']).to eq(2)
+        expect(body['logs'][1]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq('event-host-2')
+
+        expect(body['events'].size).to eq(4)
+        expect(body['events'][0]['log']).to eq(1)
+        expect(body['events'][0]['attrs']["serverHost"]).to eq(nil)
+        expect(body['events'][0]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+
+        expect(body['events'][1]['log']).to eq(2)
+        expect(body['events'][1]['attrs']["serverHost"]).to eq(nil)
+        expect(body['events'][1]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+
+        expect(body['events'][2]['log']).to eq(2)
+        expect(body['events'][2]['attrs']["serverHost"]).to eq(nil)
+        expect(body['events'][2]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+
+        expect(body['events'][3]['log']).to eq(1)
+        expect(body['events'][3]['attrs']["serverHost"]).to eq(nil)
+        expect(body['events'][3]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+      end
+
+      # If set_session_level_serverhost_on_events config option is true, we set session level serverHost on events which don't
+      # explicitly define this special attribute.
+      it "serverHost defined in server_attributes (explicitly defined), event level serverHost defined - event level value should be used and server level one for events without server host" do
+        config = {
+            'api_write_token' => '1234',
+            'server_attributes' => {'serverHost' => 'top-level-session-host', 'attr1' => 'val1'}
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        expect(plugin.server_attributes['serverHost']).to eq('top-level-session-host')
+
+        e1 = LogStash::Event.new
+        e1.set('a1', 'v1')
+        e1.set('serverHost', 'event-host-1')
+
+        e2 = LogStash::Event.new
+        e2.set('a2', 'v2')
+
+        e3 = LogStash::Event.new
+        e3.set('a3', 'v3')
+
+        e4 = LogStash::Event.new
+        e4.set('a4', 'v4')
+        e4.set('serverHost', 'event-host-1')
+
+        result = plugin.build_multi_event_request_array([e1, e2, e3, e4])
+        body = JSON.parse(result[0][:body])
+        expect(body['sessionInfo']['serverHost']).to eq(nil)
+        expect(body['sessionInfo']['attr1']).to eq('val1')
+
+        expect(body['logs'].size).to eq(1)
+        expect(body['logs'][0]['id']).to eq(1)
+        expect(body['logs'][0]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq('event-host-1')
+
+        expect(body['events'].size).to eq(4)
+        expect(body['events'][0]['log']).to eq(1)
+        expect(body['events'][0]['attrs']["serverHost"]).to eq(nil)
+        expect(body['events'][0]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+
+        expect(body['events'][1]['log']).to eq(nil)
+        expect(body['events'][1]['attrs']["serverHost"]).to eq(nil)
+        expect(body['events'][2]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq("top-level-session-host")
+
+        expect(body['events'][1]['log']).to eq(nil)
+        expect(body['events'][2]['attrs']["serverHost"]).to eq(nil)
+        expect(body['events'][2]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq("top-level-session-host")
+
+        expect(body['events'][3]['log']).to eq(1)
+        expect(body['events'][3]['attrs']["serverHost"]).to eq(nil)
+        expect(body['events'][3]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+      end
+
+      it "no serverHost defined, event level serverHost defined - event level value should be used" do
+        config = {
+            'api_write_token' => '1234',
+            'server_attributes' => {'attr1' => 'val1'},
+            'use_hostname_for_serverhost' => false
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+
+        expect(plugin.server_attributes['serverHost']).to eq(nil)
+
+        e1 = LogStash::Event.new
+        e1.set('a1', 'v1')
+        e1.set('serverHost', 'event-host-1')
+
+        e2 = LogStash::Event.new
+        e2.set('a2', 'v2')
+        e2.set('serverHost', 'event-host-2')
+
+        e3 = LogStash::Event.new
+        e3.set('a3', 'v3')
+        e3.set('serverHost', 'event-host-2')
+
+        e4 = LogStash::Event.new
+        e4.set('a4', 'v4')
+        e4.set('serverHost', 'event-host-2')
+
+        result = plugin.build_multi_event_request_array([e1, e2, e3, e4])
+        body = JSON.parse(result[0][:body])
+        expect(body['sessionInfo']['serverHost']).to eq(nil)
+        expect(body['sessionInfo']['attr1']).to eq('val1')
+
+        expect(body['logs'][0]['id']).to eq(1)
+        expect(body['logs'][0]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq('event-host-1')
+        expect(body['logs'][1]['id']).to eq(2)
+        expect(body['logs'][1]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq('event-host-2')
+
+        expect(body['events'].size).to eq(4)
+        expect(body['events'][0]['log']).to eq(1)
+        expect(body['events'][0]['attrs']["serverHost"]).to eq(nil)
+        expect(body['events'][0]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+        expect(body['events'][1]['log']).to eq(2)
+        expect(body['events'][1]['attrs']["serverHost"]).to eq(nil)
+        expect(body['events'][1]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+        expect(body['events'][2]['log']).to eq(2)
+        expect(body['events'][2]['attrs']["serverHost"]).to eq(nil)
+        expect(body['events'][2]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+        expect(body['events'][3]['log']).to eq(2)
+        expect(body['events'][3]['attrs']["serverHost"]).to eq(nil)
+        expect(body['events'][3]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
       end
     end
 
@@ -598,7 +850,7 @@ describe LogStash::Outputs::Scalyr do
         e.set('bignumber', 20)
         result = plugin.build_multi_event_request_array([e])
         body = JSON.parse(result[0][:body])
-        expect(result[0][:body]).to include('{"monitor":"pluginLogstash"}')
+        expect(result[0][:body]).to include(sprintf('{"serverHost":"%s","monitor":"pluginLogstash"}', NODE_HOSTNAME))
         expect(body['events'].size).to eq(1)
       end
 
@@ -615,7 +867,7 @@ describe LogStash::Outputs::Scalyr do
         e.set('bignumber', 20)
         result = plugin.build_multi_event_request_array([e])
         body = JSON.parse(result[0][:body])
-        expect(result[0][:body]).to include('{"monitor":"pluginLogstash"}')
+        expect(result[0][:body]).to include(sprintf('{"serverHost":"%s","monitor":"pluginLogstash"}', NODE_HOSTNAME))
         expect(body['events'].size).to eq(1)
       end
 
@@ -632,7 +884,7 @@ describe LogStash::Outputs::Scalyr do
         e.set('bignumber', 20)
         result = plugin.build_multi_event_request_array([e])
         body = JSON.parse(result[0][:body])
-        expect(result[0][:body]).to include('{"monitor":"pluginLogstash"}')
+        expect(result[0][:body]).to include(sprintf('{"serverHost":"%s","monitor":"pluginLogstash"}', NODE_HOSTNAME))
         expect(body['events'].size).to eq(1)
       end
     end
