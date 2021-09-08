@@ -629,6 +629,7 @@ describe LogStash::Outputs::Scalyr do
         expect(body['sessionInfo']['serverHost']).to eq(nil)
         expect(body['sessionInfo']['attr1']).to eq('val1')
 
+        expect(body['logs'].size).to eq(2)
         expect(body['logs'][0]['id']).to eq(1)
         expect(body['logs'][0]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq('event-host-1')
         expect(body['logs'][1]['id']).to eq(2)
@@ -638,12 +639,15 @@ describe LogStash::Outputs::Scalyr do
         expect(body['events'][0]['log']).to eq(1)
         expect(body['events'][0]['attrs']["serverHost"]).to eq(nil)
         expect(body['events'][0]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+
         expect(body['events'][1]['log']).to eq(2)
         expect(body['events'][1]['attrs']["serverHost"]).to eq(nil)
         expect(body['events'][1]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+
         expect(body['events'][2]['log']).to eq(2)
         expect(body['events'][2]['attrs']["serverHost"]).to eq(nil)
         expect(body['events'][2]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+
         expect(body['events'][3]['log']).to eq(1)
         expect(body['events'][3]['attrs']["serverHost"]).to eq(nil)
         expect(body['events'][3]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
@@ -682,6 +686,7 @@ describe LogStash::Outputs::Scalyr do
         expect(body['sessionInfo']['serverHost']).to eq(nil)
         expect(body['sessionInfo']['attr1']).to eq('val1')
 
+        expect(body['logs'].size).to eq(2)
         expect(body['logs'][0]['id']).to eq(1)
         expect(body['logs'][0]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq('event-host-1')
         expect(body['logs'][1]['id']).to eq(2)
@@ -691,12 +696,69 @@ describe LogStash::Outputs::Scalyr do
         expect(body['events'][0]['log']).to eq(1)
         expect(body['events'][0]['attrs']["serverHost"]).to eq(nil)
         expect(body['events'][0]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+
         expect(body['events'][1]['log']).to eq(2)
         expect(body['events'][1]['attrs']["serverHost"]).to eq(nil)
         expect(body['events'][1]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+
         expect(body['events'][2]['log']).to eq(2)
         expect(body['events'][2]['attrs']["serverHost"]).to eq(nil)
         expect(body['events'][2]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+
+        expect(body['events'][3]['log']).to eq(1)
+        expect(body['events'][3]['attrs']["serverHost"]).to eq(nil)
+        expect(body['events'][3]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+      end
+
+      # If set_session_level_serverhost_on_events config option is true, we set session level serverHost on events which don't
+      # explicitly define this special attribute.
+      it "serverHost defined in server_attributes (explicitly defined), event level serverHost defined - event level value should be used and server level one for events without server host" do
+        config = {
+            'api_write_token' => '1234',
+            'server_attributes' => {'serverHost' => 'top-level-session-host', 'attr1' => 'val1'}
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        expect(plugin.server_attributes['serverHost']).to eq('top-level-session-host')
+
+        e1 = LogStash::Event.new
+        e1.set('a1', 'v1')
+        e1.set('serverHost', 'event-host-1')
+
+        e2 = LogStash::Event.new
+        e2.set('a2', 'v2')
+
+        e3 = LogStash::Event.new
+        e3.set('a3', 'v3')
+
+        e4 = LogStash::Event.new
+        e4.set('a4', 'v4')
+        e4.set('serverHost', 'event-host-1')
+
+        result = plugin.build_multi_event_request_array([e1, e2, e3, e4])
+        body = JSON.parse(result[0][:body])
+        expect(body['sessionInfo']['serverHost']).to eq(nil)
+        expect(body['sessionInfo']['attr1']).to eq('val1')
+
+        expect(body['logs'].size).to eq(1)
+        expect(body['logs'][0]['id']).to eq(1)
+        expect(body['logs'][0]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq('event-host-1')
+
+        expect(body['events'].size).to eq(4)
+        expect(body['events'][0]['log']).to eq(1)
+        expect(body['events'][0]['attrs']["serverHost"]).to eq(nil)
+        expect(body['events'][0]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)
+
+        expect(body['events'][1]['log']).to eq(nil)
+        expect(body['events'][1]['attrs']["serverHost"]).to eq(nil)
+        expect(body['events'][2]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq("top-level-session-host")
+
+        expect(body['events'][1]['log']).to eq(nil)
+        expect(body['events'][2]['attrs']["serverHost"]).to eq(nil)
+        expect(body['events'][2]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq("top-level-session-host")
+
         expect(body['events'][3]['log']).to eq(1)
         expect(body['events'][3]['attrs']["serverHost"]).to eq(nil)
         expect(body['events'][3]['attrs'][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME]).to eq(nil)

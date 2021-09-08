@@ -69,6 +69,17 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # value with have fields moved.
   config :log_constants, :validate => :array, :default => nil
 
+  # When this option is true and session level server host is defined (either via
+  # server_attributes config option or via node hostname) and some events in a batch contain
+  # "serverHost" attributes, other nodes in a batch which don't contain it will have serverHost
+  # set to the session level value.
+  # This is needed because session level attribute has priority over event level which means
+  # that in case we specify serverHost on some events, other events won't have any value set
+  # for serverHost.
+  # Since this option adds some overhead and requires additional processing time, it's
+  # disabled by default.
+  config :set_session_level_serverhost_on_events, validate: :boolean, default: false
+
   # If true, nested values will be flattened (which changes keys to delimiter-separated concatenation of all
   # nested keys).
   config :flatten_nested_values, :validate => :boolean, :default => false
@@ -268,6 +279,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     if @server_attributes_without_serverhost.key? "serverHost"
       @server_attributes_without_serverhost.delete "serverHost"
     end
+
+    @session_server_host = @server_attributes["serverHost"]
 
     @scalyr_server << '/' unless @scalyr_server.end_with?('/')
 
@@ -786,6 +799,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             append_event = false
           end
 
+          set_session_level_serverhost_on_events(scalyr_events, logs, batch_has_event_level_server_host)
           multi_event_request = self.create_multi_event_request(scalyr_events, l_events, current_threads, logs, batch_has_event_level_server_host)
           multi_event_request_array << multi_event_request
 
@@ -815,6 +829,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
     # create a final request with any left over events (and make sure there is at least one event)
     if scalyr_events.size >= 1
+      set_session_level_serverhost_on_events(scalyr_events, logs, batch_has_event_level_server_host)
       multi_event_request = self.create_multi_event_request(scalyr_events, l_events, current_threads, logs, batch_has_event_level_server_host)
       multi_event_request_array << multi_event_request
     end
@@ -822,6 +837,32 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     multi_event_request_array
   end
 
+  # Function which sets special serverHost attribute on the events without this special attribute
+  # to session level serverHost value
+  # NOTE: This method mutates scalyr_events in place.
+  def set_session_level_serverhost_on_events(scalyr_events, logs, batch_has_event_level_server_host = false)
+    # Maps log id (number) to logfile attributes for more efficient lookups later on
+    logs_ids_to_attrs = Hash.new
+
+    logs.each {|_, log|
+      logs_ids_to_attrs[log["id"]] = log["attrs"]
+    }
+
+    if batch_has_event_level_server_host
+      scalyr_events.each {|s_event|
+        log_id = s_event[:log]
+        logfile_attrs = logs_ids_to_attrs[log_id]
+
+        if logfile_attrs.nil?
+          logfile_attrs = Hash.new
+        end
+
+        if s_event[:attrs][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME].nil? and logfile_attrs[EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME].nil?
+          s_event[:attrs][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME] = @session_server_host
+        end
+      }
+    end
+  end
 
   # Helper method that adds a client_timestamp to a batch addEvents request body
   def add_client_timestamp_to_body(body)
