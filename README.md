@@ -439,3 +439,65 @@ bundle exec rake publish_gem
 
 `RUBY_USER` and `RUBY_PASSWORD` should be replaced with the username and password to the RubyGems.org account you wish to release to,
  these credentials should be found in Keeper.
+
+# Testing Plugin Changes
+
+This section describes how to test the plugin and changes using docker compose setup from
+lostash-config-tester repo available at https://github.com/Kami/logstash-config-tester.
+
+This repo has been forked and already contains some changes which make testing the plugin
+easier.
+
+The logstash configuration in that repo is set up to receive records encoded as JSON via
+standard input, decode the JSON into the event object and print it to stdout + send it
+to the Scalyr output.
+
+```bash
+# 0. Clone the tester repo
+git clone https://github.com/Kami/logstash-config-tester ~/
+
+# 1. Build the plugin
+gem build logstash-output-scalyr.gemspec
+
+# 2. Copy it to the config test repo
+cp logstash-output-scalyr-0.2.0.beta.gem ~/logstash-config-test/logstash-output-scalyr.gem
+
+# 3. Build docker image with the latest dev version of the plugin (may take a while)
+docker-compose build
+
+# 4. Configure API key in docker-compose.yml and make any changes to plugin config in
+# pipeline/scalyr_output.conf.j2, if necessary
+vim docker-compose.yml
+
+vim pipeline/scalyr_output.conf.j2
+
+# 4. Run logstash with the stdin input and stdout + scalyr output
+docker-compose run logstash
+```
+
+A couple of things to keep in mind:
+
+1. Logstash log level is set to debug which is quite verbose, but it makes troubleshooting and
+  testing easier.
+2. Plugin accepts records (events) as JSON via standard input. This means to inject the mock
+   event you can simply copy the JSON event representation string to stdin and press enter. If you
+   want to submit multiples events to be handled as a single batch, paste each event one at a time
+   and press enter at the end. Logstash pipeline has been configured to wait up to 5 seconds before
+   handling the batch which should give you enough time to test batches with multiple events (this
+   setting can be adjusted in ``config/logstash.yml`` - ``pipeline.batch.delay``, if needed)
+
+Example values you can enter into stdin:
+
+1. Single event batch
+
+```javascript
+{"foo": "bar", "message": "test logstash"}
+```
+
+2. Batch with 3 events
+
+```javascript
+{"serverHost": "host-1", "bar": "baz", "message": "test logstash 1"}
+{"serverHost": "host-2", "bar": "baz", "message": "test logstash 2"}
+{"bar": "baz", "message": "test logstash 3"}
+```
