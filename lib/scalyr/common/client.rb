@@ -1,4 +1,5 @@
 require "scalyr/constants"
+require "logstash-core"
 
 module Scalyr; module Common; module Client
 
@@ -298,7 +299,7 @@ class ClientSession
     version = sprintf('output-logstash-scalyr %s' % [PLUGIN_VERSION])
     post_headers = {
       'Content-Type': 'application/json',
-      'User-Agent': version + ';' + RUBY_VERSION + ';' + RUBY_PLATFORM
+      'User-Agent': version + ';' + RUBY_VERSION + ';' + RUBY_PLATFORM + ';' + LOGSTASH_VERSION
     }
 
     post_body = nil
