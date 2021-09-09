@@ -2,9 +2,19 @@
 
 ## 0.2.0.beta
 
-- Fix a bug and correctly handle ``serverHost`` event level attribute. Now if an event contains ``serverHost`` attribute, this attribute will be correctly set on the event level and available for "Sources" filtering in the UI.
-- Plugin doesn't set ``serverHost`` attribute with a fixed value of ``Logstash`` on each event level anymore. If you still want this behavior, you can achieve that with logstash mutate filter.
-- Session level ``serverHost`` value now defaults to logstash aggregator node hostname (``use_hostname_for_serverhost`` config option now defaults to true).
+- Fix a bug and correctly handle ``serverHost`` event level attribute. Now if an event contains
+``serverHost`` attribute, this attribute will be correctly set on the event level and available for
+ "Sources" filtering in the UI.
+- Plugin doesn't set ``serverHost`` attribute with a fixed value of ``Logstash`` on each event
+level anymore. If you still want this behavior, you can achieve that with logstash mutate filter.
+ - Session level ``serverHost`` value now defaults to logstash aggregator node hostname
+ (``use_hostname_for_serverhost`` config option now defaults to true).
+- ``host`` attribute is not removed by default from all the events. By default, logstash adds
+  ``host`` attribute which contains logstash aggregator host to each event. This is now redundant
+  and unncessary with the fixed and improved serverHost behavior (host and serverHost would contain
+  the same value by default). If you want to change this behavior and and still include ``host``
+  attribute on each event you can do that by setting ``remove_host_attribute_from_events`` config
+  option to false.
 
 ## 0.1.26.beta
 - Add support for new ``json_library`` config option. Valid values are ``stdlib`` (default) are ``jrjackson``. The later may offer 2-4x faster JSON serialization.

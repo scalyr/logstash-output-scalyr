@@ -837,6 +837,59 @@ describe LogStash::Outputs::Scalyr do
       end
     end
 
+    context "host attribute handling" do
+      it "host attribute removed by default" do
+       config = {
+            'api_write_token' => '1234',
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+
+        expect(plugin.server_attributes['serverHost']).to eq(NODE_HOSTNAME)
+
+        e1 = LogStash::Event.new
+        e1.set('a1', 'v1')
+        e1.set('host', 'event-host-1')
+
+        result = plugin.build_multi_event_request_array([e1])
+        body = JSON.parse(result[0][:body])
+        expect(body['sessionInfo']['serverHost']).to eq(NODE_HOSTNAME)
+
+        expect(body['logs'].size).to eq(0)
+
+        expect(body['events'].size).to eq(1)
+        expect(body['events'][0]['attrs']["host"]).to eq(nil)
+      end
+
+      it "host attribute not removed if config option set" do
+       config = {
+            'api_write_token' => '1234',
+            'remove_host_attribute_from_events' => false,
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+
+        expect(plugin.server_attributes['serverHost']).to eq(NODE_HOSTNAME)
+
+        e1 = LogStash::Event.new
+        e1.set('a1', 'v1')
+        e1.set('host', 'event-host-1')
+
+        result = plugin.build_multi_event_request_array([e1])
+        body = JSON.parse(result[0][:body])
+        expect(body['sessionInfo']['serverHost']).to eq(NODE_HOSTNAME)
+
+        expect(body['logs'].size).to eq(0)
+
+        expect(body['events'].size).to eq(1)
+        expect(body['events'][0]['attrs']["host"]).to eq("event-host-1")
+      end
+    end
+
     context "when using custom json library" do
       it "stdlib (implicit)" do
         config = {
