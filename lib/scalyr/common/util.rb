@@ -124,5 +124,32 @@ def self.convert_bignums(obj)
   end
 end
 
-end; end; end;
 
+# Function which sets special serverHost attribute on the events without this special attribute
+# to session level serverHost value
+# NOTE: This method mutates scalyr_events in place.
+def self.set_session_level_serverhost_on_events(session_server_host, scalyr_events, logs, batch_has_event_level_server_host = false)
+  # Maps log id (number) to logfile attributes for more efficient lookups later on
+  logs_ids_to_attrs = Hash.new
+
+  logs.each {|_, log|
+    logs_ids_to_attrs[log["id"]] = log["attrs"]
+  }
+
+  if batch_has_event_level_server_host
+    scalyr_events.each {|s_event|
+      log_id = s_event[:log]
+      logfile_attrs = logs_ids_to_attrs[log_id]
+
+      if logfile_attrs.nil?
+        logfile_attrs = Hash.new
+      end
+
+      if s_event[:attrs][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME].nil? and logfile_attrs[EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME].nil?
+        s_event[:attrs][EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME] = session_server_host
+      end
+    }
+  end
+end
+
+end; end; end;
