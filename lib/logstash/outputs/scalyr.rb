@@ -19,9 +19,6 @@ require 'scalyr/common/client'
 require "scalyr/common/util"
 require "scalyr/constants"
 
-# Special event level attribute name which can be used for setting event level serverHost attribute
-EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME = '__origServerHost'
-
 
 #---------------------------------------------------------------------------------------------------------------------
 # Implements the Scalyr output plugin
