@@ -80,6 +80,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # disabled by default.
   config :set_session_level_serverhost_on_events, validate: :boolean, default: false
 
+  # By default, logstash will add "host" attribute which includes logstash aggregator server
+  # host to each event. This is not really needed and desired anymore with the fixed and improved
+  # serverHost attribute handling (serverHost now contains logstash aggregator hostname by
+  # default).
+  config :remove_host_attribute_from_events, validate: :boolean, default: true
+
   # If true, nested values will be flattened (which changes keys to delimiter-separated concatenation of all
   # nested keys).
   config :flatten_nested_values, :validate => :boolean, :default => false
@@ -630,6 +636,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
       # Rename user-specified logfile field -> 'logfile'
       rename.call(@logfile_field, 'logfile')
+
+      # Remove "host" attribute
+      if @remove_host_attribute_from_events and record.key? "host"
+        record.delete("host")
+      end
 
       # Set a default parser is none is present in the event
       if record['parser'].to_s.empty?
