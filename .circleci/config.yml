@@ -181,6 +181,9 @@ jobs: # a collection of steps
             echo ""
             echo "Bignum converting results:"
             ruby spec/benchmarks/bignum_fixing.rb
+            echo ""
+            echo "set_session_level_serverhost_on_events results:"
+            ruby spec/benchmarks/set_session_level_serverhost_on_events.rb
 
 workflows:
   version: 2
