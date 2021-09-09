@@ -86,7 +86,6 @@ puts "==============================="
 data = generate_events(100)
 run_benchmark_and_print_results(data, method(:run_func))
 
-
 # 500 events in a batch
 data = generate_events(500)
 run_benchmark_and_print_results(data, method(:run_func))
@@ -105,5 +104,4 @@ run_benchmark_and_print_results(data, method(:run_func))
 
 # 5000 events in a batch
 data = generate_events(5000)
-puts data.size
 run_benchmark_and_print_results(data, method(:run_func))
