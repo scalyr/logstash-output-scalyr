@@ -157,6 +157,10 @@ jobs: # a collection of steps
             echo "json serialization:"
             ruby spec/benchmarks/json_serialization.rb
             echo ""
+            echo "set_session_level_serverhost_on_events results:"
+            ruby spec/benchmarks/set_session_level_serverhost_on_events.rb
+            echo ""
+
 
   # We run micro benchmarks against cRuby just for reference purposes since plugins always run
   # with jRuby
@@ -184,6 +188,7 @@ jobs: # a collection of steps
             echo ""
             echo "set_session_level_serverhost_on_events results:"
             ruby spec/benchmarks/set_session_level_serverhost_on_events.rb
+            echo ""
 
 workflows:
   version: 2
