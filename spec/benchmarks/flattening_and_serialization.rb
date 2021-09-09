@@ -17,7 +17,7 @@ def run_benchmark_and_print_results(data, run_benchmark_func)
 
   result = []
   ITERATIONS.times do |i|
-    result << Benchmark.measure { run_benchmark_func.(data[0]) }
+    result << Benchmark.measure { run_benchmark_func.(data[i]) }
   end
 
   sum = result.inject(nil) { |sum, t| sum.nil? ? sum = t : sum += t }
