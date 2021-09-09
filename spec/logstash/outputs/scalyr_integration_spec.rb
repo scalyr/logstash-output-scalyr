@@ -5,6 +5,11 @@ require "logstash/codecs/plain"
 require "logstash/event"
 require "json"
 require 'webmock/rspec'
+
+# Require the specific version of `json` used in logstash
+gem 'json', '1.8.6'
+require 'json'
+
 WebMock.allow_net_connect!
 
 RSpec.configure do |rspec|

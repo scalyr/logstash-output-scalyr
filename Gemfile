@@ -12,6 +12,7 @@ end
 
 group :test do
   gem "webmock"
+  gem 'json', '1.8.6'
 end
 
 gem 'pry'

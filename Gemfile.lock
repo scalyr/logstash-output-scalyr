@@ -46,6 +46,7 @@ GEM
     jar-dependencies (0.4.0)
     jrjackson (0.4.14-java)
     jruby-openssl (0.9.19-java)
+    json (1.8.6-java)
     kramdown (1.14.0)
     logstash-codec-plain (3.0.6)
       logstash-core-plugin-api (>= 1.60, <= 2.99)
@@ -155,6 +156,7 @@ PLATFORMS
 
 DEPENDENCIES
   jrjackson (~> 0.4.14)
+  json (= 1.8.6)
   logstash-devutils
   logstash-output-scalyr!
   manticore (~> 0.7.1)
@@ -164,4 +166,4 @@ DEPENDENCIES
   webmock
 
 BUNDLED WITH
-   2.2.18
+   2.2.27

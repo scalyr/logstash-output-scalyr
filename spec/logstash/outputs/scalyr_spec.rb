@@ -6,6 +6,10 @@ require "logstash/event"
 require "json"
 require "quantile"
 
+# Require the specific version of `json` used in logstash
+gem 'json', '1.8.6'
+require 'json'
+
 NODE_HOSTNAME = Socket.gethostname
 
 class MockClientSession
@@ -833,6 +837,7 @@ describe LogStash::Outputs::Scalyr do
         result = plugin.build_multi_event_request_array([e])
         body = JSON.parse(result[0][:body])
         expect(body['events'].size).to eq(1)
+        expect(body['events'][0]['attrs']['bignumber']).to be_a_kind_of(String)
         expect(plugin.instance_variable_get(:@logger)).to_not receive(:error)
       end
     end
