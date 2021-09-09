@@ -2,14 +2,11 @@ require 'benchmark'
 require 'quantile'
 
 require_relative '../../lib/scalyr/common/util'
+require_relative './util'
 
 # Micro benchmark which measures how long it takes to find all the Bignums in a record and convert them to strings
 
 ITERATIONS = 500
-
-def rand_str(len)
-  return (0...len).map { (65 + rand(26)).chr }.join
-end
 
 def rand_bignum()
   return 200004000020304050300 + rand(999999)
