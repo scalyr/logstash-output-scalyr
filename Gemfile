@@ -12,6 +12,9 @@ end
 
 group :test do
   gem "webmock"
+
+  # Require the specific version of `json` used in logstash while testing
+  gem 'json', '1.8.6'
 end
 
 gem 'pry'
