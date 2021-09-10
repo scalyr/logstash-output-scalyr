@@ -57,6 +57,7 @@ describe LogStash::Outputs::Scalyr do
     context "test get_stats and send_status" do
       plugin = LogStash::Outputs::Scalyr.new({
                                                      'api_write_token' => '1234',
+                                                     'perform_connectivity_check' => false,
                                                      'serverhost_field' => 'source_host',
                                                      'log_constants' => ['tags'],
                                                      'flatten_nested_values' => true,
@@ -73,6 +74,7 @@ describe LogStash::Outputs::Scalyr do
       it "it doesnt include flatten metrics if flattening is disabled" do
         plugin1 = LogStash::Outputs::Scalyr.new({
                                                      'api_write_token' => '1234',
+                                                     'perform_connectivity_check' => false,
                                                      'serverhost_field' => 'source_host',
                                                      'log_constants' => ['tags'],
                                                      'flatten_nested_values' => false,
@@ -147,6 +149,7 @@ describe LogStash::Outputs::Scalyr do
       it "send_stats is not called when events list is empty and report_status_for_empty_batches is false" do
         plugin2 = LogStash::Outputs::Scalyr.new({
                                                      'api_write_token' => '1234',
+                                                     'perform_connectivity_check' => false,
                                                      'serverhost_field' => 'source_host',
                                                      'log_constants' => ['tags'],
                                                      'flatten_nested_values' => false,
@@ -202,6 +205,7 @@ describe LogStash::Outputs::Scalyr do
       it "creates logfile from serverHost" do
         plugin = LogStash::Outputs::Scalyr.new({
                                                    'api_write_token' => '1234',
+                                                   'perform_connectivity_check' => false,
                                                    'serverhost_field' => 'source_host',
                                                    'log_constants' => ['tags'],
                                                })
@@ -219,7 +223,7 @@ describe LogStash::Outputs::Scalyr do
 
     context "when serverhost_field is missing" do
       it "does not contain log file" do
-        plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234'})
+        plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'perform_connectivity_check' => false})
         allow(plugin).to receive(:send_status).and_return(nil)
         plugin.register
         result = plugin.build_multi_event_request_array(sample_events)
@@ -233,6 +237,7 @@ describe LogStash::Outputs::Scalyr do
       it "creates logfile from serverHost" do
         plugin = LogStash::Outputs::Scalyr.new({
                                                    'api_write_token' => '1234',
+                                                   'perform_connectivity_check' => false,
                                                    'serverhost_field' => 'source_host',
                                                })
         allow(plugin).to receive(:send_status).and_return(nil)
@@ -250,6 +255,7 @@ describe LogStash::Outputs::Scalyr do
       it "does not contain log file" do
         plugin = LogStash::Outputs::Scalyr.new({
                                                    'api_write_token' => '1234',
+                                                   'perform_connectivity_check' => false,
                                                    'serverhost_field' => 'source_host',
                                                    'logfile_field' => 'source_file',
                                                })
@@ -267,6 +273,7 @@ describe LogStash::Outputs::Scalyr do
     context "when configured to flatten values with custom delimiter" do
       config = {
           'api_write_token' => '1234',
+          'perform_connectivity_check' => false,
           'flatten_tags' => true,
           'flat_tag_value' => 'true',
           'flat_tag_prefix' => 'tag_prefix_',
@@ -299,6 +306,7 @@ describe LogStash::Outputs::Scalyr do
     context "when configured to flatten values with custom delimiter and deep delimiter fix" do
       config = {
           'api_write_token' => '1234',
+          'perform_connectivity_check' => false,
           'flatten_tags' => true,
           'flat_tag_value' => 'true',
           'flat_tag_prefix' => 'tag_prefix_',
@@ -332,6 +340,7 @@ describe LogStash::Outputs::Scalyr do
     context "when configured to flatten values with custom delimiter, no array flattening" do
       config = {
           'api_write_token' => '1234',
+          'perform_connectivity_check' => false,
           'flatten_tags' => true,
           'flat_tag_value' => 'true',
           'flat_tag_prefix' => 'tag_prefix_',
@@ -363,6 +372,7 @@ describe LogStash::Outputs::Scalyr do
     context "when configured to flatten values and tags" do
       config = {
           'api_write_token' => '1234',
+          'perform_connectivity_check' => false,
           'flatten_tags' => true,
           'flat_tag_value' => 'true',
           'flat_tag_prefix' => 'tag_prefix_',
@@ -395,6 +405,7 @@ describe LogStash::Outputs::Scalyr do
       it "estimate_each_event_size is true explicit (default) batch split into 3 scalyr requests" do
         config = {
             'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
             'flatten_tags' => true,
             'flat_tag_value' => 'true',
             'flat_tag_prefix' => 'tag_prefix_',
@@ -435,6 +446,7 @@ describe LogStash::Outputs::Scalyr do
       it "estimate_each_event_size is true implicit (default) batch split into 3 scalyr requests" do
         config = {
             'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
             'flatten_tags' => true,
             'flat_tag_value' => 'true',
             'flat_tag_prefix' => 'tag_prefix_',
@@ -474,6 +486,7 @@ describe LogStash::Outputs::Scalyr do
       it "estimate_each_event_size is false batch not split into multiple scalyr requests" do
         config = {
             'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
             'flatten_tags' => true,
             'flat_tag_value' => 'true',
             'flat_tag_prefix' => 'tag_prefix_',
@@ -509,6 +522,7 @@ describe LogStash::Outputs::Scalyr do
     context "when not configured to flatten values and tags" do
       config = {
           'api_write_token' => '1234',
+          'perform_connectivity_check' => false,
       }
       plugin = LogStash::Outputs::Scalyr.new(config)
       it "does not flatten" do
@@ -531,6 +545,7 @@ describe LogStash::Outputs::Scalyr do
     context "when configured to flatten with max keys configured to 3" do
       config = {
           'api_write_token' => '1234',
+          'perform_connectivity_check' => false,
           'flatten_nested_values' => true,  # this converts into string 'true'
           'flattening_max_key_count' => 3,
       }
@@ -563,6 +578,7 @@ describe LogStash::Outputs::Scalyr do
       it "no serverHost defined in server_attributes, no serverHost defined on event level - should use node hostname as the default session level value" do
         config = {
             'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
         }
         plugin = LogStash::Outputs::Scalyr.new(config)
 
@@ -581,6 +597,7 @@ describe LogStash::Outputs::Scalyr do
       it "serverHost defined in server_attributes, nothing defined on event level - server_attributes value should be used" do
         config = {
             'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
             'server_attributes' => {'serverHost' => 'fooHost'}
         }
         plugin = LogStash::Outputs::Scalyr.new(config)
@@ -600,6 +617,7 @@ describe LogStash::Outputs::Scalyr do
       it "serverHost defined in server_attributes (explicitly defined), event level serverHost defined - event level value should be used" do
         config = {
             'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
             'server_attributes' => {'serverHost' => 'fooHost', 'attr1' => 'val1'}
         }
         plugin = LogStash::Outputs::Scalyr.new(config)
@@ -656,6 +674,7 @@ describe LogStash::Outputs::Scalyr do
       it "serverHost defined in server_attributes (defined via node hostname), event level serverHost defined - event level value should be used" do
         config = {
             'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
             'server_attributes' => {'attr1' => 'val1'}
         }
         plugin = LogStash::Outputs::Scalyr.new(config)
@@ -715,6 +734,7 @@ describe LogStash::Outputs::Scalyr do
       it "serverHost defined in server_attributes (explicitly defined), event level serverHost defined - event level value should be used and server level one for events without server host" do
         config = {
             'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
             'server_attributes' => {'serverHost' => 'top-level-session-host', 'attr1' => 'val1'}
         }
         plugin = LogStash::Outputs::Scalyr.new(config)
@@ -767,6 +787,7 @@ describe LogStash::Outputs::Scalyr do
       it "no serverHost defined, event level serverHost defined - event level value should be used" do
         config = {
             'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
             'server_attributes' => {'attr1' => 'val1'},
             'use_hostname_for_serverhost' => false
         }
@@ -822,6 +843,7 @@ describe LogStash::Outputs::Scalyr do
     context "when receiving an event with Bignums" do
       config = {
           'api_write_token' => '1234',
+          'perform_connectivity_check' => false,
       }
       plugin = LogStash::Outputs::Scalyr.new(config)
       it "doesn't throw an error" do
@@ -841,6 +863,7 @@ describe LogStash::Outputs::Scalyr do
       it "host attribute removed by default" do
        config = {
             'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
         }
         plugin = LogStash::Outputs::Scalyr.new(config)
 
@@ -866,6 +889,7 @@ describe LogStash::Outputs::Scalyr do
       it "host attribute not removed if config option set" do
        config = {
             'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
             'remove_host_attribute_from_events' => false,
         }
         plugin = LogStash::Outputs::Scalyr.new(config)
@@ -894,6 +918,7 @@ describe LogStash::Outputs::Scalyr do
       it "stdlib (implicit)" do
         config = {
             'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
         }
         plugin = LogStash::Outputs::Scalyr.new(config)
 
@@ -910,6 +935,7 @@ describe LogStash::Outputs::Scalyr do
       it "stdlib (explicit)" do
         config = {
             'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
             'json_library' => 'stdlib'
         }
         plugin = LogStash::Outputs::Scalyr.new(config)
@@ -927,6 +953,7 @@ describe LogStash::Outputs::Scalyr do
       it "jrjackson" do
         config = {
             'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
             'json_library' => 'jrjackson'
         }
         plugin = LogStash::Outputs::Scalyr.new(config)
@@ -942,11 +969,12 @@ describe LogStash::Outputs::Scalyr do
       end
     end
 
-    context "scalyr_server config option handling" do
+    context "scalyr_server config option handling and connectivity check" do
       it "doesn't throw an error on valid url" do
         puts "c"
         config = {
             'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
             'scalyr_server' => 'https://agent.scalyr.com'
         }
         plugin = LogStash::Outputs::Scalyr.new(config)
@@ -954,6 +982,7 @@ describe LogStash::Outputs::Scalyr do
 
         config = {
             'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
             'scalyr_server' => 'https://eu.scalyr.com'
         }
         plugin = LogStash::Outputs::Scalyr.new(config)
@@ -963,6 +992,7 @@ describe LogStash::Outputs::Scalyr do
       it "throws on invalid URL" do
         config = {
             'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
             'scalyr_server' => 'agent.scalyr.com'
         }
         plugin = LogStash::Outputs::Scalyr.new(config)
@@ -970,6 +1000,7 @@ describe LogStash::Outputs::Scalyr do
 
         config = {
             'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
             'scalyr_server' => 'eu.scalyr.com'
         }
         plugin = LogStash::Outputs::Scalyr.new(config)
@@ -979,10 +1010,23 @@ describe LogStash::Outputs::Scalyr do
       it "throws on invalid hostname" do
         config = {
             'api_write_token' => '1234',
-            'scalyr_server' => 'https://agent.foo.invalid.scalyr.com'
+            'perform_connectivity_check' => false,
+            'scalyr_server' => 'https://agent.invalid.foo.scalyr.com',
+            'perform_connectivity_check' => true
         }
         plugin = LogStash::Outputs::Scalyr.new(config)
         expect { plugin.register }.to raise_error(LogStash::ConfigurationError, /Received error when trying to communicate/)
+      end
+
+      it "throws on invalid api key" do
+        config = {
+            'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
+            'scalyr_server' => 'https://agent.scalyr.com',
+            'perform_connectivity_check' => true
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+        expect { plugin.register }.to raise_error(LogStash::ConfigurationError, /Received 401 from Scalyr API during/)
       end
     end
   end

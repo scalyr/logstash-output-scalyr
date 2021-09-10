@@ -35,6 +35,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # If you have an EU-based Scalyr account, please use https://eu.scalyr.com/
   config :scalyr_server, :validate => :string, :default => "https://agent.scalyr.com/"
 
+  # True to perform connectivity check with Scalyr on plugin start up / register phase. This
+  # ensures an exception is thrown if we can't communicate with Scalyr and we don't start
+  # consuming events until plugin is correctly configured.
+  config :perform_connectivity_check, :validate => :boolean, :default => true
+
   # server_attributes is a dictionary of key value pairs that represents/identifies the logstash aggregator server
   # (where this plugin is running).  Keys are arbitrary except for the 'serverHost' key which holds special meaning to
   # Scalyr and is given special treatment in the Scalyr UI.  All of these attributes are optional (not required for logs
@@ -326,6 +331,17 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         @http_connect_timeout, @http_socket_timeout, @http_request_timeout, @http_pool_max, @http_pool_max_per_route
     )
 
+    # We also "prime" the main HTTP client here, one which is used for sending subsequent requests.
+    # Here priming just means setting up the client parameters without opening any connections.
+    # Since client writes certs to a temporary file there could be a race in case we don't do that
+    # here since multi_receive() is multi threaded. An alternative would be to put a look around
+    # client init method (aka client_config())
+    @client_session.client
+
+    # Send a ping to verify that the configuration API key is correct and that we can establish
+    # connection with Scalyr API
+    connectivity_check
+
     @logger.info(sprintf("Started Scalyr LogStash output plugin %s (compression_type=%s,compression_level=%s,json_library=%s)." %
                          [PLUGIN_VERSION, @compression_type, @compression_type, @json_library]), :class => self.class.name)
 
@@ -343,35 +359,47 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
     # We propagate errors on intial request to better handle errors related to invalid hostname
     # or similar
+    send_status(initial_send_status_client_session)
+    initial_send_status_client_session.close
+
+  end # def register
+
+  # Method which performs connectivity check with Scalyr API, verifies that wt can talk to the API
+  # and that the API token is valid.
+  def connectivity_check()
+    if not @perform_connectivity_check
+      return
+    end
+
+    @logger.debug("Performing connectivity check against the Scalyr API")
+
+    body = create_multi_event_request([], nil, nil, nil)[:body]
+
     begin
-      send_status(initial_send_status_client_session, true)
-    rescue Scalyr::Common::Client::ClientError => e
+      @client_session.send_ping(body)
+    rescue Scalyr::Common::Client::ClientError, Manticore::ResolutionFailure => e
       if not e.message.nil? and e.message.include?("nodename nor servname provided")
         raise LogStash::ConfigurationError,
                     format("Received error when trying to communicate with Scalyr API. This likely means that " \
-                           "the configured value for 'scalyr_server' config option is not valid. Error: %s",
+                           "the configured value for 'scalyr_server' config option is invalid. Original error: %s",
                            e.message)
       end
 
       # For now, we consider rest of the errors non fatal and just log them and don't propagate
       # them and fail register
-      @logger.error("Received error when trying to send initial status request to Scalyr",
+      @logger.warn("Received error when trying to send connectivity check request to Scalyr",
                     :error => e.message)
+    rescue Scalyr::Common::Client::ServerError => e
+      if e.code == 401
+        raise LogStash::ConfigurationError,
+                    format("Received 401 from Scalyr API during connectivity check which indicates " \
+                           "an invalid API key. Server Response: %s", e.body)
+      end
+
     rescue => e
-      @logger.error("Received non-fatal error when trying to send initial status request to " \
-                    "Scalyr", :error => e.message)
-    ensure
-      initial_send_status_client_session.close
+      @logger.warn("Received non-fatal error during connectivity check", :error => e.message)
     end
-
-    # We also "prime" the main HTTP client here, one which is used for sending subsequent requests.
-    # Here priming just means setting up the client parameters without opening any connections.
-    # Since client writes certs to a temporary file there could be a race in case we don't do that
-    # here since multi_receive() is multi threaded. An alternative would be to put a look around
-    # client init method (aka client_config())
-    @client_session.client
-
-  end # def register
+  end
 
   # Convenience method to create a fresh quantile estimator
   def get_new_metrics
