@@ -2,8 +2,9 @@
 
 ## 0.2.1.beta
 
-- Update plugin to throw more user-friendly error on invalid URL for ``scalyr_server``
-  configuration option value.
+- Update plugin to fail fast on register and throw more user-friendly error on invalid URL for
+  ``scalyr_server`` configuration option value and other fatal server errors (e.g. invalid
+  hostname).
 
 ## 0.2.0.beta
 

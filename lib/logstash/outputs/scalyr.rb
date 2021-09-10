@@ -355,7 +355,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
       # For now, we consider rest of the errors non fatal and just log them and don't propagate
       # them and fail register
-      @logger.error("Received error when trying to send initial status request to Scalyr", :error => e.message)
+      @logger.error("Received error when trying to send initial status request to Scalyr",
+                    :error => e.message)
+    rescue => e
+      @logger.error("Received non-fatal error when trying to send initial status request to " \
+                    "Scalyr", :error => e.message)
     ensure
       initial_send_status_client_session.close
     end
