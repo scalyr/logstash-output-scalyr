@@ -287,6 +287,15 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
     @scalyr_server << '/' unless @scalyr_server.end_with?('/')
 
+    # Validate the URL
+    uri = URI.parse(@scalyr_server)
+
+    if not uri.kind_of?(URI::HTTP) and not uri.kind_of?(URI::HTTPS)
+      raise LogStash::ConfigurationError, "scalyr_server configuration option value is not a valid URL. " \
+                                          "This value needs contain a full URL with the protocol. e.g. " \
+                                          "https://agent.scalyr.com for US and https://eu.scalyr.com for EU"
+    end
+
     @add_events_uri = URI(@scalyr_server) + "addEvents"
 
     @logger.info "Scalyr LogStash Plugin ID - #{self.id}"
@@ -322,7 +331,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
     # Finally, send a status line to Scalyr
     # We use a special separate short lived client session for sending the initial client status.
-    # This is done to avoid the overhead in case single logstash instance has many scalyr output 
+    # This is done to avoid the overhead in case single logstash instance has many scalyr output
     # plugins configured with conditionals and majority of them are inactive (aka receive no data).
     # This way we don't need to keep idle long running connection open.
     initial_send_status_client_session = Scalyr::Common::Client::ClientSession.new(
@@ -331,8 +340,25 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         @record_stats_for_status, @flush_quantile_estimates_on_status_send,
         @http_connect_timeout, @http_socket_timeout, @http_request_timeout, @http_pool_max, @http_pool_max_per_route
     )
-    send_status(initial_send_status_client_session)
-    initial_send_status_client_session.close
+
+    # We propagate errors on intial request to better handle errors related to invalid hostname
+    # or similar
+    begin
+      send_status(initial_send_status_client_session, true)
+    rescue Scalyr::Common::Client::ClientError => e
+      if not e.message.nil? and e.message.include?("nodename nor servname provided")
+        raise LogStash::ConfigurationError,
+                    format("Received error when trying to communicate with Scalyr API. This likely means that " \
+                           "the configured value for 'scalyr_server' config option is not valid. Error: %s",
+                           e.message)
+      end
+
+      # For now, we consider rest of the errors non fatal and just log them and don't propagate
+      # them and fail register
+      @logger.error("Received error when trying to send initial status request to Scalyr", :error => e.message)
+    ensure
+      initial_send_status_client_session.close
+    end
 
     # We also "prime" the main HTTP client here, one which is used for sending subsequent requests.
     # Here priming just means setting up the client parameters without opening any connections.
@@ -973,7 +999,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Finally, note that there could be multiple instances of this plugin (one per worker), in which case each worker
   # thread sends their own status updates.  This is intentional so that we know how much data each worker thread is
   # uploading to Scalyr over time.
-  def send_status(client_session = nil)
+  def send_status(client_session = nil, propagate_error = false)
     client_session = @client_session if client_session.nil?
 
     status_event = {
@@ -1030,6 +1056,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             :error_class => e.class.name
           )
         end
+
+        if propagate_error
+          raise e
+        end
+
         return
       end
       @last_status_transmit_time = Time.now()

@@ -941,5 +941,49 @@ describe LogStash::Outputs::Scalyr do
         expect(body['events'].size).to eq(1)
       end
     end
+
+    context "scalyr_server config option handling" do
+      it "doesn't throw an error on valid url" do
+        puts "c"
+        config = {
+            'api_write_token' => '1234',
+            'scalyr_server' => 'https://agent.scalyr.com'
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+        plugin.register
+
+        config = {
+            'api_write_token' => '1234',
+            'scalyr_server' => 'https://eu.scalyr.com'
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+        plugin.register
+      end
+
+      it "throws on invalid URL" do
+        config = {
+            'api_write_token' => '1234',
+            'scalyr_server' => 'agent.scalyr.com'
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+        expect { plugin.register }.to raise_error(LogStash::ConfigurationError, /is not a valid URL/)
+
+        config = {
+            'api_write_token' => '1234',
+            'scalyr_server' => 'eu.scalyr.com'
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+        expect { plugin.register }.to raise_error(LogStash::ConfigurationError, /is not a valid URL/)
+      end
+
+      it "throws on invalid hostname" do
+        config = {
+            'api_write_token' => '1234',
+            'scalyr_server' => 'https://agent.foo.invalid.scalyr.com'
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+        expect { plugin.register }.to raise_error(LogStash::ConfigurationError, /Received error when trying to communicate/)
+      end
+    end
   end
 end

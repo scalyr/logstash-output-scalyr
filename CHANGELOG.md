@@ -1,5 +1,10 @@
 # Beta
 
+## 0.2.1.beta
+
+- Update plugin to throw more user-friendly error on invalid URL for ``scalyr_server``
+  configuration option value.
+
 ## 0.2.0.beta
 
 - Fix a bug and correctly handle ``serverHost`` event level attribute. Now if an event contains
