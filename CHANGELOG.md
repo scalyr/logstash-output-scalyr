@@ -6,11 +6,11 @@
   ``scalyr_server`` configuration option value and other fatal server errors (e.g. invalid
   hostname).
 - On plugin init / register we now perform connectivity check and verify that we can talk to
-  Scalyr API and that the API key is valid. This ensures that the plugin doesn't start and
-  start consuming events until we can successfully perform a connectivity check which means
-  we can't end up in situation when we could potentially drop some events in case of an invalid
-  API token or similar when reaching retry limit and DLQ disabled. If you want to disable this
-  check on register, you can set ``perform_connectivity_check`` config option to ``false``.
+  Scalyr API and validate that the API key is valid. This ensures that the plugin doesn't start and
+  start consuming events until we can successfully perform a connectivity check. This means
+  we can't end up in situation when we could potentially drop some events to the ground in case of
+  an invalid API key or similar when reaching retry limit and DLQ disabled. If you want to disable
+  this check on register, you can set ``perform_connectivity_check`` config option to ``false``.
 
 ## 0.2.0.beta
 
