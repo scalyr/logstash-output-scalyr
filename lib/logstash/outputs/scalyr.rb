@@ -378,8 +378,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     begin
       @client_session.send_ping(body)
     rescue Scalyr::Common::Client::ClientError, Manticore::ResolutionFailure => e
-      puts "---1"
-      puts e.message
       if not e.message.nil? and (e.message.include?("nodename nor servname provided") or
           e.message.downcase.include?("name or service not know"))
         raise LogStash::ConfigurationError,
@@ -400,8 +398,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       end
 
     rescue => e
-      puts "---2"
-      puts e.message
       @logger.warn("Received non-fatal error during connectivity check", :error => e.message)
     end
   end
