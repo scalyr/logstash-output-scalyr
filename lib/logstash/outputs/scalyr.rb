@@ -1032,7 +1032,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Finally, note that there could be multiple instances of this plugin (one per worker), in which case each worker
   # thread sends their own status updates.  This is intentional so that we know how much data each worker thread is
   # uploading to Scalyr over time.
-  def send_status(client_session = nil, propagate_error = false)
+  def send_status(client_session = nil)
     client_session = @client_session if client_session.nil?
 
     status_event = {
@@ -1088,10 +1088,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             :error_message => e.message,
             :error_class => e.class.name
           )
-        end
-
-        if propagate_error
-          raise e
         end
 
         return
