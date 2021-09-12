@@ -32,7 +32,7 @@ describe LogStash::Outputs::Scalyr do
       context "with default SSL configuration" do
         it "throws a ServerError due to fake api key" do
               plugin = LogStash::Outputs::Scalyr.new({
-                'api_write_token' => '1235',
+                'api_write_token' => '1234',
                 'perform_connectivity_check' => false,
               })
               plugin.register
