@@ -31,7 +31,10 @@ describe LogStash::Outputs::Scalyr do
   describe "#ssl_tests" do
       context "with default SSL configuration" do
         it "throws a ServerError due to fake api key" do
-              plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234'})
+              plugin = LogStash::Outputs::Scalyr.new({
+                'api_write_token' => '1235',
+                'perform_connectivity_check' => false,
+              })
               plugin.register
               plugin.instance_variable_set(:@running, false)
               allow(plugin.instance_variable_get(:@logger)).to receive(:error)
@@ -55,7 +58,12 @@ describe LogStash::Outputs::Scalyr do
 
       context "when pointing at a location without any valid certs and not using builtin" do
         it "throws an SSLError" do
-              plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'ssl_ca_bundle_path' => '/fakepath/nocerts', 'append_builtin_cert' => false})
+              plugin = LogStash::Outputs::Scalyr.new({
+                'api_write_token' => '1234',
+                'perform_connectivity_check' => false,
+                'ssl_ca_bundle_path' => '/fakepath/nocerts',
+                'append_builtin_cert' => false,
+              })
               plugin.register
               plugin.instance_variable_set(:@running, false)
               allow(plugin.instance_variable_get(:@logger)).to receive(:error)
@@ -81,7 +89,11 @@ describe LogStash::Outputs::Scalyr do
           `sudo mv #{OpenSSL::X509::DEFAULT_CERT_DIR} /tmp/system_certs`
 
           begin
-              plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'append_builtin_cert' => false})
+              plugin = LogStash::Outputs::Scalyr.new({
+                'api_write_token' => '1234',
+                'perform_connectivity_check' => false,
+                'append_builtin_cert' => false,
+              })
               plugin.register
               plugin.instance_variable_set(:@running, false)
               allow(plugin.instance_variable_get(:@logger)).to receive(:error)
@@ -120,7 +132,11 @@ describe LogStash::Outputs::Scalyr do
           `echo "#{etc_hosts_entry}" | sudo tee -a /etc/hosts`
 
           begin
-              plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'scalyr_server' => 'https://invalid.mitm.should.fail.test.agent.scalyr.com:443'})
+              plugin = LogStash::Outputs::Scalyr.new({
+                'api_write_token' => '1234',
+                'perform_connectivity_check' => false,
+                'scalyr_server' => 'https://invalid.mitm.should.fail.test.agent.scalyr.com:443',
+              })
               plugin.register
               plugin.instance_variable_set(:@running, false)
               allow(plugin.instance_variable_get(:@logger)).to receive(:error)
@@ -147,7 +163,13 @@ describe LogStash::Outputs::Scalyr do
 
       context "when an error occurs with retries at 5" do
         it "exits after 5 retries and emits a log" do
-              plugin = LogStash::Outputs::Scalyr.new({'retry_initial_interval' => 0.1, 'api_write_token' => '1234', 'ssl_ca_bundle_path' => '/fakepath/nocerts', 'append_builtin_cert' => false})
+              plugin = LogStash::Outputs::Scalyr.new({
+                'api_write_token' => '1234',
+                'perform_connectivity_check' => false,
+                'retry_initial_interval' => 0.1,
+                'ssl_ca_bundle_path' => '/fakepath/nocerts',
+                'append_builtin_cert' => false
+              })
               plugin.register
               allow(plugin.instance_variable_get(:@logger)).to receive(:error)
               plugin.multi_receive(sample_events)
@@ -163,7 +185,12 @@ describe LogStash::Outputs::Scalyr do
         stub_request(:post, "https://agent.scalyr.com/addEvents").
           to_return(status: 503, body: "stubbed response", headers: {})
 
-        plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'ssl_ca_bundle_path' => '/fakepath/nocerts', 'append_builtin_cert' => false})
+        plugin = LogStash::Outputs::Scalyr.new({
+          'api_write_token' => '1234',
+          'perform_connectivity_check' => false,
+          'ssl_ca_bundle_path' => '/fakepath/nocerts',
+          'append_builtin_cert' => false
+        })
         plugin.register
         plugin.instance_variable_set(:@running, false)
 
@@ -191,7 +218,12 @@ describe LogStash::Outputs::Scalyr do
         stub_request(:post, "https://agent.scalyr.com/addEvents").
           to_return(status: 500, body: "stubbed response", headers: {})
 
-        plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'ssl_ca_bundle_path' => '/fakepath/nocerts', 'append_builtin_cert' => false})
+        plugin = LogStash::Outputs::Scalyr.new({
+          'api_write_token' => '1234',
+          'perform_connectivity_check' => false,
+          'ssl_ca_bundle_path' => '/fakepath/nocerts',
+          'append_builtin_cert' => false
+        })
         plugin.register
         plugin.instance_variable_set(:@running, false)
 
@@ -219,7 +251,12 @@ describe LogStash::Outputs::Scalyr do
         stub_request(:post, "https://agent.scalyr.com/addEvents").
           to_return(status: 500, body: "0123456789" * 52, headers: {})
 
-        plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'ssl_ca_bundle_path' => '/fakepath/nocerts', 'append_builtin_cert' => false})
+        plugin = LogStash::Outputs::Scalyr.new({
+            'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
+            'ssl_ca_bundle_path' => '/fakepath/nocerts',
+            'append_builtin_cert' => false
+        })
         plugin.register
         plugin.instance_variable_set(:@running, false)
 
@@ -248,7 +285,12 @@ describe LogStash::Outputs::Scalyr do
         stub_request(:post, "https://agent.scalyr.com/addEvents").
           to_return(status: 500, body: "stubbed response", headers: {})
 
-        plugin = LogStash::Outputs::Scalyr.new({'api_write_token' => '1234', 'ssl_ca_bundle_path' => '/fakepath/nocerts', 'append_builtin_cert' => false})
+        plugin = LogStash::Outputs::Scalyr.new({
+            'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
+            'ssl_ca_bundle_path' => '/fakepath/nocerts',
+            'append_builtin_cert' => false
+        })
         plugin.register
         plugin.instance_variable_set(:@running, false)
         plugin.instance_variable_set('@dlq_writer', dlq_writer)
