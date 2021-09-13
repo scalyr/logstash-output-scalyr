@@ -135,6 +135,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # minutes.
   config :status_report_interval, :validate => :number, :default => 300
 
+  # Status will be reported regardless if the plugin receives empty batch if the plugin is
+  # "active" (received and processed some events during the plugin life time) and more than this
+  # amount of time has passed since the last reporting.
+  config :idle_status_report_deadline, :validate => :number, :default => 300
+
   # True to also call send_status when multi_receive() is called with no events.
   # In some situations (e.g. when logstash is configured with multiple scalyr
   # plugins conditionally where most are idle) you may want to set this to false
@@ -558,7 +563,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         end
       end
 
-      if @report_status_for_empty_batches or records_count > 0
+      if @report_status_for_empty_batches or records_count > 0 or should_call_send_status_for_empty_batch()
         send_status
       end
 
@@ -575,6 +580,28 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     end
   end  # def multi_receive
 
+  # Return true if "send_status()" should be called even for an empty batch.
+  # NOTE: We always report status even if record count is 0 if more than X minutes have passed
+  # from the last status reporting for active plugins. Logstash sends empty batches for flush
+  # purposes quite often, but we only want to report status if we haven't reported it for a
+  # longer period (aka there hasn't been any data flowing in for a while). If we reported it
+  # for every flush event (which happens very often), this would skew metrics for regular
+  # events and output plugins which receive no data at all.
+  # We perform check against total events processed so we don't send status for output plugins
+  # which receive no data at all.
+  def should_call_send_status_for_empty_batch()
+    if @multi_receive_statistics[:total_events_processed] < 100
+      # Ignore idle plugins with no data
+      return false
+    end
+
+    if @last_status_transmit_time.nil?
+      # If this value is not set it means plugin is idle and hasn't received any data at all
+      return false
+    end
+
+    return (Time.now.to_i - @last_status_transmit_time.to_i > @idle_status_report_deadline)
+  end
 
   def log_retry_failure(multi_event_request, exc_data, exc_retries, exc_sleep)
     @stats_lock.synchronize do
