@@ -971,7 +971,6 @@ describe LogStash::Outputs::Scalyr do
 
     context "scalyr_server config option handling and connectivity check" do
       it "doesn't throw an error on valid url" do
-        puts "c"
         config = {
             'api_write_token' => '1234',
             'perform_connectivity_check' => false,
