@@ -462,7 +462,7 @@ git clone https://github.com/Kami/logstash-config-tester ~/
 gem build logstash-output-scalyr.gemspec
 
 # 2. Copy it to the config test repo
-cp logstash-output-scalyr-0.2.0.beta.gem ~/logstash-config-test/logstash-output-scalyr.gem
+cp logstash-output-scalyr-0.2.0.gem ~/logstash-config-test/logstash-output-scalyr.gem
 
 # 3. Build docker image with the latest dev version of the plugin (may take a while)
 docker-compose build

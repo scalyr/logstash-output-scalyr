@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    logstash-output-scalyr (0.2.0.beta)
+    logstash-output-scalyr (0.2.0)
       ffi (>= 1.9.18)
       jrjackson
       logstash-codec-plain
