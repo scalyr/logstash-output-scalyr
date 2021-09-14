@@ -1,6 +1,6 @@
 # Beta
 
-## 0.2.0.beta
+## 0.2.0.beta, 0.2.0
 
 - Fix a bug and correctly handle ``serverHost`` event level attribute. Now if an event contains
 ``serverHost`` attribute, this attribute will be correctly set on the event level and available for

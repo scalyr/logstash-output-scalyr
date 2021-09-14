@@ -9,7 +9,9 @@ You can view documentation for this plugin [on the Scalyr website](https://app.s
 # Quick start
 
 1. Build the gem, run `gem build logstash-output-scalyr.gemspec` 
-2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-0.2.0.beta.gem` or follow the latest official instructions on working with plugins from Logstash.
+2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-0.2.0.gem` 
+   or follow the latest official instructions on working with plugins from Logstash. As an alternative, you can directly install latest
+   stable version from RubyGems - ``/usr/share/logstash/bin/logstash-plugin --version 0.2.0 logstash-output-scalyr``
 3. Configure the output plugin (e.g. add it to a pipeline .conf)
 4. Restart Logstash 
 
@@ -41,7 +43,7 @@ In the above example, the Logstash pipeline defines a file input that reads from
 
 ## Notes on serverHost attribute handling
 
-> Some of this functionality has been fixed and changed in the v0.2.0beta release. In previous
+> Some of this functionality has been fixed and changed in the v0.2.0 release. In previous
   versions, plugin added ``serverHost`` attribute with a value of ``Logstash`` to each event and
   this attribute was not handled correctly - it was treated as a regular event level attribute
   and not a special attribute which can be used for Source functionality and filtering.
