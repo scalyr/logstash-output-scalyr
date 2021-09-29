@@ -1,6 +1,10 @@
 # encoding: utf-8
 require "scalyr/common/util"
 
+# Require the specific version of `json` used in logstash
+gem 'json', '1.8.6'
+require 'json'
+
 LARGE_OBJECT_IN = {
   "level": "info",
   "ts": "2020-08-11T02:26:17.078Z",

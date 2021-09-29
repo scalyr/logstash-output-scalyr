@@ -12,7 +12,7 @@
   an invalid API key or similar when reaching retry limit and DLQ disabled. If you want to disable
   this check on register, you can set ``perform_connectivity_check`` config option to ``false``.
 
-## 0.2.0.beta
+## 0.2.0.beta, 0.2.0
 
 - Fix a bug and correctly handle ``serverHost`` event level attribute. Now if an event contains
 ``serverHost`` attribute, this attribute will be correctly set on the event level and available for

@@ -1,6 +1,6 @@
 [![CircleCI](https://circleci.com/gh/scalyr/logstash-output-scalyr.svg?style=svg)](https://circleci.com/gh/scalyr/logstash-output-scalyr)
 
-# [Scalyr output plugin for Logstash (Beta release)]
+# [Scalyr output plugin for Logstash]
 
 This plugin implements a Logstash output plugin that uploads data to [Scalyr](http://www.scalyr.com).
 
@@ -9,7 +9,9 @@ You can view documentation for this plugin [on the Scalyr website](https://app.s
 # Quick start
 
 1. Build the gem, run `gem build logstash-output-scalyr.gemspec` 
-2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-0.2.0.beta.gem` or follow the latest official instructions on working with plugins from Logstash.
+2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-0.2.0.gem` 
+   or follow the latest official instructions on working with plugins from Logstash. As an alternative, you can directly install latest
+   stable version from RubyGems - ``/usr/share/logstash/bin/logstash-plugin --version 0.2.0 logstash-output-scalyr``
 3. Configure the output plugin (e.g. add it to a pipeline .conf)
 4. Restart Logstash 
 
@@ -41,7 +43,7 @@ In the above example, the Logstash pipeline defines a file input that reads from
 
 ## Notes on serverHost attribute handling
 
-> Some of this functionality has been fixed and changed in the v0.2.0beta release. In previous
+> Some of this functionality has been fixed and changed in the v0.2.0 release. In previous
   versions, plugin added ``serverHost`` attribute with a value of ``Logstash`` to each event and
   this attribute was not handled correctly - it was treated as a regular event level attribute
   and not a special attribute which can be used for Source functionality and filtering.
@@ -437,6 +439,21 @@ bundle exec rspec
 bundle exec rake publish_gem
 ```
 
+Or as an alternative if ``rake publish_gem`` task doesn't appear to work for whatever reason
+(``publish_gem`` logstash Rake task silently swallows all the errors):
+
+```
+rm -rf vendor/
+bundle check --path vendor/bundle || bundle install --deployment
+curl -u RUBY_USER:RUBY_PASSWORD https://rubygems.org/api/v1/api_key.yaml > ~/.gem/credentials
+chmod 0600 ~/.gem/credentials
+bundle exec rake vendor
+bundle exec rspec
+rvm use jruby
+bundle exec gem build logstash-output-scalyr.gemspec
+bundle exec gem push logstash-output-scalyr-<version>.gem
+```
+
 `RUBY_USER` and `RUBY_PASSWORD` should be replaced with the username and password to the RubyGems.org account you wish to release to,
  these credentials should be found in Keeper.
 
@@ -460,7 +477,7 @@ git clone https://github.com/Kami/logstash-config-tester ~/
 gem build logstash-output-scalyr.gemspec
 
 # 2. Copy it to the config test repo
-cp logstash-output-scalyr-0.2.0.beta.gem ~/logstash-config-test/logstash-output-scalyr.gem
+cp logstash-output-scalyr-0.2.0.gem ~/logstash-config-test/logstash-output-scalyr.gem
 
 # 3. Build docker image with the latest dev version of the plugin (may take a while)
 docker-compose build
