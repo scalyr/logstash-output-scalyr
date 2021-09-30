@@ -35,6 +35,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # If you have an EU-based Scalyr account, please use https://eu.scalyr.com/
   config :scalyr_server, :validate => :string, :default => "https://agent.scalyr.com/"
 
+  # True to perform connectivity check with Scalyr on plugin start up / register phase. This
+  # ensures an exception is thrown if we can't communicate with Scalyr and we don't start
+  # consuming events until plugin is correctly configured.
+  config :perform_connectivity_check, :validate => :boolean, :default => true
+
   # server_attributes is a dictionary of key value pairs that represents/identifies the logstash aggregator server
   # (where this plugin is running).  Keys are arbitrary except for the 'serverHost' key which holds special meaning to
   # Scalyr and is given special treatment in the Scalyr UI.  All of these attributes are optional (not required for logs
@@ -129,6 +134,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # How often to log and report status metrics to Scalyr. Defaults to every 5
   # minutes.
   config :status_report_interval, :validate => :number, :default => 300
+
+  # Status will be reported regardless if the plugin receives empty batch if the plugin is
+  # "active" (received and processed some events during the plugin life time) and more than this
+  # amount of time has passed since the last reporting.
+  config :idle_status_report_deadline, :validate => :number, :default => 300
 
   # True to also call send_status when multi_receive() is called with no events.
   # In some situations (e.g. when logstash is configured with multiple scalyr
@@ -287,6 +297,15 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
     @scalyr_server << '/' unless @scalyr_server.end_with?('/')
 
+    # Validate the URL
+    uri = URI.parse(@scalyr_server)
+
+    if not uri.kind_of?(URI::HTTP) and not uri.kind_of?(URI::HTTPS)
+      raise LogStash::ConfigurationError, "scalyr_server configuration option value is not a valid URL. " \
+                                          "This value needs contain a full URL with the protocol. e.g. " \
+                                          "https://agent.scalyr.com for US and https://eu.scalyr.com for EU"
+    end
+
     @add_events_uri = URI(@scalyr_server) + "addEvents"
 
     @logger.info "Scalyr LogStash Plugin ID - #{self.id}"
@@ -317,12 +336,23 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         @http_connect_timeout, @http_socket_timeout, @http_request_timeout, @http_pool_max, @http_pool_max_per_route
     )
 
+    # We also "prime" the main HTTP client here, one which is used for sending subsequent requests.
+    # Here priming just means setting up the client parameters without opening any connections.
+    # Since client writes certs to a temporary file there could be a race in case we don't do that
+    # here since multi_receive() is multi threaded. An alternative would be to put a look around
+    # client init method (aka client_config())
+    @client_session.client
+
+    # Send a ping to verify that the configuration API key is correct and that we can establish
+    # connection with Scalyr API
+    connectivity_check
+
     @logger.info(sprintf("Started Scalyr LogStash output plugin %s (compression_type=%s,compression_level=%s,json_library=%s)." %
                          [PLUGIN_VERSION, @compression_type, @compression_type, @json_library]), :class => self.class.name)
 
     # Finally, send a status line to Scalyr
     # We use a special separate short lived client session for sending the initial client status.
-    # This is done to avoid the overhead in case single logstash instance has many scalyr output 
+    # This is done to avoid the overhead in case single logstash instance has many scalyr output
     # plugins configured with conditionals and majority of them are inactive (aka receive no data).
     # This way we don't need to keep idle long running connection open.
     initial_send_status_client_session = Scalyr::Common::Client::ClientSession.new(
@@ -331,17 +361,51 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         @record_stats_for_status, @flush_quantile_estimates_on_status_send,
         @http_connect_timeout, @http_socket_timeout, @http_request_timeout, @http_pool_max, @http_pool_max_per_route
     )
+
+    # We propagate errors on intial request to better handle errors related to invalid hostname
+    # or similar
     send_status(initial_send_status_client_session)
     initial_send_status_client_session.close
 
-    # We also "prime" the main HTTP client here, one which is used for sending subsequent requests.
-    # Here priming just means setting up the client parameters without opening any connections.
-    # Since client writes certs to a temporary file there could be a race in case we don't do that
-    # here since multi_receive() is multi threaded. An alternative would be to put a look around
-    # client init method (aka client_config())
-    @client_session.client
-
   end # def register
+
+  # Method which performs connectivity check with Scalyr API, verifies that wt can talk to the API
+  # and that the API token is valid.
+  def connectivity_check()
+    if not @perform_connectivity_check
+      return
+    end
+
+    @logger.debug("Performing connectivity check against the Scalyr API")
+
+    body = create_multi_event_request([], nil, nil, nil)[:body]
+
+    begin
+      @client_session.send_ping(body)
+    rescue Scalyr::Common::Client::ClientError, Manticore::ResolutionFailure => e
+      if not e.message.nil? and (e.message.include?("nodename nor servname provided") or
+          e.message.downcase.include?("name or service not know"))
+        raise LogStash::ConfigurationError,
+                    format("Received error when trying to communicate with Scalyr API. This likely means that " \
+                           "the configured value for 'scalyr_server' config option is invalid. Original error: %s",
+                           e.message)
+      end
+
+      # For now, we consider rest of the errors non fatal and just log them and don't propagate
+      # them and fail register
+      @logger.warn("Received error when trying to send connectivity check request to Scalyr",
+                    :error => e.message)
+    rescue Scalyr::Common::Client::ServerError => e
+      if e.code == 401
+        raise LogStash::ConfigurationError,
+                    format("Received 401 from Scalyr API during connectivity check which indicates " \
+                           "an invalid API key. Server Response: %s", e.body)
+      end
+
+    rescue => e
+      @logger.warn("Received non-fatal error during connectivity check", :error => e.message)
+    end
+  end
 
   # Convenience method to create a fresh quantile estimator
   def get_new_metrics
@@ -499,7 +563,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         end
       end
 
-      if @report_status_for_empty_batches or records_count > 0
+      if @report_status_for_empty_batches or records_count > 0 or should_call_send_status_for_empty_batch()
         send_status
       end
 
@@ -516,6 +580,28 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     end
   end  # def multi_receive
 
+  # Return true if "send_status()" should be called even for an empty batch.
+  # NOTE: We always report status even if record count is 0 if more than X minutes have passed
+  # from the last status reporting for active plugins. Logstash sends empty batches for flush
+  # purposes quite often, but we only want to report status if we haven't reported it for a
+  # longer period (aka there hasn't been any data flowing in for a while). If we reported it
+  # for every flush event (which happens very often), this would skew metrics for regular
+  # events and output plugins which receive no data at all.
+  # We perform check against total events processed so we don't send status for output plugins
+  # which receive no data at all.
+  def should_call_send_status_for_empty_batch()
+    if @multi_receive_statistics[:total_events_processed] < 100
+      # Ignore idle plugins with no data
+      return false
+    end
+
+    if @last_status_transmit_time.nil?
+      # If this value is not set it means plugin is idle and hasn't received any data at all
+      return false
+    end
+
+    return (Time.now.to_i - @last_status_transmit_time.to_i > @idle_status_report_deadline)
+  end
 
   def log_retry_failure(multi_event_request, exc_data, exc_retries, exc_sleep)
     @stats_lock.synchronize do
@@ -1030,6 +1116,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             :error_class => e.class.name
           )
         end
+
         return
       end
       @last_status_transmit_time = Time.now()

@@ -219,7 +219,15 @@ class ClientSession
     end
   end
 
+  # Send "ping" request to the API. This is mostly used to test the connecting with Scalyr API
+  # and verify that the API key is valid.
+  def send_ping(body)
+    post_body, post_headers, compression_duration = prepare_post_object @add_events_uri.path, body
+    response = client.send(:post, @add_events_uri, body: post_body, headers: post_headers)
+    handle_response(response)
 
+    response
+  end
 
   # Upload data to Scalyr. Assumes that the body size complies with Scalyr limits
   def post_add_events(body, is_status, body_serialization_duration = 0)
