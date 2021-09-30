@@ -791,6 +791,7 @@ describe LogStash::Outputs::Scalyr do
       it "no serverHost defined, event level serverHost defined via non-default serverhost_field - event level value should be used" do
         config = {
             'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
             'server_attributes' => {'attr1' => 'val1'},
             'use_hostname_for_serverhost' => false,
             'serverhost_field' => 'custom_server_host',
