@@ -1,5 +1,11 @@
 # Beta
 
+## 0.2.2
+
+- No longer vendor dependencies in the gem. This gem used to vendor a vulnerable log4j version
+  but because logstash uses the system log4j this should not make earlier versions of this gem
+  vulnerable. This brings the additional benefit of reducing the file size of this gem.
+
 ## 0.2.1.beta
 
 - Update plugin to fail fast on register and throw more user-friendly error on invalid URL for
