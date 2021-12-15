@@ -193,19 +193,16 @@ jobs: # a collection of steps
           command: |
             gem build logstash-output-scalyr.gemspec
             # We rename the file so we don't need to hard code version in Dockerfile
-            mkdir built
-            mv logstash-output-scalyr-*.gem built/logstash-output-scalyr.gem
+            mv logstash-output-scalyr-*.gem logstash-output-scalyr.gem
       - run:
           name: Unpack gem
           command: |
-            cd built
             gem unpack logstash-output-scalyr.gem
-            tar xzf data.tar.gz
       - run:
           name: Confirm no vendor directory was unpacked
           command: |
             cd built
-            [ ! -d vendor ]
+            [ ! -d logstash-output-scalyr/vendor ]
 
 workflows:
   version: 2
