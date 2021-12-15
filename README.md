@@ -9,9 +9,9 @@ You can view documentation for this plugin [on the Scalyr website](https://app.s
 # Quick start
 
 1. Build the gem, run `gem build logstash-output-scalyr.gemspec` 
-2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-0.2.0.gem` 
+2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-0.2.2.gem` 
    or follow the latest official instructions on working with plugins from Logstash. As an alternative, you can directly install latest
-   stable version from RubyGems - ``/usr/share/logstash/bin/logstash-plugin --version 0.2.0 logstash-output-scalyr``
+   stable version from RubyGems - ``/usr/share/logstash/bin/logstash-plugin --version 0.2.2 logstash-output-scalyr``
 3. Configure the output plugin (e.g. add it to a pipeline .conf)
 4. Restart Logstash 
 
@@ -477,7 +477,7 @@ git clone https://github.com/Kami/logstash-config-tester ~/
 gem build logstash-output-scalyr.gemspec
 
 # 2. Copy it to the config test repo
-cp logstash-output-scalyr-0.2.0.gem ~/logstash-config-test/logstash-output-scalyr.gem
+cp logstash-output-scalyr-0.2.2.gem ~/logstash-config-test/logstash-output-scalyr.gem
 
 # 3. Build docker image with the latest dev version of the plugin (may take a while)
 docker-compose build
