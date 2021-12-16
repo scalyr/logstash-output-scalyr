@@ -201,6 +201,7 @@ jobs: # a collection of steps
       - run:
           name: Confirm no vendor directory was unpacked
           command: |
+            ls -la logstash-output-scalyr/
             [ ! -d logstash-output-scalyr/vendor ]
 
 workflows:
