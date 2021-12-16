@@ -6,7 +6,7 @@ jobs: # a collection of steps
     steps:
       - checkout
       - run:
-          name: Install bundler specified in Gemfile.lock
+          name: Install bundler
           command: |
             gem update --system
             gem install bundler
@@ -181,6 +181,29 @@ jobs: # a collection of steps
             ruby spec/benchmarks/set_session_level_serverhost_on_events.rb
             echo ""
 
+  confirm-no-vendoring:
+    docker:
+      - image: circleci/jruby:9.2.7.0-jdk
+    steps:
+      - setup_remote_docker:
+          docker_layer_caching: false
+      - checkout # special step to check out source code to working directory
+      - run:
+          name: Build gem
+          command: |
+            gem build logstash-output-scalyr.gemspec
+            # We rename the file so we don't need to hard code version in Dockerfile
+            mv logstash-output-scalyr-*.gem logstash-output-scalyr.gem
+      - run:
+          name: Unpack gem
+          command: |
+            gem unpack logstash-output-scalyr.gem
+      - run:
+          name: Confirm no vendor directory was unpacked
+          command: |
+            ls -la logstash-output-scalyr/
+            [ ! -d logstash-output-scalyr/vendor ]
+
 workflows:
   version: 2
   unittests-smoketests-benchmarks:
@@ -192,6 +215,7 @@ workflows:
       - unittest
       - microbenchmarks-jruby
       - microbenchmarks-cruby
+      - confirm-no-vendoring
 
   daily-stable-smoke-tests:
     triggers:
