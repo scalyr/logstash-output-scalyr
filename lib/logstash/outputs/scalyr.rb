@@ -505,7 +505,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             exc_commonly_retried = true
           else
             # all other failed uploads should be warning
-            @logger.warn(rmessage, exc_data)
+            @logger.warn(message, exc_data)
             exc_commonly_retried = false
           end
           retry if @running and exc_retries < @max_retries
