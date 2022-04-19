@@ -1,4 +1,4 @@
-[![CircleCI](https://circleci.com/gh/scalyr/logstash-output-scalyr.svg?style=svg)](https://circleci.com/gh/scalyr/logstash-output-scalyr)
+[![CircleCI](https://circleci.com/gh/scalyr/logstash-output-scalyr.svg?style=svg)](https://circleci.com/gh/scalyr/logstash-output-scalyr) [![Gem Version](https://badge.fury.io/rb/logstash-output-scalyr.svg)](https://badge.fury.io/rb/logstash-output-scalyr)
 
 # [Scalyr output plugin for Logstash]
 
