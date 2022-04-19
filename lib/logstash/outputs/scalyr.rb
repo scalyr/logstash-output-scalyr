@@ -105,6 +105,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Initial interval in seconds between bulk retries. Doubled on each retry up to `retry_max_interval`
   config :retry_initial_interval, :validate => :number, :default => 1
   # How many times to retry sending an event before giving up on it
+  # This will result in a total of around 12 minutes of retrying / sleeping with a default value
+  # for retry_max_interval
   config :max_retries, :validate => :number, :default => 15
   # Whether or not to send messages that failed to send a max_retries amount of times to the DLQ or just drop them
   config :send_to_dlq, :validate => :boolean, :default => true
