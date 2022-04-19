@@ -1,5 +1,9 @@
 # Beta
 
+## 0.2.3
+
+- Increase default number of maximum retry attempts on failure from `5` to `15`.
+
 ## 0.2.2
 
 - No longer vendor dependencies in the gem. This gem used to vendor a vulnerable log4j version
