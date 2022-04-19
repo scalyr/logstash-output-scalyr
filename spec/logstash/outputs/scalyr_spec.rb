@@ -1071,7 +1071,6 @@ describe LogStash::Outputs::Scalyr do
       it "throws on invalid hostname" do
         config = {
             'api_write_token' => '1234',
-            'perform_connectivity_check' => false,
             'scalyr_server' => 'https://agent.invalid.foo.scalyr.com',
             'perform_connectivity_check' => true
         }
@@ -1082,7 +1081,6 @@ describe LogStash::Outputs::Scalyr do
       it "throws on invalid api key" do
         config = {
             'api_write_token' => '1234',
-            'perform_connectivity_check' => false,
             'scalyr_server' => 'https://agent.scalyr.com',
             'perform_connectivity_check' => true
         }
