@@ -42,9 +42,9 @@ describe LogStash::Outputs::Scalyr do
               })
               plugin.register
               plugin.instance_variable_set(:@running, false)
-              allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+              allow(plugin.instance_variable_get(:@logger)).to receive(:warn)
               plugin.multi_receive(sample_events)
-              expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
+              expect(plugin.instance_variable_get(:@logger)).to have_received(:warn).with("Error uploading to Scalyr (will backoff-retry)",
                 {
                   :error_class=>"Scalyr::Common::Client::ServerError",
                   :batch_num=>1,
@@ -71,9 +71,9 @@ describe LogStash::Outputs::Scalyr do
               })
               plugin.register
               plugin.instance_variable_set(:@running, false)
-              allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+              allow(plugin.instance_variable_get(:@logger)).to receive(:warn)
               plugin.multi_receive(sample_events)
-              expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
+              expect(plugin.instance_variable_get(:@logger)).to have_received(:warn).with("Error uploading to Scalyr (will backoff-retry)",
                 {
                   :error_class=>"Manticore::UnknownException",
                   :batch_num=>1,
@@ -101,9 +101,9 @@ describe LogStash::Outputs::Scalyr do
               })
               plugin.register
               plugin.instance_variable_set(:@running, false)
-              allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+              allow(plugin.instance_variable_get(:@logger)).to receive(:warn)
               plugin.multi_receive(sample_events)
-              expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
+              expect(plugin.instance_variable_get(:@logger)).to have_received(:warn).with("Error uploading to Scalyr (will backoff-retry)",
                 {
                   :error_class=>"Manticore::UnknownException",
                   :batch_num=>1,
@@ -144,9 +144,9 @@ describe LogStash::Outputs::Scalyr do
               })
               plugin.register
               plugin.instance_variable_set(:@running, false)
-              allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+              allow(plugin.instance_variable_get(:@logger)).to receive(:warn)
               plugin.multi_receive(sample_events)
-              expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
+              expect(plugin.instance_variable_get(:@logger)).to have_received(:warn).with("Error uploading to Scalyr (will backoff-retry)",
                 {
                   :error_class=>"Manticore::UnknownException",
                   :batch_num=>1,
@@ -232,9 +232,9 @@ describe LogStash::Outputs::Scalyr do
         plugin.register
         plugin.instance_variable_set(:@running, false)
 
-        allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+        allow(plugin.instance_variable_get(:@logger)).to receive(:warn)
         plugin.multi_receive(sample_events)
-        expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
+        expect(plugin.instance_variable_get(:@logger)).to have_received(:warn).with("Error uploading to Scalyr (will backoff-retry)",
           {
             :error_class=>"Scalyr::Common::Client::ServerError",
             :batch_num=>1,
@@ -265,9 +265,9 @@ describe LogStash::Outputs::Scalyr do
         plugin.register
         plugin.instance_variable_set(:@running, false)
 
-        allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+        allow(plugin.instance_variable_get(:@logger)).to receive(:warn)
         plugin.multi_receive(sample_events)
-        expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Error uploading to Scalyr (will backoff-retry)",
+        expect(plugin.instance_variable_get(:@logger)).to have_received(:warn).with("Error uploading to Scalyr (will backoff-retry)",
           {
             :error_class=>"Scalyr::Common::Client::ServerError",
             :batch_num=>1,
