@@ -3,6 +3,10 @@
 ## 0.2.3
 
 - Increase default number of maximum retry attempts on failure from `5` to `15`.
+- Change "Unexpected error occurred while uploading to Scalyr (will backoff-retry)" message to
+  be logged under WARNING and not ERROR log level. This error is not fatal and simply indicates
+  client will retry a failed request. We use WARNING and not INFO so we still have visibility into
+  those messages (since most deployments have log level set to WARNING or above).
 
 ## 0.2.2
 
