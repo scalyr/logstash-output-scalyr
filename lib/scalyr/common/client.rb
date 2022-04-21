@@ -289,6 +289,7 @@ class ClientSession
     compression_duration = 0
     if @compression_type
       start_time = Time.now.to_f
+        raise SystemExit, "zstandard gem is missing. If you want to use zstandard compression you need to make sure zstandard and and libzstd dependency is installed. See TODO for more information."
       if @compression_type == 'deflate'
         encoding = 'deflate'
         compressed_body = Zlib::Deflate.deflate(body, @compression_level)
@@ -299,6 +300,19 @@ class ClientSession
         bz2.write body
         bz2.close
         compressed_body = io.string
+      elsif @compression_type == "zstandard"
+        # NOTE: zstandard requires libzstd to be installed on the system and
+        # zstandard gem. Since libzstd may not be installed out of the box, we
+        # don't directly depend on this gem and it's up to the user to install
+        # both dependencies manually in case they want to use zstandard.
+        begin
+          gem 'zstandard'
+        rescue LoadError
+          raise SystemExit, "zstandard gem is missing. If you want to use zstandard compression you need to make sure zstandard and and libzstd dependency is installed. See TODO for more information."
+        end
+
+        encoding = 'zstandard'
+        compressed_body = Zstandard.deflate(string)
       end
       end_time = Time.now.to_f
       compression_duration = end_time - start_time
