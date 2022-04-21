@@ -132,26 +132,37 @@ jobs: # a collection of steps
       - checkout # special step to check out source code to working directory
       - run:
           name: Run Micro Benchmarks
+          no_output_timeout: 15m
           command: |
+            git clone --depth 1 https://github.com/scalyr/codespeed-agent-fixtures.git
+
+            sudo sudo apt-get install zstd
+            export ZSTANDARD_LIBRARY=/usr/lib/x86_64-linux-gnu/libzstd.so.1
+
             gem install jrjackson
             gem install quantile
-            echo "Flattening and serialization util results:"
-            echo ""
-            ruby spec/benchmarks/flattening_and_serialization.rb
-            echo ""
-            echo "Metrics recording results:"
-            ruby spec/benchmarks/metrics_overhead.rb
-            echo ""
-            echo "Bignum converting results:"
-            ruby spec/benchmarks/bignum_fixing.rb
-            echo ""
-            echo "json serialization:"
-            ruby spec/benchmarks/json_serialization.rb
-            echo ""
-            echo "set_session_level_serverhost_on_events results:"
-            ruby spec/benchmarks/set_session_level_serverhost_on_events.rb
-            echo ""
+            gem install rbzip2
+            gem install zstandard
 
+            # echo "Flattening and serialization util results:"
+            # echo ""
+            # ruby spec/benchmarks/flattening_and_serialization.rb
+            # echo ""
+            # echo "Metrics recording results:"
+            # ruby spec/benchmarks/metrics_overhead.rb
+            # echo ""
+            # echo "Bignum converting results:"
+            # ruby spec/benchmarks/bignum_fixing.rb
+            # echo ""
+            # echo "json serialization:"
+            # ruby spec/benchmarks/json_serialization.rb
+            # echo ""
+            # echo "set_session_level_serverhost_on_events results:"
+            # ruby spec/benchmarks/set_session_level_serverhost_on_events.rb
+            # echo ""
+            echo "compression algorithms:"
+            ruby spec/benchmarks/compression_algorithms.rb
+            echo ""
 
   # We run micro benchmarks against cRuby just for reference purposes since plugins always run
   # with jRuby
