@@ -2,7 +2,6 @@
 
 ## 0.2.4.beta
 
-* Upgrade manticore dependency to the latest stable version (0.8.0).
 * Experimental zstandard support - in development, not to be used in production.
 
 ## 0.2.3
