@@ -1,5 +1,9 @@
 # Beta
 
+## 0.2.4
+
+* Upgrade manticore dependency to the latest stable version (0.8.0).
+
 ## 0.2.3
 
 - Increase default number of maximum retry attempts on failure from `5` to `15`.
