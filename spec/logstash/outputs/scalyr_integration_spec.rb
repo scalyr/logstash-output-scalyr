@@ -150,7 +150,7 @@ describe LogStash::Outputs::Scalyr do
                 {
                   :error_class=>"Manticore::UnknownException",
                   :batch_num=>1,
-                  :message=>"Certificate for <invalid.mitm.should.fail.test.agent.scalyr.com> doesn't match any of the subject alternative names: [*.scalyr.com, scalyr.com]",
+                  :message=>"Host name 'invalid.mitm.should.fail.test.agent.scalyr.com' does not match the certificate subject provided by the peer (CN=*.scalyr.com)",
                   :payload_size=>737,
                   :record_count=>3,
                   :total_batches=>1,
