@@ -289,7 +289,6 @@ class ClientSession
     compression_duration = 0
     if @compression_type
       start_time = Time.now.to_f
-        raise SystemExit, "zstandard gem is missing. If you want to use zstandard compression you need to make sure zstandard and and libzstd dependency is installed. See TODO for more information."
       if @compression_type == 'deflate'
         encoding = 'deflate'
         compressed_body = Zlib::Deflate.deflate(body, @compression_level)
