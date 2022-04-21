@@ -1,5 +1,9 @@
 # Beta
 
+## 0.2.4.beta
+
+* Experimental zstandard support - in development, not to be used in production.
+
 ## 0.2.3
 
 - Increase default number of maximum retry attempts on failure from `5` to `15`.
