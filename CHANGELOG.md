@@ -1,5 +1,14 @@
 # Beta
 
+## 0.2.5.beta
+
+* Allow user to specify value for the DataSet event severity field. "severity" field is a special
+  top level event field which specifies the event severity (log level).
+
+  To enable this functionality, user needs to configure "severity_field" plugin config option and
+  set it to the logstash event field which carries the severity field value. This field value
+  needs to be an integer and contains value from 0 to 6.
+
 ## 0.2.4.beta
 
 * Experimental zstandard support - in development, not to be used in production.

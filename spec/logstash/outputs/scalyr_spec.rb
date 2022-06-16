@@ -56,6 +56,20 @@ describe LogStash::Outputs::Scalyr do
     events
   }
 
+  let(:sample_events_with_severity) {
+    events = []
+    for i in 0..6 do
+      e = LogStash::Event.new
+      e.set('source_host', "my host #{i}")
+      e.set('source_file', "my file #{i}")
+      e.set('severity', i)
+      e.set('seq', i)
+      e.set('nested', {'a'=>1, 'b'=>[3,4,5]})
+      e.set('tags', ['t1', 't2', 't3'])
+      events.push(e)
+    end
+    events
+  }
   describe "#build_multi_event_request_array" do
 
     context "test get_stats and send_status" do
@@ -222,6 +236,66 @@ describe LogStash::Outputs::Scalyr do
         expect(logattrs2.fetch(EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME, nil)).to eq('my host 3')
         expect(logattrs2.fetch('logfile', nil)).to eq('/logstash/my host 3')
         expect(logattrs2.fetch('tags', nil)).to eq(['t1', 't2', 't3'])
+      end
+    end
+
+    context "when severity field is configured" do
+      it "works correctly when severity event attribute is specified" do
+        plugin = LogStash::Outputs::Scalyr.new({
+                                                   'api_write_token' => '1234',
+                                                   'perform_connectivity_check' => false,
+                                                   'severity_field' => 'severity',
+                                               })
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        result = plugin.build_multi_event_request_array(sample_events_with_severity)
+        body = JSON.parse(result[0][:body])
+        expect(body['events'].size).to eq(7)
+
+        (0..6).each do |index|
+          expect(body['events'][index]['attrs'].fetch('severity', nil)).to eq(nil)
+          expect(body['events'][index]['attrs'].fetch('sev', nil)).to eq(nil)
+          expect(body['events'][index]['sev']).to eq(index)
+        end
+      end
+
+      it "works correctly when severity event attribute is not specified" do
+        plugin = LogStash::Outputs::Scalyr.new({
+                                                   'api_write_token' => '1234',
+                                                   'perform_connectivity_check' => false,
+                                                   'severity_field' => 'severity',
+                                               })
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        result = plugin.build_multi_event_request_array(sample_events)
+        body = JSON.parse(result[0][:body])
+        expect(body['events'].size).to eq(3)
+
+        (0..2).each do |index|
+          expect(body['events'][index]['attrs'].fetch('severity', nil)).to eq(nil)
+          expect(body['events'][index]['attrs'].fetch('sev', nil)).to eq(nil)
+          expect(body['events'][index]['sev']).to eq(nil)
+        end
+      end
+
+      it "works correctly when severity event attribute is not specified but severity field is not set" do
+        # Since severity_field config option is not set, severity field should be treated as a
+        # regulat event attribute and not as s a special top level event field
+        plugin = LogStash::Outputs::Scalyr.new({
+                                                   'api_write_token' => '1234',
+                                                   'perform_connectivity_check' => false,
+                                                   'severity_field' => nil,
+                                               })
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        result = plugin.build_multi_event_request_array(sample_events_with_severity)
+        body = JSON.parse(result[0][:body])
+        expect(body['events'].size).to eq(7)
+
+        (0..6).each do |index|
+          expect(body['events'][index]['attrs'].fetch('severity', nil)).to eq(index)
+          expect(body['events'][index]['sev']).to eq(nil)
+        end
       end
     end
 

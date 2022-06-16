@@ -60,6 +60,22 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # (Warning: events with an existing 'logfile' field, it will be overwritten)
   config :logfile_field, :validate => :string, :default => 'logfile'
 
+  # Record field which includes the value for the "severity" field. severity is a special field which tells
+  # Scalyr severity / log level for a particulat event. This field is a top level event field and not
+  # event attribute field. Actual field value must be an integer and is mapped to different severity /
+  # log level on DataSet server side as shown below:
+  #
+  # - 0 -> finest
+  # - 1 -> trace
+  # - 2 -> debut
+  # - 3 -> info
+  # - 4 -> warning
+  # - 5 -> error
+  # - 6 -> fatal / emergency / critical
+  #
+  # By default, if Event contains no severity field, default value of 3 (info) will be used.
+  config :severity_field, :validate => :string, :default => nil
+
   # The Scalyr Output Plugin expects the main log message to be contained in the Event['message'].  If your main log
   # content is contained in a different field, specify it here.  It will be renamed to 'message' before upload.
   # (Warning: events with an existing 'message' field, it will be overwritten)
@@ -722,6 +738,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       # Rename user-specified logfile field -> 'logfile'
       rename.call(@logfile_field, 'logfile')
 
+      # Rename user-specified severity field -> 'severity' (if configured)
+      if not @severity_field.nil?
+        rename.call(@severity_field, 'severity')
+      end
+
       # Remove "host" attribute
       if @remove_host_attribute_from_events and record.key? "host"
         record.delete("host")
@@ -766,6 +787,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           logs[log_identifier]['attrs']['logfile'] = record['logfile']
           record.delete('logfile')
         end
+
         if @log_constants
           @log_constants.each {|log_constant|
             if record.key? log_constant
@@ -827,6 +849,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         end
       end
 
+      severity = record['severity']
+
+      if not @severity_field.nil? and not severity.to_s.empty?
+        record.delete('severity')
+      end
+
       # Use LogStash event.timestamp as the 'ts' Scalyr timestamp.  Note that this may be overwritten by input
       # filters so may not necessarily reflect the actual originating timestamp.
       scalyr_event = {
@@ -838,6 +866,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       if serverHost
         scalyr_event[:thread] = thread_id.to_s
         scalyr_event[:log] = logs_ids[log_identifier]
+      end
+
+      # optionally set severity (if available)
+      if @severity_field and severity
+        scalyr_event[:sev] = severity
       end
 
       if @estimate_each_event_size
