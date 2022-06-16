@@ -70,6 +70,22 @@ describe LogStash::Outputs::Scalyr do
     end
     events
   }
+
+  let(:sample_events_with_level) {
+    events = []
+    for i in 0..6 do
+      e = LogStash::Event.new
+      e.set('source_host', "my host #{i}")
+      e.set('source_file', "my file #{i}")
+      e.set('level', i)
+      e.set('seq', i)
+      e.set('nested', {'a'=>1, 'b'=>[3,4,5]})
+      e.set('tags', ['t1', 't2', 't3'])
+      events.push(e)
+    end
+    events
+  }
+
   describe "#build_multi_event_request_array" do
 
     context "test get_stats and send_status" do
@@ -253,6 +269,26 @@ describe LogStash::Outputs::Scalyr do
         expect(body['events'].size).to eq(7)
 
         (0..6).each do |index|
+          expect(body['events'][index]['attrs'].fetch('severity', nil)).to eq(nil)
+          expect(body['events'][index]['attrs'].fetch('sev', nil)).to eq(nil)
+          expect(body['events'][index]['sev']).to eq(index)
+        end
+      end
+
+      it "works correctly when level event attribute is specified" do
+        plugin = LogStash::Outputs::Scalyr.new({
+                                                   'api_write_token' => '1234',
+                                                   'perform_connectivity_check' => false,
+                                                   'severity_field' => 'level',
+                                               })
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        result = plugin.build_multi_event_request_array(sample_events_with_level)
+        body = JSON.parse(result[0][:body])
+        expect(body['events'].size).to eq(7)
+
+        (0..6).each do |index|
+          expect(body['events'][index]['attrs'].fetch('level', nil)).to eq(nil)
           expect(body['events'][index]['attrs'].fetch('severity', nil)).to eq(nil)
           expect(body['events'][index]['attrs'].fetch('sev', nil)).to eq(nil)
           expect(body['events'][index]['sev']).to eq(index)
