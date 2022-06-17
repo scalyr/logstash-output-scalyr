@@ -358,7 +358,7 @@ describe LogStash::Outputs::Scalyr do
 
       it "works correctly when severity event attribute is not specified but severity field is not set" do
         # Since severity_field config option is not set, severity field should be treated as a
-        # regulat event attribute and not as s a special top level event field
+        # regular event attribute and not as s a special top level Event.sev field
         plugin = LogStash::Outputs::Scalyr.new({
                                                    'api_write_token' => '1234',
                                                    'perform_connectivity_check' => false,
