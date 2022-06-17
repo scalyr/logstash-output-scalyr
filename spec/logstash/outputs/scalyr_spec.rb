@@ -59,6 +59,7 @@ describe LogStash::Outputs::Scalyr do
   let(:sample_events_with_severity) {
     events = []
     for i in 0..6 do
+      # valid severity - integer
       e = LogStash::Event.new
       e.set('source_host', "my host #{i}")
       e.set('source_file', "my file #{i}")
@@ -68,6 +69,34 @@ describe LogStash::Outputs::Scalyr do
       e.set('tags', ['t1', 't2', 't3'])
       events.push(e)
     end
+    for i in 0..6 do
+      # valid severity - string
+      e = LogStash::Event.new
+      e.set('source_host', "my host #{i}")
+      e.set('source_file', "my file #{i}")
+      e.set('severity', i.to_s)
+      e.set('seq', i)
+      e.set('nested', {'a'=>1, 'b'=>[3,4,5]})
+      e.set('tags', ['t1', 't2', 't3'])
+      events.push(e)
+    end
+
+    # invalid severity values
+    e = LogStash::Event.new
+    e.set('source_host', "my host a")
+    e.set('severity', -1)
+    events.push(e)
+
+    e = LogStash::Event.new
+    e.set('source_host', "my host a")
+    e.set('severity', 7)
+    events.push(e)
+
+    e = LogStash::Event.new
+    e.set('source_host', "my host a")
+    e.set('severity', "invalid")
+    events.push(e)
+
     events
   }
 
@@ -266,13 +295,26 @@ describe LogStash::Outputs::Scalyr do
         plugin.register
         result = plugin.build_multi_event_request_array(sample_events_with_severity)
         body = JSON.parse(result[0][:body])
-        expect(body['events'].size).to eq(7)
+        expect(body['events'].size).to eq(7 + 7 + 3)
 
         (0..6).each do |index|
           expect(body['events'][index]['attrs'].fetch('severity', nil)).to eq(nil)
           expect(body['events'][index]['attrs'].fetch('sev', nil)).to eq(nil)
           expect(body['events'][index]['sev']).to eq(index)
         end
+
+        (7..13).each do |index|
+          expect(body['events'][index]['attrs'].fetch('severity', nil)).to eq(nil)
+          expect(body['events'][index]['attrs'].fetch('sev', nil)).to eq(nil)
+          expect(body['events'][index]['sev']).to eq(index - 7)
+        end
+
+        expect(body['events'][14]['attrs'].fetch('severity', nil)).to eq(-1)
+        expect(body['events'][14]['sev']).to eq(nil)
+        expect(body['events'][15]['attrs'].fetch('severity', nil)).to eq(7)
+        expect(body['events'][15]['sev']).to eq(nil)
+        expect(body['events'][16]['attrs'].fetch('severity', nil)).to eq("invalid")
+        expect(body['events'][16]['sev']).to eq(nil)
       end
 
       it "works correctly when level event attribute is specified" do
@@ -326,12 +368,24 @@ describe LogStash::Outputs::Scalyr do
         plugin.register
         result = plugin.build_multi_event_request_array(sample_events_with_severity)
         body = JSON.parse(result[0][:body])
-        expect(body['events'].size).to eq(7)
+        expect(body['events'].size).to eq(7 + 7 + 3)
 
         (0..6).each do |index|
           expect(body['events'][index]['attrs'].fetch('severity', nil)).to eq(index)
           expect(body['events'][index]['sev']).to eq(nil)
         end
+
+        (7..13).each do |index|
+          expect(body['events'][index]['attrs'].fetch('severity', nil)).to eq((index - 7).to_s)
+          expect(body['events'][index]['sev']).to eq(nil)
+        end
+
+        expect(body['events'][14]['attrs'].fetch('severity', nil)).to eq(-1)
+        expect(body['events'][14]['sev']).to eq(nil)
+        expect(body['events'][15]['attrs'].fetch('severity', nil)).to eq(7)
+        expect(body['events'][15]['sev']).to eq(nil)
+        expect(body['events'][16]['attrs'].fetch('severity', nil)).to eq("invalid")
+        expect(body['events'][16]['sev']).to eq(nil)
       end
     end
 

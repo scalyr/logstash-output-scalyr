@@ -850,9 +850,18 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       end
 
       severity = record['severity']
+      severity_int = nil
 
-      if not @severity_field.nil? and not severity.to_s.empty?
-        record.delete('severity')
+      # Server won't accept the payload in case severity value is not valid. To avoid events from
+      # being dropped, we only set Event.sev field in case this field contains a valid value.
+      if not @severity_field.nil? and severity and severity.is_integer?
+        severity_int = severity.to_i
+
+        if severity_int >= 0 and severity_int <= 6
+          record.delete('severity')
+        else
+          severity_int = nil
+        end
       end
 
       # Use LogStash event.timestamp as the 'ts' Scalyr timestamp.  Note that this may be overwritten by input
@@ -868,9 +877,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         scalyr_event[:log] = logs_ids[log_identifier]
       end
 
-      # optionally set severity (if available)
+      # optionally set severity (if available and valid)
       if @severity_field and severity
-        scalyr_event[:sev] = severity
+        scalyr_event[:sev] = severity_int
       end
 
       if @estimate_each_event_size
@@ -1201,5 +1210,17 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     # echee TODO submit to DLQ
     respond_to?(:execution_context) && execution_context.respond_to?(:dlq_writer) &&
         !execution_context.dlq_writer.inner_writer.is_a?(::LogStash::Util::DummyDeadLetterQueueWriter)
+  end
+end
+
+class String
+  def is_integer?
+    self.to_i.to_s == self
+  end
+end
+
+class Integer
+  def is_integer?
+    true
   end
 end
