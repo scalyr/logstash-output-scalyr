@@ -146,7 +146,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Valid options are bz2, deflate, or none.
   config :compression_type, :validate => :string, :default => 'deflate'
 
-  # An int containing the compression level of compression to use, from 1-9. Defaults to 6
+  # An int containing the compression level of compression to use, from 1-9. Defaults to 6. Only
+  # applicable when compression type is "deflate" or "bz2".
   config :compression_level, :validate => :number, :default => 6
 
   # How often to log and report status metrics to Scalyr. Defaults to every 5
