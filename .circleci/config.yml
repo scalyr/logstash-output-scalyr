@@ -106,8 +106,9 @@ jobs: # a collection of steps
           command: |
             sudo apt-get update
             sudo apt-get install -y jq
-            LATEST_VERSION=$(curl https://rubygems.org/api/v1/versions/logstash-output-scalyr/latest.json | jq .version | tr -d '"')
-            wget https://rubygems.org/downloads/logstash-output-scalyr-${LATEST_VERSION}.gem
+            LATEST_STABLE_VERSION=$(curl https://rubygems.org/api/v1/versions/logstash-output-scalyr/latest.json | jq .version | tr -d '"')
+            LATEST_BETA_VERSION=$(curl https://rubygems.org/api/v1/versions/logstash-output-scalyr.json | jq .[0].number)
+            wget https://rubygems.org/downloads/logstash-output-scalyr-${LATEST_BETA_VERSION}.gem
             # We rename the file so we don't need to hard code version in Dockerfile
             mv logstash-output-scalyr-*.gem logstash-output-scalyr.gem
       - run:
@@ -130,8 +131,9 @@ jobs: # a collection of steps
           command: |
             sudo apt-get update
             sudo apt-get install -y jq
-            LATEST_VERSION=$(curl https://rubygems.org/api/v1/versions/logstash-output-scalyr/latest.json | jq .version | tr -d '"')
-            wget https://rubygems.org/downloads/logstash-output-scalyr-${LATEST_VERSION}.gem
+            LATEST_STABLE_VERSION=$(curl https://rubygems.org/api/v1/versions/logstash-output-scalyr/latest.json | jq .version | tr -d '"')
+            LATEST_BETA_VERSION=$(curl https://rubygems.org/api/v1/versions/logstash-output-scalyr.json | jq .[0].number)
+            wget https://rubygems.org/downloads/logstash-output-scalyr-${LATEST_BETA_VERSION}.gem
             # We rename the file so we don't need to hard code version in Dockerfile
             mv logstash-output-scalyr-*.gem logstash-output-scalyr.gem
       - run:
