@@ -134,6 +134,7 @@ class SmokeTestActor(object):
         self._scalyr_server = kwargs.get("scalyr_server")
         self._read_api_key = kwargs.get("read_api_key")
         self._max_wait = float(kwargs.get("max_wait"))
+        self._expected_compression_type = kwargs.get("compression_type")
         self._localhostname = socket.gethostname()
         self._barrier = None
         self._barrier_lock = threading.Lock()
@@ -269,7 +270,7 @@ class SmokeTestActor(object):
                     metrics.get("total_request_latency_secs"),
                     metrics.get("total_response_bytes_received"),
                     metrics.get("compression_level"),
-                    metrics.get("compression_type") == "deflate",
+                    metrics.get("compression_type") == self._expected_compression_type,
                     metrics.get("total_response_bytes_received") >= 10,
                     metrics.get("total_requests_sent") >= 1,
                     metrics.get("total_request_bytes_sent") >= 10,
@@ -279,7 +280,7 @@ class SmokeTestActor(object):
                     if not metrics.get("total_request_latency_secs"): print("Missing total_request_latency_secs")
                     if not metrics.get("total_response_bytes_received"): print("Missing total_response_bytes_received")
                     if not metrics.get("compression_level"): print("Missing compression_level")
-                    if not metrics.get("compression_type", None) == "deflate": print("Wrong compression_type")
+                    if not metrics.get("compression_type", None) == self._expected_compression_type: print("Wrong compression_type")
                     if not metrics.get("total_response_bytes_received", -1) >= 10: print("Wrong total_response_bytes_received")
                     if not metrics.get("total_requests_sent", -1) >= 1: print("Wrong total_requests_sent")
                     if not metrics.get("total_request_bytes_sent", -1) >= 10: print("Wrong total_request_bytes_sent")
@@ -993,6 +994,11 @@ if __name__ == "__main__":
         "--python_version",
         type=str,
         help="python version agent is running on (will be added into generated test data)",
+    )
+    parser.add_argument(
+        "--compression_type",
+        type=str,
+        help="Expected compression type for the plugin status messages",
     )
 
     # For Docker testing

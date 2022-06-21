@@ -39,6 +39,9 @@ describe LogStash::Outputs::Scalyr do
               plugin = LogStash::Outputs::Scalyr.new({
                 'api_write_token' => '1234',
                 'perform_connectivity_check' => false,
+                'max_retries' => 2,
+                'retry_max_interval' => 2,
+                'retry_initial_interval' => 0.2,
               })
               plugin.register
               plugin.instance_variable_set(:@running, false)
@@ -54,7 +57,7 @@ describe LogStash::Outputs::Scalyr do
                   :record_count=>3,
                   :total_batches=>1,
                   :url=>"https://agent.scalyr.com/addEvents",
-                  :will_retry_in_seconds=>2,
+                  :will_retry_in_seconds=>0.4,
                   :body=>"{\n  \"message\": \"Couldn't decode API token ...234.\",\n  \"status\": \"error/client/badParam\"\n}"
                 }
               )
@@ -68,6 +71,9 @@ describe LogStash::Outputs::Scalyr do
                 'perform_connectivity_check' => false,
                 'ssl_ca_bundle_path' => '/fakepath/nocerts',
                 'append_builtin_cert' => false,
+                'max_retries' => 2,
+                'retry_max_interval' => 2,
+                'retry_initial_interval' => 0.2,
               })
               plugin.register
               plugin.instance_variable_set(:@running, false)
@@ -82,7 +88,7 @@ describe LogStash::Outputs::Scalyr do
                   :record_count=>3,
                   :total_batches=>1,
                   :url=>"https://agent.scalyr.com/addEvents",
-                  :will_retry_in_seconds=>2
+                  :will_retry_in_seconds=>0.4
                 }
               )
         end
@@ -98,6 +104,9 @@ describe LogStash::Outputs::Scalyr do
                 'api_write_token' => '1234',
                 'perform_connectivity_check' => false,
                 'append_builtin_cert' => false,
+                'max_retries' => 2,
+                'retry_max_interval' => 2,
+                'retry_initial_interval' => 0.2,
               })
               plugin.register
               plugin.instance_variable_set(:@running, false)
@@ -112,7 +121,7 @@ describe LogStash::Outputs::Scalyr do
                   :record_count=>3,
                   :total_batches=>1,
                   :url=>"https://agent.scalyr.com/addEvents",
-                  :will_retry_in_seconds=>2
+                  :will_retry_in_seconds=>0.4
                 }
               )
           end
@@ -141,6 +150,9 @@ describe LogStash::Outputs::Scalyr do
                 'api_write_token' => '1234',
                 'perform_connectivity_check' => false,
                 'scalyr_server' => 'https://invalid.mitm.should.fail.test.agent.scalyr.com:443',
+                'max_retries' => 2,
+                'retry_max_interval' => 2,
+                'retry_initial_interval' => 0.2,
               })
               plugin.register
               plugin.instance_variable_set(:@running, false)
@@ -150,12 +162,12 @@ describe LogStash::Outputs::Scalyr do
                 {
                   :error_class=>"Manticore::UnknownException",
                   :batch_num=>1,
-                  :message=>"Host name 'invalid.mitm.should.fail.test.agent.scalyr.com' does not match the certificate subject provided by the peer (CN=*.scalyr.com)",
+                  :message=>"Certificate for <invalid.mitm.should.fail.test.agent.scalyr.com> doesn't match any of the subject alternative names: [*.scalyr.com, scalyr.com]",
                   :payload_size=>737,
                   :record_count=>3,
                   :total_batches=>1,
                   :url=>"https://invalid.mitm.should.fail.test.agent.scalyr.com/addEvents",
-                  :will_retry_in_seconds=>2
+                  :will_retry_in_seconds=>0.4
                 }
               )
           ensure
@@ -171,9 +183,11 @@ describe LogStash::Outputs::Scalyr do
               plugin = LogStash::Outputs::Scalyr.new({
                 'api_write_token' => '1234',
                 'perform_connectivity_check' => false,
-                'retry_initial_interval' => 0.1,
                 'ssl_ca_bundle_path' => '/fakepath/nocerts',
-                'append_builtin_cert' => false
+                'append_builtin_cert' => false,
+                'max_retries' => 15,
+                'retry_max_interval' => 0.5,
+                'retry_initial_interval' => 0.2,
               })
               plugin.register
               allow(plugin.instance_variable_get(:@logger)).to receive(:error)
@@ -194,7 +208,10 @@ describe LogStash::Outputs::Scalyr do
           'api_write_token' => '1234',
           'perform_connectivity_check' => false,
           'ssl_ca_bundle_path' => '/fakepath/nocerts',
-          'append_builtin_cert' => false
+          'append_builtin_cert' => false,
+          'max_retries' => 2,
+          'retry_max_interval' => 2,
+          'retry_initial_interval' => 0.2,
         })
         plugin.register
         plugin.instance_variable_set(:@running, false)
@@ -211,7 +228,7 @@ describe LogStash::Outputs::Scalyr do
             :record_count=>3,
             :total_batches=>1,
             :url=>"https://agent.scalyr.com/addEvents",
-            :will_retry_in_seconds=>2,
+            :will_retry_in_seconds=>0.4,
             :body=>"stubbed response"
           }
         )
@@ -227,7 +244,10 @@ describe LogStash::Outputs::Scalyr do
           'api_write_token' => '1234',
           'perform_connectivity_check' => false,
           'ssl_ca_bundle_path' => '/fakepath/nocerts',
-          'append_builtin_cert' => false
+          'append_builtin_cert' => false,
+          'max_retries' => 2,
+          'retry_max_interval' => 2,
+          'retry_initial_interval' => 0.2,
         })
         plugin.register
         plugin.instance_variable_set(:@running, false)
@@ -244,7 +264,7 @@ describe LogStash::Outputs::Scalyr do
             :record_count=>3,
             :total_batches=>1,
             :url=>"https://agent.scalyr.com/addEvents",
-            :will_retry_in_seconds=>2,
+            :will_retry_in_seconds=>0.4,
             :body=>"stubbed response"
           }
         )
@@ -260,7 +280,10 @@ describe LogStash::Outputs::Scalyr do
             'api_write_token' => '1234',
             'perform_connectivity_check' => false,
             'ssl_ca_bundle_path' => '/fakepath/nocerts',
-            'append_builtin_cert' => false
+            'append_builtin_cert' => false,
+            'max_retries' => 2,
+            'retry_max_interval' => 2,
+            'retry_initial_interval' => 0.2,
         })
         plugin.register
         plugin.instance_variable_set(:@running, false)
@@ -277,7 +300,7 @@ describe LogStash::Outputs::Scalyr do
             :record_count=>3,
             :total_batches=>1,
             :url=>"https://agent.scalyr.com/addEvents",
-            :will_retry_in_seconds=>2,
+            :will_retry_in_seconds=>0.4,
             :body=>("0123456789" * 50) + "012345678..."
           }
         )
@@ -294,7 +317,10 @@ describe LogStash::Outputs::Scalyr do
             'api_write_token' => '1234',
             'perform_connectivity_check' => false,
             'ssl_ca_bundle_path' => '/fakepath/nocerts',
-            'append_builtin_cert' => false
+            'append_builtin_cert' => false,
+            'max_retries' => 2,
+            'retry_max_interval' => 2,
+            'retry_initial_interval' => 0.2,
         })
         plugin.register
         plugin.instance_variable_set(:@running, false)

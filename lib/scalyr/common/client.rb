@@ -305,13 +305,13 @@ class ClientSession
         # don't directly depend on this gem and it's up to the user to install
         # both dependencies manually in case they want to use zstandard.
         begin
-          gem 'zstandard'
+          require 'zstandard'
         rescue LoadError
           raise SystemExit, "zstandard gem is missing. If you want to use zstandard compression you need to make sure zstandard and and libzstd dependency is installed. See TODO for more information."
         end
 
         encoding = 'zstandard'
-        compressed_body = Zstandard.deflate(string)
+        compressed_body = Zstandard.deflate(body)
       end
       end_time = Time.now.to_f
       compression_duration = end_time - start_time
