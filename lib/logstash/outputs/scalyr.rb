@@ -512,9 +512,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
               :will_retry_in_seconds => sleep_interval,
           }
           exc_data[:code] = e.code if e.code
-          if @logger.debug? and e.body
+          if @logger.debug? and defined?(e.body) and e.body
             exc_data[:body] = e.body
-          elsif e.body
+          elsif defined?(e.body) and e.body
             exc_data[:body] = Scalyr::Common::Util.truncate(e.body, 512)
           end
           exc_data[:payload] = "\tSample payload: #{request[:body][0,1024]}..." if @logger.debug?
@@ -1147,7 +1147,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       begin
         client_session.post_add_events(multi_event_request[:body], true, 0)
       rescue => e
-        if e.body
+        if defined?(e.body) and e.body
           @logger.warn(
             "Unexpected error occurred while uploading status to Scalyr",
             :error_message => e.message,
