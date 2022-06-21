@@ -240,7 +240,7 @@ workflows:
       - microbenchmarks-cruby
       - confirm-no-vendoring
 
-  daily-stable-smoke-tests:
+  daily-stable-unit-smoke-tests:
     triggers:
       - schedule:
           cron: "0 0 * * *"
@@ -249,4 +249,5 @@ workflows:
               only:
                 - master
     jobs:
-       - smoketest-rubygems-stable
+      - unittest
+      - smoketest-rubygems-stable
