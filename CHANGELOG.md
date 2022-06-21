@@ -8,6 +8,7 @@
   To enable this functionality, user needs to configure ``severity_field`` plugin config option and
   set it to the logstash event field which carries the severity field value. This field value
   needs to be an integer and contain a value from 0 to 6 (inclusive).
+* Upgrade dependencies (manticore -> 0.9.1, jrjackson -> 0.4.15).
 
 ## 0.2.4.beta
 
