@@ -86,6 +86,40 @@ output {
   }
 ```
 
+## Notes on severity (sev) attribute handling
+
+``sev`` is a special top level DataSet event field which denotes the event severity / log level.
+
+To enable this functionality, user needs to define ``severity_field`` plugin config option. This
+config option tells the plugin which Logstash event field carries the value for the severity field.
+
+The actual value needs to be an integer between 0 and 6 inclusive. Those values are mapped to
+different severity / log levels on DataSet server side as shown below:
+
+- 0 -> finest
+- 1 -> trace
+- 2 -> debut
+- 3 -> info
+- 4 -> warning
+- 5 -> error
+- 6 -> fatal / emergency / critical
+
+```
+output {
+ scalyr {
+   api_write_token => 'SCALYR_API_KEY'
+   ...
+   severity_field => 'severity',
+ }
+}
+```
+
+In the example above, value for the DataSet severity field should be included in the ``severity``
+Logstash event field.
+
+In case the field value doesn't contain a valid severity number (0 - 6), ``sev`` field won't be
+set on the event object to prevent API from rejecting an invalid request.
+
 ## Options
 
 - The Scalyr API write token, these are available at https://www.scalyr.com/keys.  This is the only compulsory configuration field required for proper upload
