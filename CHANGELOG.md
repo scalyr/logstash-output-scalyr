@@ -14,7 +14,8 @@
   NOTE: For zstandard compression to be used zstd / libstd system package needs to be installed
   (https://github.com/msievers/zstandard-ruby/#examples-for-installing-libzstd) and ``zstandard``
   gem needs to be installed inside the Logstash jRuby environment
-  (e.g. ``/usr/share/logstash/bin/ruby -S /usr/share/logstash/vendor/jruby/bin/gem install zstandard``).
+  (e.g. ``/usr/share/logstash/bin/ruby -S /usr/share/logstash/vendor/jruby/bin/gem install 
+  zstandard ; echo 'gem "zstandard"' >> /opt/logstash/Gemfile``).
 
 ## 0.2.4.beta
 

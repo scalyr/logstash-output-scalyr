@@ -311,7 +311,7 @@ class ClientSession
         end
 
         encoding = 'zstandard'
-        compressed_body = Zstandard.deflate(string)
+        compressed_body = Zstandard.deflate(body)
       end
       end_time = Time.now.to_f
       compression_duration = end_time - start_time
