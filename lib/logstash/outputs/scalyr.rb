@@ -878,7 +878,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       end
 
       # optionally set severity (if available and valid)
-      if @severity_field and severity
+      if @severity_field and not severity_int.nil?
         scalyr_event[:sev] = severity_int
       end
 

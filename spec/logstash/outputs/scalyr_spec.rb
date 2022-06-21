@@ -310,10 +310,13 @@ describe LogStash::Outputs::Scalyr do
         end
 
         expect(body['events'][14]['attrs'].fetch('severity', nil)).to eq(-1)
+        expect(body['events'][14].key?("sev")).to eq(false)
         expect(body['events'][14]['sev']).to eq(nil)
         expect(body['events'][15]['attrs'].fetch('severity', nil)).to eq(7)
+        expect(body['events'][15].key?("sev")).to eq(false)
         expect(body['events'][15]['sev']).to eq(nil)
         expect(body['events'][16]['attrs'].fetch('severity', nil)).to eq("invalid")
+        expect(body['events'][16].key?("sev")).to eq(false)
         expect(body['events'][16]['sev']).to eq(nil)
       end
 
@@ -381,10 +384,13 @@ describe LogStash::Outputs::Scalyr do
         end
 
         expect(body['events'][14]['attrs'].fetch('severity', nil)).to eq(-1)
+        expect(body['events'][14].key?("sev")).to eq(false)
         expect(body['events'][14]['sev']).to eq(nil)
         expect(body['events'][15]['attrs'].fetch('severity', nil)).to eq(7)
+        expect(body['events'][15].key?("sev")).to eq(false)
         expect(body['events'][15]['sev']).to eq(nil)
         expect(body['events'][16]['attrs'].fetch('severity', nil)).to eq("invalid")
+        expect(body['events'][16].key?("sev")).to eq(false)
         expect(body['events'][16]['sev']).to eq(nil)
       end
     end
