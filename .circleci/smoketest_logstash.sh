@@ -164,6 +164,7 @@ bash -c "${DOWNLOAD_SMOKE_TESTS_SCRIPT_COMMAND} ; ${smoketest_script} ${contname
 --agent_hostname ${agent_hostname} \
 --uploader_hostname ${uploader_hostname} \
 --monitored_logfile $monitored_logfile1 \
+--compression_type ${COMPRESSION_TYPE} \
 --debug true"
 
 kill_and_delete_docker_test_containers
