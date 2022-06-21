@@ -9,6 +9,12 @@
   set it to the logstash event field which carries the severity field value. This field value
   needs to be an integer and contain a value from 0 to 6 (inclusive).
 * Upgrade dependencies (manticore -> 0.9.1, jrjackson -> 0.4.15).
+* Fix experimental ``zstandard`` support.
+
+  NOTE: For zstandard compression to be used zstd / libstd system package needs to be installed
+  (https://github.com/msievers/zstandard-ruby/#examples-for-installing-libzstd) and ``zstandard``
+  gem needs to be installed inside the Logstash jRuby environment
+  (e.g. ``/usr/share/logstash/bin/ruby -S /usr/share/logstash/vendor/jruby/bin/gem install zstandard``).
 
 ## 0.2.4.beta
 
