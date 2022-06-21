@@ -49,6 +49,28 @@ jobs: # a collection of steps
             cp $gemfile .circleci/docker/
             source .circleci/smoketest_logstash.sh yarnsh/agent-testing:latest 300 $gemfile .circleci/docker 8
 
+  smoketest-git-dev-zstandard:
+    docker:
+      - image: circleci/jruby:9.2.7.0-jdk
+    steps:
+      - setup_remote_docker:
+          docker_layer_caching: false
+      - checkout # special step to check out source code to working directory
+      - run:
+          name: Build gem
+          command: |
+            gem build logstash-output-scalyr.gemspec
+            # We rename the file so we don't need to hard code version in Dockerfile
+            mv logstash-output-scalyr-*.gem logstash-output-scalyr.gem
+      - run:
+          name: Run smoketest script which first builds another Docker Logstash image and installs our gem
+          command: |
+            gemfile=$(ls *.gem)
+            echo "Using gemfile: ${gemfile}"
+            cp $gemfile .circleci/docker/
+            export COMPRESSION_TYPE="zstandard"
+            source .circleci/smoketest_logstash.sh yarnsh/agent-testing:latest 300 $gemfile .circleci/docker 8
+
   smoketest-git-dev-single-worker:
     docker:
       - image: circleci/jruby:9.2.7.0-jdk
@@ -209,6 +231,7 @@ workflows:
   unittests-smoketests-benchmarks:
     jobs:
       - smoketest-git-dev
+      - smoketest-git-dev-zstandard
       - smoketest-rubygems-stable
       - smoketest-git-dev-single-worker
       - smoketest-rubygems-stable-single-worker

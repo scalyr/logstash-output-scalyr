@@ -52,6 +52,8 @@ SMOKE_TESTS_SCRIPT_REPO=${CIRCLE_PROJECT_REPONAME:-"logstash-output-scalyr"}
 SMOKE_TESTS_SCRIPT_URL="https://raw.githubusercontent.com/scalyr/${SMOKE_TESTS_SCRIPT_REPO}/${SMOKE_TESTS_SCRIPT_BRANCH}/.circleci/docker_unified_smoke_unit/smoketest/smoketest.py"
 DOWNLOAD_SMOKE_TESTS_SCRIPT_COMMAND="sudo curl -o /tmp/smoketest.py ${SMOKE_TESTS_SCRIPT_URL}"
 
+COMPRESSION_TYPE=${COMPRESSION_TYPE:-"deflate"}
+
 #----------------------------------------------------------------------------------------
 # Everything below this script should be fully controlled by above variables
 #----------------------------------------------------------------------------------------
@@ -96,14 +98,24 @@ monitored_logfile1="/app/${contname_uploader}.log"
 # Extract and build logstash + scalyr_plugin docker image
 # This step is important and necessary to simulate customer installing our gem into a logstash installation
 #------------------------------------------------------------------------------------------------------------
+
 agent_image="local-logstash-output-scalyr-image"
 pushd $logstash_docker_context
+
 perl -pi.bak -e "s{ORIGIN1_INFILE}{$monitored_logfile1}" pipeline/scalyr.conf
 perl -pi.bak -e "s{SCALYR_API_KEY}{$SCALYR_API_KEY}" pipeline/scalyr.conf
 perl -pi.bak -e "s{SCALYR_SERVER}{$SCALYR_SERVER}" pipeline/scalyr.conf
+perl -pi.bak -e "s{COMPRESSION_TYPE}{$COMPRESSION_TYPE}" pipeline/scalyr.conf
 perl -pi.bak -e "s{WORKER_COUNT}{$worker_count}" config/pipelines.yml
+
 docker build -t ${agent_image} .
+
+echo "Using scalyr.conf plugin config:"
+echo ""
+cat pipeline/scalyr.conf
+echo ""
 popd
+
 
 #------------------------------------------------------------------------------------------------------------
 # Launch Agent container (which begins gathering stdout logs)
