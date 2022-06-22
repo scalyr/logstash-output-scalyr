@@ -1,0 +1,150 @@
+name: "Smoke Tests"
+
+on:
+  push:
+    branches:
+      - master
+      - use_gha
+  pull_request:
+    branches:
+      - master
+  schedule:
+    - cron: '0 4 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  # Special job which automatically cancels old runs for the same branch, prevents runs for the
+  # same file set which has already passed, etc.
+  pre_job:
+    name: Skip Duplicate Jobs Pre Job
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@f75dd6564bb646f95277dc8c3b80612e46a4a1ea # v3.4.1
+        with:
+          cancel_others: 'true'
+          github_token: ${{ github.token }}
+
+  git_dev_version:
+    name: Git Dev Version - ${{ matrix.compression }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    needs: pre_job
+    # NOTE: We always want to run job on master branch
+    if: ${{ needs.pre_job.outputs.should_skip != 'true' || github.ref == 'refs/heads/master' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        compression:
+          - "deflate"
+          - "zstandard"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python 3.8
+        uses: actions/setup-python@v2
+        id: setup-python
+        with:
+          python-version: 3.8
+
+      - name: Setup jRuby
+        uses: ruby/setup-ruby@8029ebd6e5bd8f4e0d6f7623ea76a01ec5b1010d  # v1.110.0
+        with:
+          ruby-version: 'jruby'
+          bundler-cache: true
+
+      - name: Build Gem
+        run: |
+          gem build logstash-output-scalyr.gemspec
+          # We rename the file so we don't need to hard code version in Dockerfile
+          mv logstash-output-scalyr-*.gem logstash-output-scalyr.gem
+
+      - name: Restore Docker Layer Cache
+        uses: satackey/action-docker-layer-caching@46d2c640b1d8ef50d185452ad6fb324e6bd1d052  # v0.0.11
+        # Ignore the failure of a step and avoid terminating the job.
+        continue-on-error: true
+
+      - name: Run Smoke Tests
+        env:
+          SCALYR_SERVER: ${{ secrets.SCALYR_SERVER }}
+          SCALYR_API_KEY: ${{ secrets.SCALYR_API_KEY }}
+          READ_API_KEY: ${{ secrets.READ_API_KEY }}
+        run: |
+          gemfile=$(ls *.gem)
+          echo "Using gemfile: ${gemfile}"
+          cp $gemfile .circleci/docker/
+          # NOTE: We need script workaround due to no tty - https://github.com/actions/runner/issues/808
+          script -e -c ".circleci/smoketest_logstash.sh yarnsh/agent-testing:latest 300 $gemfile .circleci/docker 1"
+
+  git_stable_version:
+    name: Stable / Beta RubyGem Version - ${{ matrix.compression }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    needs: pre_job
+    # NOTE: We always want to run job on master branch
+    if: ${{ needs.pre_job.outputs.should_skip != 'true' || github.ref == 'refs/heads/master' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        compression:
+          - "deflate"
+          - "zstandard"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python 3.8
+        uses: actions/setup-python@v2
+        id: setup-python
+        with:
+          python-version: 3.8
+
+      - name: Setup jRuby
+        uses: ruby/setup-ruby@8029ebd6e5bd8f4e0d6f7623ea76a01ec5b1010d  # v1.110.0
+        with:
+          ruby-version: 'jruby'
+          bundler-cache: true
+
+      - name: Download Gem From RubyGems
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+          LATEST_STABLE_VERSION=$(curl https://rubygems.org/api/v1/versions/logstash-output-scalyr/latest.json | jq .version | tr -d '"')
+          LATEST_BETA_VERSION=$(curl https://rubygems.org/api/v1/versions/logstash-output-scalyr.json | jq .[0].number | tr -d '"')
+          echo "Using version: ${LATEST_BETA_VERSION}"
+          wget https://rubygems.org/downloads/logstash-output-scalyr-${LATEST_BETA_VERSION}.gem
+
+          # We rename the file so we don't need to hard code version in Dockerfile
+          mv logstash-output-scalyr-*.gem logstash-output-scalyr.gem
+
+      - name: Restore Docker Layer Cache
+        uses: satackey/action-docker-layer-caching@46d2c640b1d8ef50d185452ad6fb324e6bd1d052  # v0.0.11
+        # Ignore the failure of a step and avoid terminating the job.
+        continue-on-error: true
+
+      - name: Run Smoke Tests
+        env:
+          SCALYR_SERVER: ${{ secrets.SCALYR_SERVER }}
+          SCALYR_API_KEY: ${{ secrets.SCALYR_API_KEY }}
+          READ_API_KEY: ${{ secrets.READ_API_KEY }}
+        run: |
+          gemfile=$(ls *.gem)
+          echo "Using gemfile: ${gemfile}"
+          cp $gemfile .circleci/docker/
+          # NOTE: We need script workaround due to no tty - https://github.com/actions/runner/issues/808
+          script -e -c ".circleci/smoketest_logstash.sh yarnsh/agent-testing:latest 300 $gemfile .circleci/docker 1"

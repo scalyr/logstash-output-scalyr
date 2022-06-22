@@ -83,7 +83,8 @@ describe LogStash::Outputs::Scalyr do
                 {
                   :error_class=>"Manticore::UnknownException",
                   :batch_num=>1,
-                  :message=>"java.lang.RuntimeException: Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty",
+                  :message=>"Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty",
+                  #:message=>"java.lang.RuntimeException: Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty",
                   :payload_size=>737,
                   :record_count=>3,
                   :total_batches=>1,
@@ -116,7 +117,8 @@ describe LogStash::Outputs::Scalyr do
                 {
                   :error_class=>"Manticore::UnknownException",
                   :batch_num=>1,
-                  :message=>"java.lang.RuntimeException: Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty",
+                  :message=>"Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty",
+                  #:message=>"java.lang.RuntimeException: Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty",
                   :payload_size=>737,
                   :record_count=>3,
                   :total_batches=>1,
