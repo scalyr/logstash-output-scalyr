@@ -122,8 +122,6 @@ jobs:
 
       - name: Download Gem From RubyGems
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
           LATEST_STABLE_VERSION=$(curl https://rubygems.org/api/v1/versions/logstash-output-scalyr/latest.json | jq .version | tr -d '"')
           LATEST_BETA_VERSION=$(curl https://rubygems.org/api/v1/versions/logstash-output-scalyr.json | jq .[0].number | tr -d '"')
           echo "Using version: ${LATEST_BETA_VERSION}"
