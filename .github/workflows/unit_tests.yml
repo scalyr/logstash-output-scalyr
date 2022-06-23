@@ -33,6 +33,7 @@ jobs:
     name: Unit Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: pre_job
 
     steps:
       - name: Checkout Repository
@@ -54,6 +55,7 @@ jobs:
     name: Confirm No Vendoring
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: pre_job
 
     steps:
       - name: Checkout Repository
