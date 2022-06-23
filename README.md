@@ -98,7 +98,7 @@ different severity / log levels on DataSet server side as shown below:
 
 - 0 -> finest
 - 1 -> trace
-- 2 -> debut
+- 2 -> debug
 - 3 -> info
 - 4 -> warning
 - 5 -> error
@@ -109,7 +109,7 @@ output {
  scalyr {
    api_write_token => 'SCALYR_API_KEY'
    ...
-   severity_field => 'severity',
+   severity_field => 'severity'
  }
 }
 ```

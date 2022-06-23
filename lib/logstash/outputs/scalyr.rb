@@ -67,7 +67,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   #
   # - 0 -> finest
   # - 1 -> trace
-  # - 2 -> debut
+  # - 2 -> debug
   # - 3 -> info
   # - 4 -> warning
   # - 5 -> error
