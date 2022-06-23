@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 #----------------------------------------------------------------------------------------
 # Runs agent smoketest for docker:
 #    - Assumes that the current scalyr-agent-2 root directory contains the test branch and that
@@ -22,6 +23,8 @@
 # e.g. usage
 #   smoketest_docker.sh scalyr/scalyr-agent-ci-smoketest:10 300 $gemfile .circleci/docker
 #----------------------------------------------------------------------------------------
+
+set -e
 
 # The following variables are needed
 # Docker image in which runs smoketest python3 code
@@ -83,7 +86,7 @@ function kill_and_delete_docker_test_containers() {
     done
     echo ""
 }
-kill_and_delete_docker_test_containers
+kill_and_delete_docker_test_containers || true
 echo `pwd`
 
 
@@ -167,4 +170,4 @@ bash -c "${DOWNLOAD_SMOKE_TESTS_SCRIPT_COMMAND} ; ${smoketest_script} ${contname
 --compression_type ${COMPRESSION_TYPE} \
 --debug true"
 
-kill_and_delete_docker_test_containers
+kill_and_delete_docker_test_containers || true

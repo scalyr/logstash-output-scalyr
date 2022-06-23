@@ -1,0 +1,84 @@
+name: "Unit Tests & Lint"
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  schedule:
+    - cron: '0 4 * * *'
+
+permissions:
+  actions: write  # Needed for skip-duplicate-jobs job
+  contents: read
+
+jobs:
+  # Special job which automatically cancels old runs for the same branch, prevents runs for the
+  # same file set which has already passed, etc.
+  pre_job:
+    name: Skip Duplicate Jobs Pre Job
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@f75dd6564bb646f95277dc8c3b80612e46a4a1ea # v3.4.1
+        with:
+          cancel_others: 'true'
+          github_token: ${{ github.token }}
+
+  unit_tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: pre_job
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Setup jRuby
+        uses: ruby/setup-ruby@8029ebd6e5bd8f4e0d6f7623ea76a01ec5b1010d  # v1.110.0
+        with:
+          ruby-version: 'jruby-9.2.9.0'
+          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+
+      - name: Run rspec in parallel
+        run: |
+          bundle exec rspec
+
+  confirm_no_vendoring:
+    name: Confirm No Vendoring
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: pre_job
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Setup jRuby
+        uses: ruby/setup-ruby@8029ebd6e5bd8f4e0d6f7623ea76a01ec5b1010d  # v1.110.0
+        with:
+          ruby-version: 'jruby'
+          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+
+      - name: Build and Unpack Gem
+        run: |
+          gem build logstash-output-scalyr.gemspec
+          # We rename the file so we don't need to hard code version in Dockerfile
+          mv logstash-output-scalyr-*.gem logstash-output-scalyr.gem
+
+          [ ! -d logstash-output-scalyr ]
+          gem unpack logstash-output-scalyr.gem
+
+      - name: Confirm no vendor directory was unpacked
+        run: |
+          ls -la logstash-output-scalyr/
+          [ ! -d logstash-output-scalyr/vendor ]

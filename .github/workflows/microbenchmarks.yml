@@ -1,0 +1,98 @@
+name: "Micro Benchmarks"
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  schedule:
+    - cron: '0 4 * * *'
+
+permissions:
+  actions: write  # Needed for skip-duplicate-jobs job
+  contents: read
+
+jobs:
+  # Special job which automatically cancels old runs for the same branch, prevents runs for the
+  # same file set which has already passed, etc.
+  pre_job:
+    name: Skip Duplicate Jobs Pre Job
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@f75dd6564bb646f95277dc8c3b80612e46a4a1ea # v3.4.1
+        with:
+          cancel_others: 'true'
+          github_token: ${{ github.token }}
+
+  microbenchmarks:
+    name: Micro Benchmarks - ${{ matrix.ruby_version.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: pre_job
+
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby_version:
+          - { "version": "jruby-9.2.9.0", "name": "jRuby", "bundle_cache": true }
+          - { "version": "3.1", "name": "cRuby", "bundle_cache": false }
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@8029ebd6e5bd8f4e0d6f7623ea76a01ec5b1010d  # v1.110.0
+        with:
+          ruby-version: '${{ matrix.ruby_version.version }}'
+          bundler-cache: ${{ matrix.ruby_version.bundle_cache }}  # runs 'bundle install' and caches installed gems automatically
+
+      - name: Run Micro Benchmarks (jRuby)
+        if: ${{ matrix.ruby_version.version == 'jruby-9.2.9.0' }}
+        run: |
+          export JRUBY_OPTS=-J-Xmx4096m
+          gem install jrjackson
+          gem install quantile
+          echo "Flattening and serialization util results:"
+          echo ""
+          ruby spec/benchmarks/flattening_and_serialization.rb
+          echo ""
+          echo "Metrics recording results:"
+          ruby spec/benchmarks/metrics_overhead.rb
+          echo ""
+          echo "Bignum converting results:"
+          ruby spec/benchmarks/bignum_fixing.rb
+          echo ""
+          echo "json serialization:"
+          ruby spec/benchmarks/json_serialization.rb
+          echo ""
+          echo "set_session_level_serverhost_on_events results:"
+          ruby spec/benchmarks/set_session_level_serverhost_on_events.rb
+          echo ""
+
+      # We run micro benchmarks against cRuby just for reference purposes since plugins always run
+      # with jRuby
+      - name: Run Micro Benchmarks (cRuby)
+        if: ${{ matrix.ruby_version.version == '3.1' }}
+        run: |
+          gem install quantile
+          echo "Flattening and serialization util results:"
+          echo ""
+          ruby spec/benchmarks/flattening_and_serialization.rb
+          echo ""
+          echo "Metrics recording results:"
+          ruby spec/benchmarks/metrics_overhead.rb
+          echo ""
+          echo "Bignum converting results:"
+          ruby spec/benchmarks/bignum_fixing.rb
+          echo ""
+          echo "set_session_level_serverhost_on_events results:"
+          ruby spec/benchmarks/set_session_level_serverhost_on_events.rb
+          echo ""
