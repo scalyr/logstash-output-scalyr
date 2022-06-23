@@ -1,4 +1,4 @@
-[![Unit Tests & Lint](https://github.com/scalyr/logstash-output-scalyr/actions/workflows/unit_tests.yml/badge.svg)](https://github.com/scalyr/logstash-output-scalyr/actions/workflows/unit_tests.yml) [![Gem Version](https://badge.fury.io/rb/logstash-output-scalyr.svg)](https://badge.fury.io/rb/logstash-output-scalyr)
+[![Unit Tests & Lint](https://github.com/scalyr/logstash-output-scalyr/actions/workflows/unit_tests.yml/badge.svg)](https://github.com/scalyr/logstash-output-scalyr/actions/workflows/unit_tests.yml) [![Smoke Tests](https://github.com/scalyr/logstash-output-scalyr/actions/workflows/smoke_tests.yml/badge.svg)](https://github.com/scalyr/logstash-output-scalyr/actions/workflows/smoke_tests.yml) [![Micro Benchmarks](https://github.com/scalyr/logstash-output-scalyr/actions/workflows/microbenchmarks.yml/badge.svg)](https://github.com/scalyr/logstash-output-scalyr/actions/workflows/microbenchmarks.yml) [![Gem Version](https://badge.fury.io/rb/logstash-output-scalyr.svg)](https://badge.fury.io/rb/logstash-output-scalyr)
 
 # [Scalyr output plugin for Logstash]
 
