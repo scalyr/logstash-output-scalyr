@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - use_gha
   pull_request:
     branches:
       - master
