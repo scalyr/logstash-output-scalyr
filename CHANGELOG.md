@@ -3,10 +3,13 @@
 ## 0.2.6
 
 * Update default value of ``ssl_ca_bundle_path`` config option to
-  ``/etc/ssl/certs/ca-certificates.crt``. This way it works out of the box with default Docker
-  image.
+  ``/etc/ssl/certs/ca-certificates.crt``. This way it works out of the box with the default
+  upstream logstash OSS Docker Image.
 * Update default bundled root CA certs to contain all the root CA certs used by the DataSet API
   endpoints.
+
+  In case you are encountering connectivity issues and SSL / TLS errors in the logstash log with
+  previous versions of the client you should upgrade to this release.
 
 ## 0.2.5.beta
 
