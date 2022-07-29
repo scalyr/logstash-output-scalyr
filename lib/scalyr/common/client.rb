@@ -118,8 +118,6 @@ class ClientSession
     }
 
     # verify peers to prevent potential MITM attacks
-    # TODO: If append_builtin_cert is false, don't copy it over since we don't
-    # modify it then
     if @ssl_verify_peer
       c[:ssl][:verify] = :strict
 
@@ -127,6 +125,15 @@ class ClientSession
         # System CA bundle is used, no need to copy it over and append our bundled CA cert
         @logger.info("Using CA bundle from #{@ssl_ca_bundle_path} to validate the server side certificate")
         @ca_cert_path = @ssl_ca_bundle_path
+
+        if not File.file?(@ssl_ca_bundle_path)
+          # TODO: For now we don't throw to keep code backward compatible. In the future in case
+          # file doesn't exist, we should throw instead of write empty CA cert file and pass that 
+          # to Manticore which will eventually fail and throw on cert validation
+          #raise Errno::ENOENT.new("ssl_ca_bundle_path config option to an invalid file path which doesn't exist - #{@ssl_ca_bundle_path}")
+          @ca_cert = Tempfile.new("ca_cert")
+          @ca_cert_path = @ca_cert.path
+        end
       else
         @ca_cert = Tempfile.new("ca_cert")
 
