@@ -125,6 +125,7 @@ class ClientSession
 
       if not @append_builtin_cert
         # System CA bundle is used, no need to copy it over and append our bundled CA cert
+        @logger.info("Using CA bundle from #{@ssl_ca_bundle_path} to validate the server side certificate")
         @ca_cert_path = @ssl_ca_bundle_path
       else
         @ca_cert = Tempfile.new("ca_cert")
@@ -132,12 +133,18 @@ class ClientSession
         if File.file?(@ssl_ca_bundle_path)
           @ca_cert.write(File.read(@ssl_ca_bundle_path))
           @ca_cert.flush
+        else
+          @logger.warn("CA bundle (#{@ssl_ca_bundle_path}) doesn't exist, using only bundled CA certificates")
         end
 
         open(@ca_cert.path, "a") do |f|
           f.puts @cert_string
         end
+
         @ca_cert.flush
+        @ca_cert_path = @ca_cert.path
+
+        @logger.info("Using CA bundle from #{@ssl_ca_bundle_path} combined with bundled certificates to validate the server side certificate (#{@ca_cert_path})")
       end
       c[:ssl][:ca_file] = @ca_cert_path
     else
