@@ -118,20 +118,28 @@ class ClientSession
     }
 
     # verify peers to prevent potential MITM attacks
+    # TODO: If append_builtin_cert is false, don't copy it over since we don't
+    # modify it then
     if @ssl_verify_peer
       c[:ssl][:verify] = :strict
-      @ca_cert = Tempfile.new("ca_cert")
-      if File.file?(@ssl_ca_bundle_path)
-        @ca_cert.write(File.read(@ssl_ca_bundle_path))
-        @ca_cert.flush
-      end
-      if @append_builtin_cert
-        open(@ca_cert.path, 'a') do |f|
+
+      if not @append_builtin_cert
+        # System CA bundle is used, no need to copy it over and append our bundled CA cert
+        @ca_cert_path = @ssl_ca_bundle_path
+      else
+        @ca_cert = Tempfile.new("ca_cert")
+
+        if File.file?(@ssl_ca_bundle_path)
+          @ca_cert.write(File.read(@ssl_ca_bundle_path))
+          @ca_cert.flush
+        end
+
+        open(@ca_cert.path, "a") do |f|
           f.puts @cert_string
         end
+        @ca_cert.flush
       end
-      @ca_cert.flush
-      c[:ssl][:ca_file] = @ca_cert.path
+      c[:ssl][:ca_file] = @ca_cert_path
     else
       c[:ssl][:verify] = :disable
     end
