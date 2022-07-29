@@ -120,6 +120,45 @@ Logstash event field.
 In case the field value doesn't contain a valid severity number (0 - 6), ``sev`` field won't be
 set on the event object to prevent API from rejecting an invalid request.
 
+## Note On Server SSL Certificate Validation
+
+By default when validating DataSet endpoint server SSL certificate, logstash plugin will use a
+combination of system CA certs bundle from ``/etc/ssl/certs/ca-certificates.crt`` and combination
+of root CA certificates which are bundled with this plugin which represent root certificates used
+to issue / sign server certificates used by the DataSet API endpoint.
+
+In case you want to use only system CA certs bundle (not use certs which are bundled with the
+plugin), you can do that by using the following config options:
+
+```
+output {
+ scalyr {
+   api_write_token => 'SCALYR_API_KEY'
+   ...
+   # You only need to set this config option in case default CA bundle path on your system is
+   # different
+   ssl_ca_bundle_path => "/etc/ssl/certs/ca-certificates.crt"
+   append_builtin_cert => false
+ }
+}
+```
+
+In case you want to use only root CA certs which are bundled with the plugin (not use system CA
+certs bundle), you can do that by using the following config options:
+
+```
+output {
+ scalyr {
+   api_write_token => 'SCALYR_API_KEY'
+   ...
+   # You only need to set this config option in case default CA bundle path on your system is
+   # different
+   ssl_ca_bundle_path => nil
+   append_builtin_cert => true
+ }
+}
+```
+
 ## Options
 
 - The Scalyr API write token, these are available at https://www.scalyr.com/keys.  This is the only compulsory configuration field required for proper upload
