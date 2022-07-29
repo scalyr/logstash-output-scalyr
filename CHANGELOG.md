@@ -1,5 +1,13 @@
 # Beta
 
+## 0.2.6
+
+* Update default value of ``ssl_ca_bundle_path`` config option to
+  ``/etc/ssl/certs/ca-certificates.crt``. This way it works out of the box with default Docker
+  image.
+* Update default bundled root  CA certs to contain all the root CA certs used by the DataSet
+  endpoints.
+
 ## 0.2.5.beta
 
 * Allow user to specify value for the DataSet event severity  (``sev``) field. "sev" field is a
