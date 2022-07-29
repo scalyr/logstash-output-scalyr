@@ -6,6 +6,16 @@ This plugin implements a Logstash output plugin that uploads data to [Scalyr](ht
 
 You can view documentation for this plugin [on the Scalyr website](https://app.scalyr.com/solutions/logstash).
 
+NOTE: If you are encountering connectivity issues and see SSL / TLS erros such as an example below,
+you should upgrade to version 0.2.6 or higher.
+
+```javascript
+{"message":"Error uploading to Scalyr (will backoff-retry)",
+"error_class":"Manticore::ClientProtocolException","url":"https://agent.scalyr.com/addEvents",
+"message":"PKIX path validation failed: java.security.cert.CertPathValidatorException: validity check failed"
+}
+```
+
 # Quick start
 
 1. Build the gem, run `gem build logstash-output-scalyr.gemspec` 
@@ -120,6 +130,45 @@ Logstash event field.
 In case the field value doesn't contain a valid severity number (0 - 6), ``sev`` field won't be
 set on the event object to prevent API from rejecting an invalid request.
 
+## Note On Server SSL Certificate Validation
+
+By default when validating DataSet endpoint server SSL certificate, logstash plugin will use a
+combination of system CA certs bundle from ``/etc/ssl/certs/ca-certificates.crt`` and combination
+of root CA certificates which are bundled with this plugin which represent root certificates used
+to issue / sign server certificates used by the DataSet API endpoint.
+
+In case you want to use only system CA certs bundle (not use certs which are bundled with the
+plugin), you can do that by using the following config options:
+
+```
+output {
+ scalyr {
+   api_write_token => 'SCALYR_API_KEY'
+   ...
+   # You only need to set this config option in case default CA bundle path on your system is
+   # different
+   ssl_ca_bundle_path => "/etc/ssl/certs/ca-certificates.crt"
+   append_builtin_cert => false
+ }
+}
+```
+
+In case you want to use only root CA certs which are bundled with the plugin (not use system CA
+certs bundle), you can do that by using the following config options:
+
+```
+output {
+ scalyr {
+   api_write_token => 'SCALYR_API_KEY'
+   ...
+   # You only need to set this config option in case default CA bundle path on your system is
+   # different
+   ssl_ca_bundle_path => nil
+   append_builtin_cert => true
+ }
+}
+```
+
 ## Options
 
 - The Scalyr API write token, these are available at https://www.scalyr.com/keys.  This is the only compulsory configuration field required for proper upload
@@ -134,9 +183,13 @@ set on the event object to prevent API from rejecting an invalid request.
 
 ---
 
-- Path to SSL bundle file.
+- Path to SSL CA bundle file which is used to verify the server certificate.
 
-`config :ssl_ca_bundle_path, :validate => :string, :default => nil`
+`config :ssl_ca_bundle_path, :validate => :string, :default => "/etc/ssl/certs/ca-certificates.crt"`
+
+If for some reason you need to disable server cert validation (you are strongly recommended to
+not disable it unless specifically instructed to do so or have a valid reason for it), you can do
+that by setting ``ssl_verify_peer`` config option to false.
 
 ---
 
