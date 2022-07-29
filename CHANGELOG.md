@@ -5,7 +5,7 @@
 * Update default value of ``ssl_ca_bundle_path`` config option to
   ``/etc/ssl/certs/ca-certificates.crt``. This way it works out of the box with default Docker
   image.
-* Update default bundled root  CA certs to contain all the root CA certs used by the DataSet
+* Update default bundled root CA certs to contain all the root CA certs used by the DataSet API
   endpoints.
 
 ## 0.2.5.beta
