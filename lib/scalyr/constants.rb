@@ -5,14 +5,7 @@ PLUGIN_VERSION = "v0.2.5.beta"
 # Special event level attribute name which can be used for setting event level serverHost attribute
 EVENT_LEVEL_SERVER_HOST_ATTRIBUTE_NAME = '__origServerHost'
 
-# Path to the bundled server root CA cert
-#  openssl x509 -in lib/scalyr/certs/ca.pem
-#     Data:
-#        Version: 3 (0x2)
-#        Serial Number:
-#            13:7d:53:9c:aa:7c:31:a9:a4:33:70:19:68:84:7a:8d
-#    Signature Algorithm: sha384WithRSAEncryption
-#        Issuer: C=US, ST=New Jersey, L=Jersey City, O=The USERTRUST Network, CN=USERTrust RSA Certification Authority
+# Path to the bundled root CA certs used to sign server cert
 CA_CERT_PATH = File.expand_path(File.join(File.dirname(__FILE__), + "/certs/ca_certs.crt"))
 
 # Cert which is append to a copy of "/etc/ssl/certs/ca-bundle.crt" file.

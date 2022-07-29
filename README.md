@@ -134,9 +134,13 @@ set on the event object to prevent API from rejecting an invalid request.
 
 ---
 
-- Path to SSL bundle file.
+- Path to SSL CA bundle file which is used to verify the server certificate.
 
-`config :ssl_ca_bundle_path, :validate => :string, :default => nil`
+`config :ssl_ca_bundle_path, :validate => :string, :default => "/etc/ssl/certs/ca-certificates.crt"`
+
+If for some reason you need to disable server cert validation (you are strongly recommended to
+not disable it unless specifically instructed to do so or have a valid reason for it), you can do
+that by setting ``ssl_verify_peer`` config option to false.
 
 ---
 
