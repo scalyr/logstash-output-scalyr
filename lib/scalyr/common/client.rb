@@ -57,7 +57,7 @@ end
 class ClientSession
 
   def initialize(logger, add_events_uri, compression_type, compression_level,
-                 ssl_verify_peer, ssl_ca_bundle_path, append_builtin_cert,
+                 ssl_verify_peer, ssl_ca_bundle_path,
                  record_stats_for_status, flush_quantile_estimates_on_status_send,
                  connect_timeout, socket_timeout, request_timeout, pool_max, pool_max_per_route)
     @logger = logger
@@ -66,7 +66,6 @@ class ClientSession
     @compression_level = compression_level
     @ssl_verify_peer = ssl_verify_peer
     @ssl_ca_bundle_path = ssl_ca_bundle_path
-    @append_builtin_cert = append_builtin_cert
     @record_stats_for_status = record_stats_for_status
     @flush_quantile_estimates_on_status_send = flush_quantile_estimates_on_status_send
     @connect_timeout = connect_timeout
@@ -164,12 +163,6 @@ class ClientSession
         @ca_cert.write(File.read(@ssl_ca_bundle_path))
         @ca_cert.flush
       end
-      if @append_builtin_cert
-        open(@ca_cert.path, 'a') do |f|
-          f.puts @cert_string
-        end
-      end
-      @ca_cert.flush
       c[:ssl][:ca_file] = @ca_cert.path
     else
       c[:ssl][:verify] = :disable
