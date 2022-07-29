@@ -69,11 +69,6 @@ jobs:
           # We rename the file so we don't need to hard code version in Dockerfile
           mv logstash-output-scalyr-*.gem logstash-output-scalyr.gem
 
-      - name: Restore Docker Layer Cache
-        uses: satackey/action-docker-layer-caching@46d2c640b1d8ef50d185452ad6fb324e6bd1d052  # v0.0.11
-        # Ignore the failure of a step and avoid terminating the job.
-        continue-on-error: true
-
       - name: Run Smoke Tests
         env:
           SCALYR_SERVER: ${{ secrets.SCALYR_SERVER }}
@@ -129,11 +124,6 @@ jobs:
 
           # We rename the file so we don't need to hard code version in Dockerfile
           mv logstash-output-scalyr-*.gem logstash-output-scalyr.gem
-
-      - name: Restore Docker Layer Cache
-        uses: satackey/action-docker-layer-caching@46d2c640b1d8ef50d185452ad6fb324e6bd1d052  # v0.0.11
-        # Ignore the failure of a step and avoid terminating the job.
-        continue-on-error: true
 
       - name: Run Smoke Tests
         env:
