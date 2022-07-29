@@ -134,7 +134,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   config :ssl_verify_peer, :validate => :boolean, :default => true
 
   # Path to SSL bundle file.
-  config :ssl_ca_bundle_path, :validate => :string, :default => "/etc/ssl/certs/ca-bundle.crt"
+  # Technically, we could also use Ruby specific cert store + using OpenSSL::X509::DEFAULT_CERT_FILE
+  # here, although that variable stores der and not pem format.
+  config :ssl_ca_bundle_path, :validate => :string, :default => "/etc/ssl/certs/ca-certificates.crt"
 
   # If we should append our built-in Scalyr cert to the one we find at `ssl_ca_bundle_path`.
   config :append_builtin_cert, :validate => :boolean, :default => true
