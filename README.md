@@ -6,6 +6,16 @@ This plugin implements a Logstash output plugin that uploads data to [Scalyr](ht
 
 You can view documentation for this plugin [on the Scalyr website](https://app.scalyr.com/solutions/logstash).
 
+NOTE: If you are encountering connectivity issues and see SSL / TLS erros such as an example below,
+you should upgrade to version 0.2.6 or higher.
+
+```javascript
+{"message":"Error uploading to Scalyr (will backoff-retry)",
+"error_class":"Manticore::ClientProtocolException","url":"https://agent.scalyr.com/addEvents",
+"message":"PKIX path validation failed: java.security.cert.CertPathValidatorException: validity check failed"
+}
+```
+
 # Quick start
 
 1. Build the gem, run `gem build logstash-output-scalyr.gemspec` 
