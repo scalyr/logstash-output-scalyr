@@ -1,6 +1,6 @@
 # Beta
 
-## 0.2.6.beta
+## 0.2.6.beta, 0.2.6
 
 * Update default value of ``ssl_ca_bundle_path`` config option to
   ``/etc/ssl/certs/ca-certificates.crt``. This way it works out of the box with the default

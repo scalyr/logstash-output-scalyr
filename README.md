@@ -19,9 +19,9 @@ you should upgrade to version 0.2.6 or higher.
 # Quick start
 
 1. Build the gem, run `gem build logstash-output-scalyr.gemspec` 
-2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-0.2.3.gem` 
+2. Install the gem into a Logstash installation, run `/usr/share/logstash/bin/logstash-plugin install logstash-output-scalyr-0.2.6.gem` 
    or follow the latest official instructions on working with plugins from Logstash. As an alternative, you can directly install latest
-   stable version from RubyGems - ``/usr/share/logstash/bin/logstash-plugin --version 0.2.3 logstash-output-scalyr``
+   stable version from RubyGems - ``/usr/share/logstash/bin/logstash-plugin --version 0.2.6 logstash-output-scalyr``
 3. Configure the output plugin (e.g. add it to a pipeline .conf)
 4. Restart Logstash 
 
@@ -564,7 +564,7 @@ git clone https://github.com/Kami/logstash-config-tester ~/
 gem build logstash-output-scalyr.gemspec
 
 # 2. Copy it to the config test repo
-cp logstash-output-scalyr-0.2.3.gem ~/logstash-config-test/logstash-output-scalyr.gem
+cp logstash-output-scalyr-0.2.6.gem ~/logstash-config-test/logstash-output-scalyr.gem
 
 # 3. Build docker image with the latest dev version of the plugin (may take a while)
 docker-compose build
