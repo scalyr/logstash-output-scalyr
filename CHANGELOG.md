@@ -1,5 +1,15 @@
 # Beta
 
+## 0.2.7.beta
+
+* SSL cert validation code has been simplified. Now ``ssl_ca_bundle_path`` config option
+  defaults to the CA bundle path which is vendored / bundled with the RubyGem and includes CA
+  certs of the authorities which are used for DataSet API endpoint certificates.
+
+  In addition to that, ``append_builtin_cert`` config option has been removed and the code now
+  throws error in case invalid / inexistent path is specified for the ``ssl_ca_bundle_path``
+  config option - this represents a fatal config error.
+
 ## 0.2.6.beta, 0.2.6
 
 * Update default value of ``ssl_ca_bundle_path`` config option to

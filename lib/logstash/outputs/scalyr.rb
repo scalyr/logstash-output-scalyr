@@ -133,13 +133,14 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Whether or not to verify the connection to Scalyr, only set to false for debugging.
   config :ssl_verify_peer, :validate => :boolean, :default => true
 
-  # Path to SSL bundle file.
-  # Technically, we could also use Ruby specific cert store + using OpenSSL::X509::DEFAULT_CERT_FILE
-  # here, although that variable stores der and not pem format.
-  config :ssl_ca_bundle_path, :validate => :string, :default => "/etc/ssl/certs/ca-certificates.crt"
+  # Path to SSL bundle file used to validate remote / server SSL certificate. By default, path to
+  # the CA bundled which is vendored / bundled with the RubyGem is used.
+  # If user has a specific reason to change this value (e.g. to a system ca bundle such as 
+  # /etc/ssl/certs/ca-certificates.crt, they can update this option).
+  config :ssl_ca_bundle_path, :validate => :string, :default => CA_CERTS_PATH
 
-  # If we should append our built-in Scalyr cert to the one we find at `ssl_ca_bundle_path`.
-  config :append_builtin_cert, :validate => :boolean, :default => true
+  # Unused since v0.2.7, left here for backward compatibility reasons
+  config :append_builtin_cert, :validate => :boolean, :default => false
 
   config :max_request_buffer, :validate => :number, :default => 5500000  # echee TODO: eliminate?
   config :force_message_encoding, :validate => :string, :default => nil
@@ -261,6 +262,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       end
     end
 
+    if not @append_builtin_cert.nil?
+      @logger.warn "append_builtin_cert config option has been deprecated and is unused in versions 0.2.7 and above"
+    end
+
     @dlq_writer = dlq_enabled? ? execution_context.dlq_writer : nil
 
     @message_encoding = nil
@@ -352,7 +357,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     @running = true
     @client_session = Scalyr::Common::Client::ClientSession.new(
         @logger, @add_events_uri,
-        @compression_type, @compression_level, @ssl_verify_peer, @ssl_ca_bundle_path, @append_builtin_cert,
+        @compression_type, @compression_level, @ssl_verify_peer, @ssl_ca_bundle_path,
         @record_stats_for_status, @flush_quantile_estimates_on_status_send,
         @http_connect_timeout, @http_socket_timeout, @http_request_timeout, @http_pool_max, @http_pool_max_per_route
     )
@@ -378,7 +383,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     # This way we don't need to keep idle long running connection open.
     initial_send_status_client_session = Scalyr::Common::Client::ClientSession.new(
         @logger, @add_events_uri,
-        @compression_type, @compression_level, @ssl_verify_peer, @ssl_ca_bundle_path, @append_builtin_cert,
+        @compression_type, @compression_level, @ssl_verify_peer, @ssl_ca_bundle_path,
         @record_stats_for_status, @flush_quantile_estimates_on_status_send,
         @http_connect_timeout, @http_socket_timeout, @http_request_timeout, @http_pool_max, @http_pool_max_per_route
     )
