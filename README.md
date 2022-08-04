@@ -136,7 +136,7 @@ By default when validating DataSet endpoint server SSL certificate, logstash use
 bundles which is vendored / bundled with the RubyGem / plugin. This bundle includes CA certificate
 files of authoried which are used to issue DataSet API endpoint certificates.
 
-If you want to use system CA bundle, you should update ``ssl_bundle_path`` to system CA bundle
+If you want to use system CA bundle, you should update ``ssl_ca_bundle_path`` to system CA bundle
 path (e.g. ``/etc/ssl/certs/ca-certificates.crt``), as shown in the example below:
 
 ```
