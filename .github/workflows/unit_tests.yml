@@ -82,3 +82,8 @@ jobs:
         run: |
           ls -la logstash-output-scalyr/
           [ ! -d logstash-output-scalyr/vendor ]
+
+      - name: Confirm gem doesn't contain spec/ directory
+        run: |
+          ls -la logstash-output-scalyr/
+          [ ! -d logstash-output-scalyr/spec/ ]
