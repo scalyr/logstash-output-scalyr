@@ -357,7 +357,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     @running = true
     @client_session = Scalyr::Common::Client::ClientSession.new(
         @logger, @add_events_uri,
-        @compression_type, @compression_level, @ssl_verify_peer, @ssl_ca_bundle_path, @append_builtin_cert,
+        @compression_type, @compression_level, @ssl_verify_peer, @ssl_ca_bundle_path,
         @record_stats_for_status, @flush_quantile_estimates_on_status_send,
         @http_connect_timeout, @http_socket_timeout, @http_request_timeout, @http_pool_max, @http_pool_max_per_route
     )
@@ -383,7 +383,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     # This way we don't need to keep idle long running connection open.
     initial_send_status_client_session = Scalyr::Common::Client::ClientSession.new(
         @logger, @add_events_uri,
-        @compression_type, @compression_level, @ssl_verify_peer, @ssl_ca_bundle_path, @append_builtin_cert,
+        @compression_type, @compression_level, @ssl_verify_peer, @ssl_ca_bundle_path,
         @record_stats_for_status, @flush_quantile_estimates_on_status_send,
         @http_connect_timeout, @http_socket_timeout, @http_request_timeout, @http_pool_max, @http_pool_max_per_route
     )

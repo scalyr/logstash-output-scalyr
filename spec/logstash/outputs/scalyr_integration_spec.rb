@@ -72,7 +72,6 @@ describe LogStash::Outputs::Scalyr do
                 'api_write_token' => '1234',
                 'perform_connectivity_check' => false,
                 'ssl_ca_bundle_path' => '/fakepath/nocerts',
-                'append_builtin_cert' => false,
                 'max_retries' => 2,
                 'retry_max_interval' => 2,
                 'retry_initial_interval' => 0.2,
@@ -92,7 +91,6 @@ describe LogStash::Outputs::Scalyr do
               plugin = LogStash::Outputs::Scalyr.new({
                 'api_write_token' => '1234',
                 'perform_connectivity_check' => false,
-                'append_builtin_cert' => false,
                 'max_retries' => 2,
                 'retry_max_interval' => 2,
                 'retry_initial_interval' => 0.2,
@@ -174,7 +172,6 @@ describe LogStash::Outputs::Scalyr do
             'api_write_token' => '1234',
             'perform_connectivity_check' => false,
             'ssl_ca_bundle_path' => EXAMPLE_COME_CA_CERTS_PATH,
-            'append_builtin_cert' => false,
             'max_retries' => 15,
             'retry_max_interval' => 0.2,
             'retry_initial_interval' => 0.1,
