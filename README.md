@@ -132,42 +132,23 @@ set on the event object to prevent API from rejecting an invalid request.
 
 ## Note On Server SSL Certificate Validation
 
-By default when validating DataSet endpoint server SSL certificate, logstash plugin will use a
-combination of system CA certs bundle from ``/etc/ssl/certs/ca-certificates.crt`` and combination
-of root CA certificates which are bundled with this plugin which represent root certificates used
-to issue / sign server certificates used by the DataSet API endpoint.
+By default when validating DataSet endpoint server SSL certificate, logstash uses CA certificate
+bundles which is vendored / bundled with the RubyGem / plugin. This bundle includes CA certificate
+files of authoried which are used to issue DataSet API endpoint certificates.
 
-In case you want to use only system CA certs bundle (not use certs which are bundled with the
-plugin), you can do that by using the following config options:
+If you want to use system CA bundle, you should update ``ssl_bundle_path`` to system CA bundle
+path (e.g. ``/etc/ssl/certs/ca-certificates.crt``), as shown in the example below:
 
 ```
 output {
  scalyr {
    api_write_token => 'SCALYR_API_KEY'
    ...
-   # You only need to set this config option in case default CA bundle path on your system is
-   # different
    ssl_ca_bundle_path => "/etc/ssl/certs/ca-certificates.crt"
-   append_builtin_cert => false
  }
 }
 ```
 
-In case you want to use only root CA certs which are bundled with the plugin (not use system CA
-certs bundle), you can do that by using the following config options:
-
-```
-output {
- scalyr {
-   api_write_token => 'SCALYR_API_KEY'
-   ...
-   # You only need to set this config option in case default CA bundle path on your system is
-   # different
-   ssl_ca_bundle_path => nil
-   append_builtin_cert => true
- }
-}
-```
 
 ## Options
 
@@ -185,7 +166,7 @@ output {
 
 - Path to SSL CA bundle file which is used to verify the server certificate.
 
-`config :ssl_ca_bundle_path, :validate => :string, :default => "/etc/ssl/certs/ca-certificates.crt"`
+`config :ssl_ca_bundle_path, :validate => :string, :default => CA_CERTS_PATH`
 
 If for some reason you need to disable server cert validation (you are strongly recommended to
 not disable it unless specifically instructed to do so or have a valid reason for it), you can do

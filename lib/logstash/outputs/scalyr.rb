@@ -133,13 +133,14 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Whether or not to verify the connection to Scalyr, only set to false for debugging.
   config :ssl_verify_peer, :validate => :boolean, :default => true
 
-  # Path to SSL bundle file.
-  # Technically, we could also use Ruby specific cert store + using OpenSSL::X509::DEFAULT_CERT_FILE
-  # here, although that variable stores der and not pem format.
-  config :ssl_ca_bundle_path, :validate => :string, :default => "/etc/ssl/certs/ca-certificates.crt"
+  # Path to SSL bundle file used to validate remote / server SSL certificate. By default, path to
+  # the CA bundled which is vendored / bundled with the RubyGem is used.
+  # If user has a specific reason to change this value (e.g. to a system ca bundle such as 
+  # /etc/ssl/certs/ca-certificates.crt, they can update this option).
+  config :ssl_ca_bundle_path, :validate => :string, :default => CA_CERTS_PATH
 
-  # If we should append our built-in Scalyr cert to the one we find at `ssl_ca_bundle_path`.
-  config :append_builtin_cert, :validate => :boolean, :default => true
+  # Unused since v0.2.7, left here for backward compatibility reasons
+  config :append_builtin_cert, :validate => :boolean, :default => false
 
   config :max_request_buffer, :validate => :number, :default => 5500000  # echee TODO: eliminate?
   config :force_message_encoding, :validate => :string, :default => nil
@@ -259,6 +260,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       define_singleton_method "json_encode" do |data|
         JrJackson::Json.dump(data)
       end
+    end
+
+    if not @append_builtin_cert.nil?
+      @logger.warn "append_builtin_cert config option has been deprecated and is unused in versions 0.2.7 and above"
     end
 
     @dlq_writer = dlq_enabled? ? execution_context.dlq_writer : nil

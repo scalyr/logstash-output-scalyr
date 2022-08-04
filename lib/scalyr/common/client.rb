@@ -75,9 +75,6 @@ class ClientSession
     @pool_max = pool_max
     @pool_max_per_route = pool_max_per_route
 
-    # A cert to use by default to avoid issues caused by the OpenSSL library not validating certs according to standard
-    @cert_string = CA_CERT_STRING
-
     # Request statistics are accumulated across multiple threads and must be accessed through a mutex
     @stats_lock = Mutex.new
     @latency_stats = get_new_latency_stats
@@ -120,41 +117,15 @@ class ClientSession
     # verify peers to prevent potential MITM attacks
     if @ssl_verify_peer
       c[:ssl][:verify] = :strict
+      @logger.info("Using CA bundle from #{@ssl_ca_bundle_path} to validate the server side certificate")
 
-      if not @append_builtin_cert
-        # System CA bundle is used, no need to copy it over and append our bundled CA cert
-        @logger.info("Using CA bundle from #{@ssl_ca_bundle_path} to validate the server side certificate")
-        @ca_cert_path = @ssl_ca_bundle_path
-
-        if not File.file?(@ssl_ca_bundle_path)
-          # TODO: For now we don't throw to keep code backward compatible. In the future in case
-          # file doesn't exist, we should throw instead of write empty CA cert file and pass that 
-          # to Manticore which will eventually fail and throw on cert validation
-          #raise Errno::ENOENT.new("ssl_ca_bundle_path config option to an invalid file path which doesn't exist - #{@ssl_ca_bundle_path}")
-          @ca_cert = Tempfile.new("ca_cert")
-          @ca_cert_path = @ca_cert.path
-        end
-      else
-        @ca_cert = Tempfile.new("ca_cert")
-
-        if File.file?(@ssl_ca_bundle_path)
-          @ca_cert.write(File.read(@ssl_ca_bundle_path))
-          @ca_cert.flush
-        else
-          @logger.warn("CA bundle (#{@ssl_ca_bundle_path}) doesn't exist, using only bundled CA certificates")
-        end
-
-        open(@ca_cert.path, "a") do |f|
-          f.puts @cert_string
-        end
-
-        @ca_cert.flush
-        @ca_cert_path = @ca_cert.path
-
-        @logger.info("Using CA bundle from #{@ssl_ca_bundle_path} combined with bundled certificates to validate the server side certificate (#{@ca_cert_path})")
+      if not File.file?(@ssl_ca_bundle_path)
+        raise Errno::ENOENT.new("Invalid path for ssl_ca_bundle_path config option - file doesn't exist or is not readable")
       end
-      c[:ssl][:ca_file] = @ca_cert_path
+
+      c[:ssl][:ca_file] = @ssl_ca_bundle_path
     else
+      @logger.warn("SSL certificate validation has been disabled. You are strongly encouraged to enable it to prevent possible MITM and similar attacks.")
       c[:ssl][:verify] = :disable
     end
 
