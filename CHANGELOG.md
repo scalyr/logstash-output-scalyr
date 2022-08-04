@@ -1,5 +1,10 @@
 # Beta
 
+## 0.2.8.beta
+
+* Update ``.gemspec`` gem metadata to not include ``spec/`` directory with the tests and tests
+  fixtures with the actual production gem file.
+
 ## 0.2.7.beta
 
 * SSL cert validation code has been simplified. Now ``ssl_ca_bundle_path`` config option
