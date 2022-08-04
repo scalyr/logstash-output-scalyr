@@ -10,6 +10,8 @@ require 'webmock/rspec'
 gem 'json', '1.8.6'
 require 'json'
 
+EXAMPLE_COME_CA_CERTS_PATH = File.expand_path(File.join(File.dirname(__FILE__), + "/fixtures/example_com.pem"))
+
 WebMock.allow_net_connect!
 
 RSpec.configure do |rspec|
@@ -64,8 +66,8 @@ describe LogStash::Outputs::Scalyr do
         end
       end
 
-      context "when pointing at a location without any valid certs and not using builtin" do
-        it "throws an SSLError" do
+      context "when pointing at an invalid location (doesnt exist) without any valid certs" do
+        it "throws an Errno::ENOENT error" do
               plugin = LogStash::Outputs::Scalyr.new({
                 'api_write_token' => '1234',
                 'perform_connectivity_check' => false,
@@ -75,30 +77,16 @@ describe LogStash::Outputs::Scalyr do
                 'retry_max_interval' => 2,
                 'retry_initial_interval' => 0.2,
               })
-              plugin.register
-              plugin.instance_variable_set(:@running, false)
-              allow(plugin.instance_variable_get(:@logger)).to receive(:warn)
-              plugin.multi_receive(sample_events)
-              expect(plugin.instance_variable_get(:@logger)).to have_received(:warn).with("Error uploading to Scalyr (will backoff-retry)",
-                {
-                  :error_class=>"Manticore::UnknownException",
-                  :batch_num=>1,
-                  :message=>"Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty",
-                  #:message=>"java.lang.RuntimeException: Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty",
-                  :payload_size=>737,
-                  :record_count=>3,
-                  :total_batches=>1,
-                  :url=>"https://agent.scalyr.com/addEvents",
-                  :will_retry_in_seconds=>0.4
-                }
-              )
+
+              expect {
+                plugin.register
+              }.to raise_error(Errno::ENOENT, /Invalid path for ssl_ca_bundle_path config option - file doesn't exist or is not readable/)
         end
       end
 
-      context "when system certs are missing and not using builtin" do
+      context "when pointing to an empty certs file" do
         it "throws an SSLError" do
-          `sudo mv #{OpenSSL::X509::DEFAULT_CERT_FILE} /tmp/system_cert.pem`
-          `sudo mv #{OpenSSL::X509::DEFAULT_CERT_DIR} /tmp/system_certs`
+          temp_file = file = Tempfile.new('emot_certs_file')
 
           begin
               plugin = LogStash::Outputs::Scalyr.new({
@@ -108,6 +96,7 @@ describe LogStash::Outputs::Scalyr do
                 'max_retries' => 2,
                 'retry_max_interval' => 2,
                 'retry_initial_interval' => 0.2,
+                'ssl_ca_bundle_path' => temp_file.path
               })
               plugin.register
               plugin.instance_variable_set(:@running, false)
@@ -127,9 +116,8 @@ describe LogStash::Outputs::Scalyr do
                 }
               )
           end
-          ensure
-            `sudo mv /tmp/system_certs #{OpenSSL::X509::DEFAULT_CERT_DIR}`
-            `sudo mv /tmp/system_cert.pem #{OpenSSL::X509::DEFAULT_CERT_FILE}`
+        ensure
+          temp_file.unlink
         end
       end
 
@@ -180,23 +168,23 @@ describe LogStash::Outputs::Scalyr do
         end
       end
 
-      context "when an error occurs with retries at 15" do
-        it "exits after 5 retries and emits a log" do
-              plugin = LogStash::Outputs::Scalyr.new({
-                'api_write_token' => '1234',
-                'perform_connectivity_check' => false,
-                'ssl_ca_bundle_path' => '/fakepath/nocerts',
-                'append_builtin_cert' => false,
-                'max_retries' => 15,
-                'retry_max_interval' => 0.5,
-                'retry_initial_interval' => 0.2,
-              })
-              plugin.register
-              allow(plugin.instance_variable_get(:@logger)).to receive(:error)
-              plugin.multi_receive(sample_events)
-              expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Failed to send 3 events after 15 tries.", anything
-              )
-        end
+      context "when an error occurs with retries at 15 and invalid example_com cert" do
+        it "exits after 15 retries and emits a log" do
+          plugin = LogStash::Outputs::Scalyr.new({
+            'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
+            'ssl_ca_bundle_path' => EXAMPLE_COME_CA_CERTS_PATH,
+            'append_builtin_cert' => false,
+            'max_retries' => 15,
+            'retry_max_interval' => 0.2,
+            'retry_initial_interval' => 0.1,
+          })
+          plugin.register
+          allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+          plugin.multi_receive(sample_events)
+          expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Failed to send 3 events after 15 tries.", anything
+          )
+      end
       end
   end
 
@@ -209,11 +197,10 @@ describe LogStash::Outputs::Scalyr do
         plugin = LogStash::Outputs::Scalyr.new({
           'api_write_token' => '1234',
           'perform_connectivity_check' => false,
-          'ssl_ca_bundle_path' => '/fakepath/nocerts',
-          'append_builtin_cert' => false,
+          'ssl_ca_bundle_path' => EXAMPLE_COME_CA_CERTS_PATH,
           'max_retries' => 2,
-          'retry_max_interval' => 2,
-          'retry_initial_interval' => 0.2,
+          'retry_max_interval' => 0.2,
+          'retry_initial_interval' => 0.1,
         })
         plugin.register
         plugin.instance_variable_set(:@running, false)
@@ -230,7 +217,7 @@ describe LogStash::Outputs::Scalyr do
             :record_count=>3,
             :total_batches=>1,
             :url=>"https://agent.scalyr.com/addEvents",
-            :will_retry_in_seconds=>0.4,
+            :will_retry_in_seconds=>0.2,
             :body=>"stubbed response"
           }
         )
@@ -245,11 +232,10 @@ describe LogStash::Outputs::Scalyr do
         plugin = LogStash::Outputs::Scalyr.new({
           'api_write_token' => '1234',
           'perform_connectivity_check' => false,
-          'ssl_ca_bundle_path' => '/fakepath/nocerts',
-          'append_builtin_cert' => false,
+          'ssl_ca_bundle_path' => EXAMPLE_COME_CA_CERTS_PATH,
           'max_retries' => 2,
-          'retry_max_interval' => 2,
-          'retry_initial_interval' => 0.2,
+          'retry_max_interval' => 0.2,
+          'retry_initial_interval' => 0.1,
         })
         plugin.register
         plugin.instance_variable_set(:@running, false)
@@ -266,7 +252,7 @@ describe LogStash::Outputs::Scalyr do
             :record_count=>3,
             :total_batches=>1,
             :url=>"https://agent.scalyr.com/addEvents",
-            :will_retry_in_seconds=>0.4,
+            :will_retry_in_seconds=>0.2,
             :body=>"stubbed response"
           }
         )
@@ -281,11 +267,10 @@ describe LogStash::Outputs::Scalyr do
         plugin = LogStash::Outputs::Scalyr.new({
             'api_write_token' => '1234',
             'perform_connectivity_check' => false,
-            'ssl_ca_bundle_path' => '/fakepath/nocerts',
-            'append_builtin_cert' => false,
+            'ssl_ca_bundle_path' => EXAMPLE_COME_CA_CERTS_PATH,
             'max_retries' => 2,
-            'retry_max_interval' => 2,
-            'retry_initial_interval' => 0.2,
+            'retry_max_interval' => 0.2,
+            'retry_initial_interval' => 0.1,
         })
         plugin.register
         plugin.instance_variable_set(:@running, false)
@@ -302,7 +287,7 @@ describe LogStash::Outputs::Scalyr do
             :record_count=>3,
             :total_batches=>1,
             :url=>"https://agent.scalyr.com/addEvents",
-            :will_retry_in_seconds=>0.4,
+            :will_retry_in_seconds=>0.2,
             :body=>("0123456789" * 50) + "012345678..."
           }
         )
@@ -318,11 +303,10 @@ describe LogStash::Outputs::Scalyr do
         plugin = LogStash::Outputs::Scalyr.new({
             'api_write_token' => '1234',
             'perform_connectivity_check' => false,
-            'ssl_ca_bundle_path' => '/fakepath/nocerts',
-            'append_builtin_cert' => false,
+            'ssl_ca_bundle_path' => EXAMPLE_COME_CA_CERTS_PATH,
             'max_retries' => 2,
-            'retry_max_interval' => 2,
-            'retry_initial_interval' => 0.2,
+            'retry_max_interval' => 0.2,
+            'retry_initial_interval' => 0.1,
         })
         plugin.register
         plugin.instance_variable_set(:@running, false)

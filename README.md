@@ -441,6 +441,12 @@ Or to run a single test function defined on line XXX
 bundle exec rspec spec/scalyr/common/util_spec.rb:XXX
 ```
 
+Or using more verbose output mode:
+
+```bash
+bundle exec rspec -fd spec/scalyr/common/util_spec.rb
+```
+
 ## Instrumentation and metrics
 
 By default, plugin logs a special line with metrics to Scalyr every 5 minutes. This line contains
