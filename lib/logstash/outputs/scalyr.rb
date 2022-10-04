@@ -1012,7 +1012,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       value = attrs.delete key
       value_size = _get_size(value)
       if value_size > @max_field_size_bytes
-        value.slice!(@max_field_size_bytes)
+        value.slice!(@max_field_size_bytes, value_size)
         total_size += @max_field_size_bytes
       else
         total_size += value_size
