@@ -200,7 +200,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # for large batches, it may make sense to disable this option when logstash batch size is configured in a way that
   # Scalyr single request limit won't be reached.
   config :estimate_each_event_size, :validate => :boolean, :default => true
-  # TODO: document
+  # The following settings tune event truncation, which will truncate the
+  # message field to below `max_field_size_bytes`, drop any other field that
+  # exceeds `max_field_size_bytes`, and drop enough fields to ensure the record
+  # does not exceed `max_record_size_bytes`. This feature is only active when
+  # `estimate_each_event_size` is enabled.
   config :max_record_size_bytes, :validate => :number, :default => 200 * 1024
   config :max_field_size_bytes, :validate => :number, :default => 50 * 1024
 
