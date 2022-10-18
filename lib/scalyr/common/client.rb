@@ -30,6 +30,12 @@ class RequestDroppedError < ServerError;
 end
 
 #---------------------------------------------------------------------------------------------------------------------
+# An exception that signifies the Scalyr server received the upload request but dropped it due to it being too large.
+#---------------------------------------------------------------------------------------------------------------------
+class PayloadTooLargeError < ServerError;
+end
+
+#---------------------------------------------------------------------------------------------------------------------
 # An exception representing failure of the http client to upload data to Scalyr (in contrast to server-side errors
 # where the POST api succeeds, but the Scalyr server then responds with an error)
 #---------------------------------------------------------------------------------------------------------------------
@@ -308,15 +314,17 @@ class ClientSession
     end
 
     status = response_hash["status"]
+    code = response.code.to_s.strip.to_i
 
     if status != "success"
-      if status =~ /discardBuffer/
+      if code == 413
+        raise PayloadTooLargeError.new(status, response.code, @add_events_uri, response.body)
+      elsif status =~ /discardBuffer/
         raise RequestDroppedError.new(status, response.code, @add_events_uri, response.body)
       else
         raise ServerError.new(status, response.code, @add_events_uri, response.body)
       end
     else
-      code = response.code.to_s.strip.to_i
       if code < 200 or code > 299
         raise ServerError.new(status, response.code, @add_events_uri, response.body)
       end

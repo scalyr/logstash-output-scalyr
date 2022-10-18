@@ -500,6 +500,24 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             result.push(multi_event_request)
           end
 
+        rescue Scalyr::Common::Client::PayloadTooLargeError => e
+          # if the payload is too large, we do not retry. we send to DLQ or drop it.
+          exc_data = {
+              :error_class => e.e_class,
+              :url => e.url.to_s,
+              :message => e.message,
+              :batch_num => batch_num,
+              :total_batches => total_batches,
+              :record_count => multi_event_request[:record_count],
+              :payload_size => multi_event_request[:body].bytesize,
+          }
+          exc_data[:code] = e.code if e.code
+          if defined?(e.body) and e.body
+            exc_data[:body] = Scalyr::Common::Util.truncate(e.body, 512)
+          end
+          exc_data[:payload] = "\tSample payload: #{request[:body][0,1024]}..."
+          log_retry_failure(multi_event_request, exc_data, 0, 0)
+          next
         rescue Scalyr::Common::Client::ServerError, Scalyr::Common::Client::ClientError => e
           sleep_interval = sleep_for(sleep_interval)
           exc_sleep += sleep_interval
@@ -1050,7 +1068,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     serialized_request_size = serialized_body.bytesize
 
     # We give it "buffer" since the splitting code allows for some slack and doesn't take into account top-level non-event attributes
-    if not @estimate_each_event_size and serialized_request_size >= @max_request_buffer + 5000
+    if serialized_request_size >= @max_request_buffer + 5000
       # TODO: If we end up here is estimate config opsion is false, split the request here into multiple ones
       @logger.warn("Serialized request size (#{serialized_request_size}) is larger than max_request_buffer (#{max_request_buffer})!")
     end
