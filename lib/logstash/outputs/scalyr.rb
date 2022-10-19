@@ -652,18 +652,23 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       @multi_receive_statistics[:total_events_processed] += multi_event_request[:logstash_events].length
       @multi_receive_statistics[:failed_events_processed] += multi_event_request[:logstash_events].length
     end
-    message = "Failed to send #{multi_event_request[:logstash_events].length} events after #{exc_retries} tries."
     sample_events = Array.new
     multi_event_request[:logstash_events][0,5].each {|l_event|
       sample_events << Scalyr::Common::Util.truncate(l_event.to_hash.to_json, 256)
     }
-    @logger.error(message, :error_data => exc_data, :sample_events => sample_events, :retries => exc_retries, :sleep_time => exc_sleep)
+    if exc_data[:code] == 413
+      message = "Failed to send #{multi_event_request[:logstash_events].length} events due to exceeding maximum request size. Not retrying non-retriable request."
+      @logger.error(message, :error_data => exc_data, :sample_events => sample_events)
+    else
+      message = "Failed to send #{multi_event_request[:logstash_events].length} events after #{exc_retries} tries."
+      @logger.error(message, :error_data => exc_data, :sample_events => sample_events, :retries => exc_retries, :sleep_time => exc_sleep)
+    end
     if @dlq_writer
       multi_event_request[:logstash_events].each {|l_event|
         @dlq_writer.write(l_event, "#{exc_data[:message]}")
       }
     else
-      @logger.warn("Dead letter queue not configured, dropping #{multi_event_request[:logstash_events].length} events after #{exc_retries} tries.", :sample_events => sample_events)
+      @logger.warn("Dead letter queue not configured, dropping #{multi_event_request[:logstash_events].length} events.", :sample_events => sample_events)
     end
   end
 
