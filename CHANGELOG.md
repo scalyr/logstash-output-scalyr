@@ -11,6 +11,11 @@
   sending the request to the DLQ, skip the retries go directly to sending the
   request to the DLQ.
 
+  To be notified when an event fails to be ingested for whatever reason, create
+  an alert using the query: ``parser='logstash_plugin_metrics'
+  failed_events_processed > 0``. Instructions on how to create an alert can be
+  found in our docs here: https://scalyr.com/help/alerts
+
 ## 0.2.7.beta
 
 * SSL cert validation code has been simplified. Now ``ssl_ca_bundle_path`` config option
