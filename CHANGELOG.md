@@ -5,6 +5,17 @@
 * Update ``.gemspec`` gem metadata to not include ``spec/`` directory with the tests and tests
   fixtures with the actual production gem file.
 
+* Do not retry requests that will never be accepted by the server.
+  Specifically, any request that returns HTTP Status code 413 is too large, and
+  will never be accepted. Instead of simply retrying for 10 minutes before
+  sending the request to the DLQ, skip the retries go directly to sending the
+  request to the DLQ.
+
+  To be notified when an event fails to be ingested for whatever reason, create
+  an alert using the query: ``parser='logstash_plugin_metrics'
+  failed_events_processed > 0``. Instructions on how to create an alert can be
+  found in our docs here: https://scalyr.com/help/alerts
+
 ## 0.2.7.beta
 
 * SSL cert validation code has been simplified. Now ``ssl_ca_bundle_path`` config option

@@ -500,6 +500,24 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             result.push(multi_event_request)
           end
 
+        rescue Scalyr::Common::Client::PayloadTooLargeError => e
+          # if the payload is too large, we do not retry. we send to DLQ or drop it.
+          exc_data = {
+              :error_class => e.e_class,
+              :url => e.url.to_s,
+              :message => e.message,
+              :batch_num => batch_num,
+              :total_batches => total_batches,
+              :record_count => multi_event_request[:record_count],
+              :payload_size => multi_event_request[:body].bytesize,
+          }
+          exc_data[:code] = e.code if e.code
+          if defined?(e.body) and e.body
+            exc_data[:body] = Scalyr::Common::Util.truncate(e.body, 512)
+          end
+          exc_data[:payload] = "\tSample payload: #{multi_event_request[:body][0,1024]}..."
+          log_retry_failure(multi_event_request, exc_data, 0, 0)
+          next
         rescue Scalyr::Common::Client::ServerError, Scalyr::Common::Client::ClientError => e
           sleep_interval = sleep_for(sleep_interval)
           exc_sleep += sleep_interval
@@ -634,18 +652,25 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       @multi_receive_statistics[:total_events_processed] += multi_event_request[:logstash_events].length
       @multi_receive_statistics[:failed_events_processed] += multi_event_request[:logstash_events].length
     end
-    message = "Failed to send #{multi_event_request[:logstash_events].length} events after #{exc_retries} tries."
     sample_events = Array.new
     multi_event_request[:logstash_events][0,5].each {|l_event|
       sample_events << Scalyr::Common::Util.truncate(l_event.to_hash.to_json, 256)
     }
-    @logger.error(message, :error_data => exc_data, :sample_events => sample_events, :retries => exc_retries, :sleep_time => exc_sleep)
+    if exc_data[:code] == 413
+      message = "Failed to send #{multi_event_request[:logstash_events].length} events due to exceeding maximum request size. Not retrying non-retriable request."
+      # For PayloadTooLargeError we already include sample Scalyr payload in exc_data so there is no need
+      # to include redundant sample Logstash event objects
+      @logger.error(message, :error_data => exc_data)
+    else
+      message = "Failed to send #{multi_event_request[:logstash_events].length} events after #{exc_retries} tries."
+      @logger.error(message, :error_data => exc_data, :sample_events => sample_events, :retries => exc_retries, :sleep_time => exc_sleep)
+    end
     if @dlq_writer
       multi_event_request[:logstash_events].each {|l_event|
         @dlq_writer.write(l_event, "#{exc_data[:message]}")
       }
     else
-      @logger.warn("Dead letter queue not configured, dropping #{multi_event_request[:logstash_events].length} events after #{exc_retries} tries.", :sample_events => sample_events)
+      @logger.warn("Dead letter queue not configured, dropping #{multi_event_request[:logstash_events].length} events.", :sample_events => sample_events)
     end
   end
 
@@ -1050,7 +1075,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     serialized_request_size = serialized_body.bytesize
 
     # We give it "buffer" since the splitting code allows for some slack and doesn't take into account top-level non-event attributes
-    if not @estimate_each_event_size and serialized_request_size >= @max_request_buffer + 5000
+    if serialized_request_size >= @max_request_buffer + 5000
       # TODO: If we end up here is estimate config opsion is false, split the request here into multiple ones
       @logger.warn("Serialized request size (#{serialized_request_size}) is larger than max_request_buffer (#{max_request_buffer})!")
     end
