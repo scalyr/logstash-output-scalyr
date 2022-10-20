@@ -8,7 +8,6 @@ require "quantile"
 
 # Require the specific version of `json` used in logstash
 gem 'json', '1.8.6'
-require 'json'
 
 NODE_HOSTNAME = Socket.gethostname
 
@@ -35,7 +34,7 @@ class MockClientSession
     @stats.clone
   end
 
-  def post_add_events(body, is_status, body_serialization_duration = 0)
+  def post_add_events(body, _is_status, body_serialization_duration = 0)
     @sent_events << { :body => body, :body_serialization_duration => body_serialization_duration }
   end
 end

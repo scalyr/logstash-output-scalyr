@@ -20,10 +20,10 @@ def run_benchmark_and_print_results(data, run_benchmark_func)
     result << Benchmark.measure { run_benchmark_func.(data[i]) }
   end
 
-  sum = result.inject(nil) { |sum, t| sum.nil? ? sum = t : sum += t }
+  sum = result.inject(nil) { |sum, t| sum.nil? ? sum = t : sum += t } # rubocop:disable Lint/UselessAssignment
   avg = sum / result.size
 
-  Benchmark.bm(7, "sum:", "avg:") do |b|
+  Benchmark.bm(7, "sum:", "avg:") do |_b|
     [sum, avg]
   end
   puts ""

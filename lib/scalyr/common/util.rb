@@ -4,6 +4,7 @@ class MaxKeyCountError < StandardError
   attr_reader :message, :sample_keys
 
   def initialize(message, sample_keys)
+    super(message)
     @message = message
     @sample_keys = sample_keys
   end
@@ -32,7 +33,6 @@ def self.flatten(hash_obj, delimiter='_', flatten_arrays=true, fix_deep_flatteni
   key_list = []
   key_list_width = []
   result = Hash.new
-  test_key = 0
   #Debugging
   #require 'pry'
   #binding.pry
@@ -81,10 +81,10 @@ def self.flatten(hash_obj, delimiter='_', flatten_arrays=true, fix_deep_flatteni
         )
       end
 
-      throw_away = key_list.pop
+      key_list.pop
       until key_list_width.empty? or key_list_width[-1] > 1
-        throw_away = key_list_width.pop
-        throw_away = key_list.pop
+        key_list_width.pop
+        key_list.pop
       end
       if not key_list_width.empty?
         key_list_width[-1] -= 1
@@ -116,7 +116,7 @@ def self.convert_bignums(obj)
       obj[index] = convert_bignums(value)
     end
 
-  elsif obj.is_a? Bignum
+  elsif obj.is_a? Integer
     return obj.to_s
 
   else

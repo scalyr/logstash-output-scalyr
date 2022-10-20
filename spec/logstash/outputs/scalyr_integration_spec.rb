@@ -8,7 +8,6 @@ require 'webmock/rspec'
 
 # Require the specific version of `json` used in logstash
 gem 'json', '1.8.6'
-require 'json'
 
 EXAMPLE_COME_CA_CERTS_PATH = File.expand_path(File.join(File.dirname(__FILE__), + "/fixtures/example_com.pem"))
 
@@ -85,7 +84,7 @@ describe LogStash::Outputs::Scalyr do
 
       context "when pointing to an empty certs file" do
         it "throws an SSLError" do
-          temp_file = file = Tempfile.new('emot_certs_file')
+          temp_file = Tempfile.new('emot_certs_file')
 
           begin
               plugin = LogStash::Outputs::Scalyr.new({

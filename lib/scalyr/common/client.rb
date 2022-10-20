@@ -175,7 +175,7 @@ class ClientSession
   # Send "ping" request to the API. This is mostly used to test the connecting with Scalyr API
   # and verify that the API key is valid.
   def send_ping(body)
-    post_body, post_headers, compression_duration = prepare_post_object @add_events_uri.path, body
+    post_body, post_headers, _ = prepare_post_object @add_events_uri.path, body
     response = client.send(:post, @add_events_uri, body: post_body, headers: post_headers)
     handle_response(response)
 
@@ -236,7 +236,7 @@ class ClientSession
 
   # Prepare a post object to be sent, compressing it if necessary
   private
-  def prepare_post_object(uri_path, body)
+  def prepare_post_object(_uri_path, body)
     # use compression if enabled
     encoding = nil
     compression_duration = 0

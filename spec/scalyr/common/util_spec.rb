@@ -245,13 +245,13 @@ describe Scalyr::Common::Util do
   it "flattens a single-level array, no array flattening" do
     din = [1, 2, 3]
     dout = [1, 2, 3]
-    expect(Scalyr::Common::Util.flatten(din, "_", flatten_arrays=false)).to eq(dout)
+    expect(Scalyr::Common::Util.flatten(din, "_", false)).to eq(dout)
   end
 
   it "flattens a multi-level array, no array flattening" do
     din = ['a', 'b', ['c', ['d', 'e', 'f'], 'g'], 'h', 'i']
     dout = ['a', 'b', ['c', ['d', 'e', 'f'], 'g'], 'h', 'i']
-    expect(Scalyr::Common::Util.flatten(din, "_", flatten_arrays=false)).to eq(dout)
+    expect(Scalyr::Common::Util.flatten(din, "_", false)).to eq(dout)
   end
 
   it "flattens a hash that contains an array with hashes, no array flattening" do
@@ -265,7 +265,7 @@ describe Scalyr::Common::Util do
         "b_a" => "a",
         'c_f' => [100, 200, {"g" => 1}]
     }
-    expect(Scalyr::Common::Util.flatten(din, "_", flatten_arrays=false)).to eq(dout)
+    expect(Scalyr::Common::Util.flatten(din, "_", false)).to eq(dout)
   end
 
   it "flattens a hash that contains an array, no array flattening" do
@@ -277,7 +277,7 @@ describe Scalyr::Common::Util do
         'a' => 1,
         'c' => [100, 200, 300]
     }
-    expect(Scalyr::Common::Util.flatten(din, "_", flatten_arrays=false)).to eq(dout)
+    expect(Scalyr::Common::Util.flatten(din, "_", false)).to eq(dout)
   end
 
   it "flattens a hash that contains an array that contains a hash, no array flattening" do
@@ -297,7 +297,7 @@ describe Scalyr::Common::Util do
             300
         ]
     }
-    expect(Scalyr::Common::Util.flatten(din, "_", flatten_arrays=false)).to eq(dout)
+    expect(Scalyr::Common::Util.flatten(din, "_", false)).to eq(dout)
   end
 
   it "flattens a hash that contains an array that contains a hash that contains an array, no array flattening" do
@@ -317,15 +317,15 @@ describe Scalyr::Common::Util do
             300
         ]
     }
-    expect(Scalyr::Common::Util.flatten(din, "_", flatten_arrays=false)).to eq(dout)
+    expect(Scalyr::Common::Util.flatten(din, "_", false)).to eq(dout)
   end
 
   it "flattens large hash correctly" do
-    expect(Scalyr::Common::Util.flatten(LARGE_OBJECT_IN, "_", flatten_arrays=true)).to eq(LARGE_OBJECT_OUT)
+    expect(Scalyr::Common::Util.flatten(LARGE_OBJECT_IN, "_", true)).to eq(LARGE_OBJECT_OUT)
   end
 
   it "flattens large hash correctly not flatten arrays" do
-    expect(Scalyr::Common::Util.flatten(LARGE_OBJECT_IN, "_", flatten_arrays=false)).to eq(LARGE_OBJECT_OUT_NO_FLATTEN_ARRAYS)
+    expect(Scalyr::Common::Util.flatten(LARGE_OBJECT_IN, "_", false)).to eq(LARGE_OBJECT_OUT_NO_FLATTEN_ARRAYS)
   end
 
   it "flattens hash containing empty list correctly" do
@@ -344,7 +344,7 @@ describe Scalyr::Common::Util do
       "hash_value" => "abc123",
       "hash_another_array" => []
     }
-    expect(Scalyr::Common::Util.flatten(obj_in, "_", flatten_arrays=true)).to eq(obj_out)
+    expect(Scalyr::Common::Util.flatten(obj_in, "_", true)).to eq(obj_out)
   end
 
   it "flattens hash containing empty list correctly not flatten arrays" do
@@ -363,7 +363,7 @@ describe Scalyr::Common::Util do
       "hash_value" => "abc123",
       "hash_another_array" => []
     }
-    expect(Scalyr::Common::Util.flatten(obj_in, "_", flatten_arrays=false)).to eq(obj_out)
+    expect(Scalyr::Common::Util.flatten(obj_in, "_", false)).to eq(obj_out)
   end
 
   it "flattens hash containing empty hash correctly" do
@@ -382,7 +382,7 @@ describe Scalyr::Common::Util do
       "hash_value" => "abc123",
       "hash_another_hash" => {}
     }
-    expect(Scalyr::Common::Util.flatten(obj_in, "_", flatten_arrays=true)).to eq(obj_out)
+    expect(Scalyr::Common::Util.flatten(obj_in, "_", true)).to eq(obj_out)
   end
 
   it "flattens hash containing nested bignum correctly" do
@@ -397,7 +397,7 @@ describe Scalyr::Common::Util do
       "abc" => 123,
       "hash_value" => 2000023030042002050202030320240
     }
-    expect(Scalyr::Common::Util.flatten(obj_in, "_", flatten_arrays=true)).to eq(obj_out)
+    expect(Scalyr::Common::Util.flatten(obj_in, "_", true)).to eq(obj_out)
   end
 
   it "flattens hash containing nested boolean correctly" do
@@ -414,7 +414,7 @@ describe Scalyr::Common::Util do
       "hash_value" => true,
       "hash_otherValue" => false
     }
-    expect(Scalyr::Common::Util.flatten(obj_in, "_", flatten_arrays=true)).to eq(obj_out)
+    expect(Scalyr::Common::Util.flatten(obj_in, "_", true)).to eq(obj_out)
   end
 
   it "flattens hash containing nested float correctly" do
@@ -431,7 +431,7 @@ describe Scalyr::Common::Util do
       "hash_value" => 321.12345,
       "hash_otherValue" => 0.0000003
     }
-    expect(Scalyr::Common::Util.flatten(obj_in, "_", flatten_arrays=true)).to eq(obj_out)
+    expect(Scalyr::Common::Util.flatten(obj_in, "_", true)).to eq(obj_out)
   end
 
   it "accepts custom delimiters" do
