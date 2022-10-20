@@ -27,12 +27,18 @@ end
 # An exception that signifies the Scalyr server received the upload request but dropped it
 #---------------------------------------------------------------------------------------------------------------------
 class RequestDroppedError < ServerError;
+  def initialize(msg=nil, code=nil, url=nil, body=nil, e_class="Scalyr::Common::Client::RequestDroppedError")
+    super(msg, code, url, body, e_class)
+  end
 end
 
 #---------------------------------------------------------------------------------------------------------------------
 # An exception that signifies the Scalyr server received the upload request but dropped it due to it being too large.
 #---------------------------------------------------------------------------------------------------------------------
 class PayloadTooLargeError < ServerError;
+  def initialize(msg=nil, code=nil, url=nil, body=nil, e_class="Scalyr::Common::Client::PayloadTooLargeError")
+    super(msg, code, url, body, e_class)
+  end
 end
 
 #---------------------------------------------------------------------------------------------------------------------
