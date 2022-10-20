@@ -658,7 +658,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     }
     if exc_data[:code] == 413
       message = "Failed to send #{multi_event_request[:logstash_events].length} events due to exceeding maximum request size. Not retrying non-retriable request."
-      @logger.error(message, :error_data => exc_data, :sample_events => sample_events)
+      # For PayloadTooLargeError we already include sample Scalyr payload in exc_data so there is no need
+      # to include redundant sample Logstash event objects
+      @logger.error(message, :error_data => exc_data)
     else
       message = "Failed to send #{multi_event_request[:logstash_events].length} events after #{exc_retries} tries."
       @logger.error(message, :error_data => exc_data, :sample_events => sample_events, :retries => exc_retries, :sleep_time => exc_sleep)
