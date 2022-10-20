@@ -30,11 +30,9 @@ jobs:
           github_token: ${{ github.token }}
 
   lint:
-    # NOTE: We run rubocop under cRuby since there are conflicting dependnecy versions when using
-    # jRuby
     name: Lint
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     needs: pre_job
 
     steps:
