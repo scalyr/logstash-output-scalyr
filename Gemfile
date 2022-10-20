@@ -13,6 +13,9 @@ end
 group :test do
   gem "webmock"
 
+  # Newer versions depend on Ruby >= 2.6
+  gem "rubocop", "~> 1.28.2"
+
   # Require the specific version of `json` used in logstash while testing
   gem 'json', '1.8.6'
 end

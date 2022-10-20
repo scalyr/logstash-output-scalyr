@@ -46,17 +46,12 @@ jobs:
       - name: Setup jRuby
         uses: ruby/setup-ruby@8029ebd6e5bd8f4e0d6f7623ea76a01ec5b1010d  # v1.110.0
         with:
-          ruby-version: '3.0'
-          bundler-cache: false
-
-      - name: Install Rubocop
-        run: |
-          gem install rubocop --version "~> 1.37.0"
-          bundle exec rubocop
+          ruby-version: 'jruby-9.2.9.0'
+          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
 
       - name: Run rubocop
         run: |
-          rubocop --lint
+          bundle exec rubocop --lint
 
   unit_tests:
     name: Unit Tests
@@ -95,7 +90,7 @@ jobs:
       - name: Setup jRuby
         uses: ruby/setup-ruby@8029ebd6e5bd8f4e0d6f7623ea76a01ec5b1010d  # v1.110.0
         with:
-          ruby-version: 'jruby'
+          ruby-version: 'jruby-9.2.9.0'
           bundler-cache: true # runs 'bundle install' and caches installed gems automatically
 
       - name: Build and Unpack Gem
