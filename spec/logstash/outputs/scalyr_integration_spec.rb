@@ -256,6 +256,46 @@ describe LogStash::Outputs::Scalyr do
       end
     end
 
+    context "when receiving a 413 response" do
+      it "doesn't retry the request" do
+        stub_request(:post, "https://agent.scalyr.com/addEvents").
+          to_return(status: 413, body: '{"status": "error/client/badRequest"}', headers: {})
+
+        plugin = LogStash::Outputs::Scalyr.new({
+          'api_write_token' => '1234',
+          'perform_connectivity_check' => false,
+          'ssl_ca_bundle_path' => EXAMPLE_COME_CA_CERTS_PATH,
+          'max_retries' => 2,
+          'retry_max_interval' => 0.2,
+          'retry_initial_interval' => 0.1,
+        })
+        plugin.register
+        plugin.instance_variable_set(:@running, false)
+
+        allow(plugin.instance_variable_get(:@logger)).to receive(:error)
+        allow(plugin.instance_variable_get(:@logger)).to receive(:warn)
+        plugin.multi_receive(sample_events)
+        expect(plugin.instance_variable_get(:@logger)).to have_received(:error).with("Failed to send 3 events due to exceeding maximum request size. Not retrying non-retriable request.",
+          {
+            :error_data=>
+            {
+              :error_class=>"Scalyr::Common::Client::PayloadTooLargeError",
+              :batch_num=>1,
+              :code=>413,
+              :message=>"error/client/badRequest",
+              :payload_size=>737,
+              :record_count=>3,
+              :total_batches=>1,
+              :url=>"https://agent.scalyr.com/addEvents",
+              :body=>"{\"status\": \"error/client/badRequest\"}",
+              :payload=>/Sample payload/,
+            }
+          }
+        )
+        expect(plugin.instance_variable_get(:@logger)).to have_received(:warn).with("Dead letter queue not configured, dropping 3 events.", any_args)
+      end
+    end
+
     context "when receiving a long non-json response" do
       it "don't throw an error but do log one to error" do
         stub_request(:post, "https://agent.scalyr.com/addEvents").
