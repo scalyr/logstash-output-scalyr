@@ -505,10 +505,9 @@ To deploy the current code on your machine run these commands:
 
 ```
 rm -rf vendor/
-bundle check --path vendor/bundle || bundle install --deployment
+bundle install
 curl -u RUBY_USER:RUBY_PASSWORD https://rubygems.org/api/v1/api_key.yaml > ~/.gem/credentials
 chmod 0600 ~/.gem/credentials
-bundle exec rake vendor
 bundle exec rspec
 bundle exec rake publish_gem
 ```
@@ -518,10 +517,9 @@ Or as an alternative if ``rake publish_gem`` task doesn't appear to work for wha
 
 ```
 rm -rf vendor/
-bundle check --path vendor/bundle || bundle install --deployment
+bundle install
 curl -u RUBY_USER:RUBY_PASSWORD https://rubygems.org/api/v1/api_key.yaml > ~/.gem/credentials
 chmod 0600 ~/.gem/credentials
-bundle exec rake vendor
 bundle exec rspec
 rvm use jruby
 bundle exec gem build logstash-output-scalyr.gemspec
