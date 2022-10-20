@@ -515,7 +515,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           if defined?(e.body) and e.body
             exc_data[:body] = Scalyr::Common::Util.truncate(e.body, 512)
           end
-          exc_data[:payload] = "\tSample payload: #{request[:body][0,1024]}..."
+          exc_data[:payload] = "\tSample payload: #{multi_event_request[:body][0,1024]}..."
           log_retry_failure(multi_event_request, exc_data, 0, 0)
           next
         rescue Scalyr::Common::Client::ServerError, Scalyr::Common::Client::ClientError => e
