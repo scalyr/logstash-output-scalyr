@@ -10,14 +10,14 @@ ITERATIONS = 10000
 
 def run_benchmark_and_print_results(run_benchmark_func)
   result = []
-  ITERATIONS.times do |i|
+  ITERATIONS.times do |_i|
     result << Benchmark.measure { run_benchmark_func.() }
   end
 
-  sum = result.inject(nil) { |sum, t| sum.nil? ? sum = t : sum += t }
+  sum = result.inject(nil) { |sum, t| sum.nil? ? sum = t : sum += t } # rubocop:disable Lint/UselessAssignment
   avg = sum / result.size
 
-  Benchmark.bm(7, "sum:", "avg:") do |b|
+  Benchmark.bm(7, "sum:", "avg:") do |_b|
     [sum, avg]
   end
   puts ""

@@ -7,8 +7,9 @@ require "json"
 require "quantile"
 
 # Require the specific version of `json` used in logstash
-gem 'json', '1.8.6'
-require 'json'
+gem 'json', '2.6.2'
+
+JSON_GEM_VERSION = Gem.loaded_specs["json"].version.to_s
 
 NODE_HOSTNAME = Socket.gethostname
 
@@ -35,7 +36,7 @@ class MockClientSession
     @stats.clone
   end
 
-  def post_add_events(body, is_status, body_serialization_duration = 0)
+  def post_add_events(body, _is_status, body_serialization_duration = 0)
     @sent_events << { :body => body, :body_serialization_duration => body_serialization_duration }
   end
 end
@@ -1071,7 +1072,8 @@ describe LogStash::Outputs::Scalyr do
       end
     end
 
-    context "when receiving an event with Bignums" do
+    # NOTE: BigNum issue only affected json gem < 2
+    context "when receiving an event with Bignums", if: JSON_GEM_VERSION == "1.8.6 "do
       config = {
           'api_write_token' => '1234',
           'perform_connectivity_check' => false,

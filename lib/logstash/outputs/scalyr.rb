@@ -4,7 +4,9 @@ require "logstash/namespace"
 require "concurrent"
 require "stud/buffer"
 require "socket" # for Socket.gethostname
+# rubocop:disable Lint/RedundantRequireStatement
 require "thread" # for safe queueing
+# rubocop:enable Lint/RedundantRequireStatement
 require "uri" # for escaping user input
 require 'json' # for converting event object to JSON for upload
 
@@ -224,7 +226,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     @client_session.close if @client_session
   end
 
-  public
   def register
     # This prng is used exclusively to determine when to sample statistics and no security related purpose, for this
     # reason we do not ensure thread safety for it.
@@ -455,7 +456,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Also note that event uploads are broken up into batches such that each batch is less than max_request_buffer.
   # Increasing max_request_buffer beyond 3MB will lead to failed requests.
   #
-  public
   def multi_receive(events)
     # Just return and pretend we did something if running in noop mode
     return events if @noop_mode
@@ -864,7 +864,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       if @flatten_nested_values
         start_time = Time.now.to_f
         begin
-          record = Scalyr::Common::Util.flatten(record, delimiter=@flatten_nested_values_delimiter, flatten_arrays=@flatten_nested_arrays, fix_deep_flattening_delimiters=@fix_deep_flattening_delimiters, max_key_count=@flattening_max_key_count)
+          record = Scalyr::Common::Util.flatten(record, @flatten_nested_values_delimiter, @flatten_nested_arrays, @fix_deep_flattening_delimiters, @flattening_max_key_count)
         rescue Scalyr::Common::Util::MaxKeyCountError => e
           @logger.warn("Error while flattening record", :error_message => e.message, :sample_keys => e.sample_keys)
         end
@@ -938,7 +938,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             ).force_encoding('UTF-8')
           end
           event_json = self.json_encode(scalyr_event)
-        rescue Java::JavaLang::ClassCastException => e
+        rescue Java::JavaLang::ClassCastException
           # Most likely we ran into the issue described here: https://github.com/flori/json/issues/336
           # Because of the version of jruby logstash works with we don't have the option to just update this away,
           # so if we run into it we convert bignums into strings so we can get the data in at least.
@@ -1042,7 +1042,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     # build the scalyr thread logs object
     if current_logs
       logs = Array.new
-      current_logs.each do |identifier, log|
+      current_logs.each do |_identifier, log|
         logs << log
       end
       body[:logs] = logs
@@ -1061,7 +1061,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     start_time = Time.now.to_f
     begin
       serialized_body = self.json_encode(body)
-    rescue Java::JavaLang::ClassCastException => e
+    rescue Java::JavaLang::ClassCastException
       @logger.warn("Error serializing events to JSON, likely due to the presence of Bignum values. Converting Bignum values to strings.")
       @stats_lock.synchronize do
         @multi_receive_statistics[:total_java_class_cast_errors] += 1
@@ -1161,14 +1161,14 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           val = v.instance_of?(Float) ? sprintf("%.4f", v) : v
           val = val.nil? ? 0 : val
           msg << ' ' if cnt > 0
-          msg << "#{k.to_s}=#{val}"
+          msg << "#{k}=#{val}"
           cnt += 1
         end
         get_stats.each do |k, v|
           val = v.instance_of?(Float) ? sprintf("%.4f", v) : v
           val = val.nil? ? 0 : val
           msg << ' ' if cnt > 0
-          msg << "#{k.to_s}=#{val}"
+          msg << "#{k}=#{val}"
           cnt += 1
         end
         status_event[:attrs]['message'] = msg

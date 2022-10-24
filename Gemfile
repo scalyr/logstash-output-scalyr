@@ -11,10 +11,13 @@ if Dir.exist?(logstash_path) && use_logstash_source
 end
 
 group :test do
-  gem "webmock"
+  gem "webmock", "~> 3.18.1"
+
+  # Newer versions depend on Ruby >= 2.6
+  gem "rubocop", "~> 1.28.2"
 
   # Require the specific version of `json` used in logstash while testing
-  gem 'json', '1.8.6'
+  gem 'json', '2.6.2'
 end
 
 gem 'pry'

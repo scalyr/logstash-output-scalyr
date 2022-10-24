@@ -29,6 +29,28 @@ jobs:
           cancel_others: 'true'
           github_token: ${{ github.token }}
 
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: pre_job
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Setup jRuby
+        uses: ruby/setup-ruby@8029ebd6e5bd8f4e0d6f7623ea76a01ec5b1010d  # v1.110.0
+        with:
+          ruby-version: 'jruby-9.2.9.0'
+          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+
+      - name: Run rubocop
+        run: |
+          bundle exec rubocop --lint
+
   unit_tests:
     name: Unit Tests
     runs-on: ubuntu-latest
@@ -66,7 +88,7 @@ jobs:
       - name: Setup jRuby
         uses: ruby/setup-ruby@8029ebd6e5bd8f4e0d6f7623ea76a01ec5b1010d  # v1.110.0
         with:
-          ruby-version: 'jruby'
+          ruby-version: 'jruby-9.2.9.0'
           bundler-cache: true # runs 'bundle install' and caches installed gems automatically
 
       - name: Build and Unpack Gem
