@@ -7,7 +7,7 @@ require "json"
 require 'webmock/rspec'
 
 # Require the specific version of `json` used in logstash
-gem 'json', '1.8.6'
+gem 'json', '2.6.2'
 
 EXAMPLE_COME_CA_CERTS_PATH = File.expand_path(File.join(File.dirname(__FILE__), + "/fixtures/example_com.pem"))
 

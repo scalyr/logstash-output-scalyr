@@ -2,7 +2,7 @@
 require "scalyr/common/util"
 
 # Require the specific version of `json` used in logstash
-gem 'json', '1.8.6'
+gem 'json', '2.6.2'
 require 'json'
 
 LARGE_OBJECT_IN = {
