@@ -132,6 +132,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Set max interval in seconds between bulk retries.
   config :retry_max_interval, :validate => :number, :default => 64
 
+  # Back off factor for retries. We default to 2 (exponential retry delay).
+  config :retry_backoff_factor, :validate => :number, :default => 2
+
   # Whether or not to verify the connection to Scalyr, only set to false for debugging.
   config :ssl_verify_peer, :validate => :boolean, :default => true
 
@@ -1240,7 +1243,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   # Helper method that gets the next sleep time for exponential backoff, capped at a defined maximum
   def get_sleep_sec(current_interval)
-    doubled = current_interval * 2
+    doubled = current_interval * @retry_backoff_factor
     doubled > @retry_max_interval ? @retry_max_interval : doubled
   end
 
