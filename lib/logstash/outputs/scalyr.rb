@@ -350,6 +350,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       :successful_events_processed => 0,
       :failed_events_processed => 0,
       :total_retry_count => 0,
+      :total_retry_duration_secs => 0,
       :total_java_class_cast_errors => 0
     }
     @plugin_metrics = get_new_metrics
@@ -524,6 +525,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           exc_retries += 1
           @stats_lock.synchronize do
             @multi_receive_statistics[:total_retry_count] += 1
+            @multi_receive_statistics[:total_retry_duration_secs] += sleep_interval
           end
           message = "Error uploading to Scalyr (will backoff-retry)"
           exc_data = {
@@ -580,6 +582,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           exc_retries += 1
           @stats_lock.synchronize do
             @multi_receive_statistics[:total_retry_count] += 1
+            @multi_receive_statistics[:total_retry_duration_secs] += sleep_interval
           end
           retry if @running and exc_retries < @max_retries
           log_retry_failure(multi_event_request, exc_data, exc_retries, exc_sleep)
