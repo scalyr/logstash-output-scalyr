@@ -535,6 +535,8 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
               :record_count => multi_event_request[:record_count],
               :payload_size => multi_event_request[:body].bytesize,
               :will_retry_in_seconds => sleep_interval,
+              :total_retries_so_far => exc_retries,
+              :total_sleep_time_so_far => exc_sleep,
           }
           exc_data[:code] = e.code if e.code
           if @logger.debug? and defined?(e.body) and e.body
