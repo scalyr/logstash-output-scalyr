@@ -1,5 +1,10 @@
 # Beta
 
+## 0.2.9.beta
+
+* Update context which is logged with errors which represent HTTP requests which are retried
+  to also include ``total_retries_so_far`` and ``total_sleep_time_so_far`` attribute.
+
 ## 0.2.8.beta
 
 * Update ``.gemspec`` gem metadata to not include ``spec/`` directory with the tests and tests
