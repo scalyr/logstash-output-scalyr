@@ -132,6 +132,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # Set max interval in seconds between bulk retries.
   config :retry_max_interval, :validate => :number, :default => 64
 
+  # Back off factor for retries. We default to 2 (exponential retry delay).
+  config :retry_backoff_factor, :validate => :number, :default => 2
+
   # Whether or not to verify the connection to Scalyr, only set to false for debugging.
   config :ssl_verify_peer, :validate => :boolean, :default => true
 
@@ -350,6 +353,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       :successful_events_processed => 0,
       :failed_events_processed => 0,
       :total_retry_count => 0,
+      :total_retry_duration_secs => 0,
       :total_java_class_cast_errors => 0
     }
     @plugin_metrics = get_new_metrics
@@ -524,6 +528,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           exc_retries += 1
           @stats_lock.synchronize do
             @multi_receive_statistics[:total_retry_count] += 1
+            @multi_receive_statistics[:total_retry_duration_secs] += sleep_interval
           end
           message = "Error uploading to Scalyr (will backoff-retry)"
           exc_data = {
@@ -535,6 +540,10 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
               :record_count => multi_event_request[:record_count],
               :payload_size => multi_event_request[:body].bytesize,
               :will_retry_in_seconds => sleep_interval,
+              # to get actual value which excludes this next retry user needs to
+              # add -1 to exc_retries and add -sleep_interval to exc_sleep
+              :total_retries_so_far => exc_retries,
+              :total_sleep_time_so_far => exc_sleep,
           }
           exc_data[:code] = e.code if e.code
           if @logger.debug? and defined?(e.body) and e.body
@@ -576,6 +585,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           exc_retries += 1
           @stats_lock.synchronize do
             @multi_receive_statistics[:total_retry_count] += 1
+            @multi_receive_statistics[:total_retry_duration_secs] += sleep_interval
           end
           retry if @running and exc_retries < @max_retries
           log_retry_failure(multi_event_request, exc_data, exc_retries, exc_sleep)
@@ -1233,7 +1243,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
 
   # Helper method that gets the next sleep time for exponential backoff, capped at a defined maximum
   def get_sleep_sec(current_interval)
-    doubled = current_interval * 2
+    doubled = current_interval * @retry_backoff_factor
     doubled > @retry_max_interval ? @retry_max_interval : doubled
   end
 
