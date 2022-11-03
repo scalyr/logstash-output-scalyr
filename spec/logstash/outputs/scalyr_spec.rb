@@ -1260,5 +1260,125 @@ describe LogStash::Outputs::Scalyr do
         expect { plugin.register }.to raise_error(LogStash::ConfigurationError, /Received 401 from Scalyr API during/)
       end
     end
+
+
+    context "RetryStateTracker" do
+      mock_config = {
+        'max_retries' => 2,
+        'retry_max_interval' => 2,
+        'retry_initial_interval' => 0.11,
+        'retry_backoff_factor' => 2.0,
+
+        'max_retries_deploy_errors' => 4,
+        'retry_max_interval_deploy_errors' => 2,
+        'retry_initial_interval_deploy_errors' => 0.12,
+        'retry_backoff_factor_deploy_errors' => 1.2,
+
+        'max_retries_throttling_errors' => 3,
+        'retry_max_interval_throttling_errors' => 2,
+        'retry_initial_interval_throttling_errors' => 0.13,
+        'retry_backoff_factor_throttling_errors' => 1.1,
+      }
+
+      mock_other_error = Manticore::UnknownException.new
+      mock_deploy_error_1 = Scalyr::Common::Client::DeployWindowError.new(code=530)
+      mock_deploy_error_2 = Scalyr::Common::Client::DeployWindowError.new(code=500)
+      mock_client_throttled_error = Scalyr::Common::Client::ClientThrottledError.new(code=429)
+
+      it "correctly tracks state across different error types" do
+        def mock_is_plugin_running()
+          true
+        end
+
+        state_tracker = RetryStateTracker.new(mock_config, mock_is_plugin_running)
+
+        # Verify initial state
+        state = state_tracker.get_state
+
+        expect(state[:other_errors]).to eq({
+          :sleep_interval => 0.11,
+          :retries => 0,
+          :sleep => 0,
+          :options => {
+            :retry_initial_interval => 0.11,
+            :max_retries => 2,
+            :retry_max_interval => 2,
+            :retry_backoff_factor => 2.0
+          }
+        })
+
+        expect(state[:deploy_errors]).to eq({
+          :sleep_interval => 0.12,
+          :retries => 0,
+          :sleep => 0,
+          :options => {
+            :retry_initial_interval => 0.12,
+            :max_retries => 4,
+            :retry_max_interval => 2,
+            :retry_backoff_factor => 1.2
+          }
+        })
+
+        expect(state[:throttling_errors]).to eq({
+          :sleep_interval => 0.13,
+          :retries => 0,
+          :sleep => 0,
+          :options => {
+            :retry_initial_interval => 0.13,
+            :max_retries => 3,
+            :retry_max_interval => 2,
+            :retry_backoff_factor => 1.1
+          }
+        })
+
+        # Update internal state and verify it's updated correctly
+        state_tracker.sleep_for_error_and_update_state(mock_other_error)
+        state_tracker.sleep_for_error_and_update_state(mock_deploy_error_1)
+        state_tracker.sleep_for_error_and_update_state(mock_deploy_error_2)
+        state_tracker.sleep_for_error_and_update_state(mock_other_error)
+        state_tracker.sleep_for_error_and_update_state(mock_client_throttled_error)
+        state_tracker.sleep_for_error_and_update_state(mock_other_error)
+        state_tracker.sleep_for_error_and_update_state(mock_client_throttled_error)
+
+        state = state_tracker.get_state
+
+
+        expect(state[:other_errors]).to eq({
+          :sleep_interval => 0.88,
+          :retries => 3,
+          :sleep => 0,
+          :options => {
+            :retry_initial_interval => 0.11,
+            :max_retries => 2,
+            :retry_max_interval => 2,
+            :retry_backoff_factor => 2.0
+          }
+        })
+
+        expect(state[:deploy_errors]).to eq({
+          :sleep_interval => 0.17279999999999998,
+          :retries => 2,
+          :sleep => 0,
+          :options => {
+            :retry_initial_interval => 0.12,
+            :max_retries => 4,
+            :retry_max_interval => 2,
+            :retry_backoff_factor => 1.2
+          }
+        })
+
+        expect(state[:throttling_errors]).to eq({
+          :sleep_interval => 0.15730000000000002,
+          :retries => 2,
+          :sleep => 0,
+          :options => {
+            :retry_initial_interval => 0.13,
+            :max_retries => 3,
+            :retry_max_interval => 2,
+            :retry_backoff_factor => 1.1
+          }
+        })
+      end
+    end
   end
 end

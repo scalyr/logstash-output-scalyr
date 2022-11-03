@@ -1339,6 +1339,10 @@ class RetryStateTracker
     end
   end
 
+  def get_state()
+    @STATE
+  end
+
   # Helper method that performs synchronous sleep for a certain time interval for a specific
   # error and updates interal error specific state. It also returns updates internal state
   # specific to that error.
