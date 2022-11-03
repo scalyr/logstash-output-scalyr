@@ -42,6 +42,24 @@ class PayloadTooLargeError < ServerError;
 end
 
 #---------------------------------------------------------------------------------------------------------------------
+# An exception that signifies an error which occured during Scalyr deploy window
+#---------------------------------------------------------------------------------------------------------------------
+class DeployWindowError < ServerError;
+  def initialize(msg=nil, code=nil, url=nil, body=nil, e_class="Scalyr::Common::Client::DeployWindowError")
+    super(msg, code, url, body, e_class)
+  end
+end
+
+#---------------------------------------------------------------------------------------------------------------------
+# An exception that signifies that the client has been throttled by the server
+#---------------------------------------------------------------------------------------------------------------------
+class ClientThrottledError < ServerError;
+  def initialize(msg=nil, code=nil, url=nil, body=nil, e_class="Scalyr::Common::Client::ClientThrottledError")
+    super(msg, code, url, body, e_class)
+  end
+end
+
+#---------------------------------------------------------------------------------------------------------------------
 # An exception representing failure of the http client to upload data to Scalyr (in contrast to server-side errors
 # where the POST api succeeds, but the Scalyr server then responds with an error)
 #---------------------------------------------------------------------------------------------------------------------
@@ -325,6 +343,10 @@ class ClientSession
     if status != "success"
       if code == 413
         raise PayloadTooLargeError.new(status, response.code, @add_events_uri, response.body)
+      elsif [530, 500].include?(code)
+        raise DeployWindowError.new(status, response.code, @add_events_uri, response.body)
+      elsif code == 429
+        raise ClientThrottledError.new(status, response.code, @add_events_uri, response.body)
       elsif status =~ /discardBuffer/
         raise RequestDroppedError.new(status, response.code, @add_events_uri, response.body)
       else

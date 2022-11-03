@@ -43,6 +43,12 @@ describe LogStash::Outputs::Scalyr do
                 'max_retries' => 2,
                 'retry_max_interval' => 2,
                 'retry_initial_interval' => 0.2,
+                'max_retries_throttling_errors' => 2,
+                'retry_max_interval_throttling_errors' => 2,
+                'retry_initial_interval_throttling_errors' => 0.2,
+                'max_retries_deploy_errors' => 2,
+                'retry_max_interval_deploy_errors' => 2,
+                'retry_initial_interval_deploy_errors' => 0.2,
               })
               plugin.register
               plugin.instance_variable_set(:@running, false)
@@ -76,6 +82,12 @@ describe LogStash::Outputs::Scalyr do
                 'max_retries' => 2,
                 'retry_max_interval' => 2,
                 'retry_initial_interval' => 0.2,
+                'max_retries_throttling_errors' => 2,
+                'retry_max_interval_throttling_errors' => 2,
+                'retry_initial_interval_throttling_errors' => 0.2,
+                'max_retries_deploy_errors' => 2,
+                'retry_max_interval_deploy_errors' => 2,
+                'retry_initial_interval_deploy_errors' => 0.2,
               })
 
               expect {
@@ -95,6 +107,12 @@ describe LogStash::Outputs::Scalyr do
                 'max_retries' => 2,
                 'retry_max_interval' => 2,
                 'retry_initial_interval' => 0.2,
+                'max_retries_throttling_errors' => 2,
+                'retry_max_interval_throttling_errors' => 2,
+                'retry_initial_interval_throttling_errors' => 0.2,
+                'max_retries_deploy_errors' => 2,
+                'retry_max_interval_deploy_errors' => 2,
+                'retry_initial_interval_deploy_errors' => 0.2,
                 'ssl_ca_bundle_path' => temp_file.path
               })
               plugin.register
@@ -144,6 +162,12 @@ describe LogStash::Outputs::Scalyr do
                 'max_retries' => 2,
                 'retry_max_interval' => 2,
                 'retry_initial_interval' => 0.2,
+                'max_retries_throttling_errors' => 2,
+                'retry_max_interval_throttling_errors' => 2,
+                'retry_initial_interval_throttling_errors' => 0.2,
+                'max_retries_deploy_errors' => 2,
+                'retry_max_interval_deploy_errors' => 2,
+                'retry_initial_interval_deploy_errors' => 0.2,
               })
               plugin.register
               plugin.instance_variable_set(:@running, false)
@@ -180,6 +204,12 @@ describe LogStash::Outputs::Scalyr do
             'max_retries' => 15,
             'retry_max_interval' => 0.2,
             'retry_initial_interval' => 0.1,
+            'max_retries_throttling_errors' => 2,
+            'retry_max_interval_throttling_errors' => 2,
+            'retry_initial_interval_throttling_errors' => 0.2,
+            'max_retries_deploy_errors' => 2,
+            'retry_max_interval_deploy_errors' => 2,
+            'retry_initial_interval_deploy_errors' => 0.2,
           })
           plugin.register
           allow(plugin.instance_variable_get(:@logger)).to receive(:error)
@@ -203,6 +233,12 @@ describe LogStash::Outputs::Scalyr do
           'max_retries' => 2,
           'retry_max_interval' => 0.2,
           'retry_initial_interval' => 0.1,
+          'max_retries_throttling_errors' => 2,
+          'retry_max_interval_throttling_errors' => 2,
+          'retry_initial_interval_throttling_errors' => 0.2,
+          'max_retries_deploy_errors' => 2,
+          'retry_max_interval_deploy_errors' => 2,
+          'retry_initial_interval_deploy_errors' => 0.2,
         })
         plugin.register
         plugin.instance_variable_set(:@running, false)
@@ -240,6 +276,12 @@ describe LogStash::Outputs::Scalyr do
           'max_retries' => 2,
           'retry_max_interval' => 0.2,
           'retry_initial_interval' => 0.1,
+          'max_retries_throttling_errors' => 2,
+          'retry_max_interval_throttling_errors' => 2,
+          'retry_initial_interval_throttling_errors' => 0.2,
+          'max_retries_deploy_errors' => 2,
+          'retry_max_interval_deploy_errors' => 2,
+          'retry_initial_interval_deploy_errors' => 0.2,
         })
         plugin.register
         plugin.instance_variable_set(:@running, false)
@@ -277,6 +319,12 @@ describe LogStash::Outputs::Scalyr do
           'max_retries' => 2,
           'retry_max_interval' => 0.2,
           'retry_initial_interval' => 0.1,
+          'max_retries_throttling_errors' => 2,
+          'retry_max_interval_throttling_errors' => 2,
+          'retry_initial_interval_throttling_errors' => 0.2,
+          'max_retries_deploy_errors' => 2,
+          'retry_max_interval_deploy_errors' => 2,
+          'retry_initial_interval_deploy_errors' => 0.2,
         })
         plugin.register
         plugin.instance_variable_set(:@running, false)
@@ -317,6 +365,12 @@ describe LogStash::Outputs::Scalyr do
             'max_retries' => 2,
             'retry_max_interval' => 0.2,
             'retry_initial_interval' => 0.1,
+            'max_retries_throttling_errors' => 2,
+            'retry_max_interval_throttling_errors' => 2,
+            'retry_initial_interval_throttling_errors' => 0.2,
+            'max_retries_deploy_errors' => 2,
+            'retry_max_interval_deploy_errors' => 2,
+            'retry_initial_interval_deploy_errors' => 0.2,
         })
         plugin.register
         plugin.instance_variable_set(:@running, false)
@@ -355,6 +409,12 @@ describe LogStash::Outputs::Scalyr do
             'max_retries' => 2,
             'retry_max_interval' => 0.2,
             'retry_initial_interval' => 0.1,
+            'max_retries_throttling_errors' => 2,
+            'retry_max_interval_throttling_errors' => 2,
+            'retry_initial_interval_throttling_errors' => 0.2,
+            'max_retries_deploy_errors' => 2,
+            'retry_max_interval_deploy_errors' => 2,
+            'retry_initial_interval_deploy_errors' => 0.2,
         })
         plugin.register
         plugin.instance_variable_set(:@running, false)

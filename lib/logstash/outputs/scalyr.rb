@@ -120,20 +120,49 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   config :flat_tag_prefix, :validate => :string, :default => 'tag_'
   config :flat_tag_value, :default => 1
 
-  # Initial interval in seconds between bulk retries. Doubled on each retry up to `retry_max_interval`
+  #####
+  ## Retry settings for non deploy and non throttling related errors
+  ####
+
+  # Initial interval in seconds between bulk retries. Doubled (by default, can be overriden using
+  # retry_backoff_factor config option) on each retry up to `retry_max_interval`
   config :retry_initial_interval, :validate => :number, :default => 1
+
   # How many times to retry sending an event before giving up on it
   # This will result in a total of around 12 minutes of retrying / sleeping with a default value
   # for retry_max_interval
   config :max_retries, :validate => :number, :default => 15
-  # Whether or not to send messages that failed to send a max_retries amount of times to the DLQ or just drop them
-  config :send_to_dlq, :validate => :boolean, :default => true
 
   # Set max interval in seconds between bulk retries.
   config :retry_max_interval, :validate => :number, :default => 64
 
   # Back off factor for retries. We default to 2 (exponential retry delay).
   config :retry_backoff_factor, :validate => :number, :default => 2
+
+  #####
+  ## Retry settings for deploy related errors
+  ####
+
+  config :retry_initial_interval_deploy_errors, :validate => :number, :default => 30
+  config :max_retries_deploy_errors, :validate => :number, :default => 5
+  config :retry_max_interval_deploy_errors, :validate => :number, :default => 64
+  config :retry_backoff_factor_deploy_errors, :validate => :number, :default => 1.5
+
+  #####
+  ## Retry settings for throttling related errors
+  ####
+
+  config :retry_initial_interval_throttling_errors, :validate => :number, :default => 20
+  config :max_retries_throttling_errors, :validate => :number, :default => 6
+  config :retry_max_interval_throttling_errors, :validate => :number, :default => 64
+  config :retry_backoff_factor_throttling_errors, :validate => :number, :default => 1.5
+
+  #####
+  ## Common retry related settings
+  #####
+
+  # Whether or not to send messages that failed to send a max_retries amount of times to the DLQ or just drop them
+  config :send_to_dlq, :validate => :boolean, :default => true
 
   # Whether or not to verify the connection to Scalyr, only set to false for debugging.
   config :ssl_verify_peer, :validate => :boolean, :default => true
@@ -475,7 +504,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
       build_multi_duration_secs = Time.now.to_f - start_time
 
       # Loop over all array of multi-event requests, sending each multi-event to Scalyr
-      sleep_interval = @retry_initial_interval
       batch_num = 1
       total_batches = multi_event_request_array.length unless multi_event_request_array.nil?
 
@@ -489,17 +517,22 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         exc_data = nil
         # Whether the exception is commonly retried or not, for determining log level
         exc_commonly_retried = false
-        # Count of retries attempted for this request
-        exc_retries = 0
-        # Total time spent sleeping while retrying this request due to backoff
-        exc_sleep = 0
+
+        # We use new and clean retry state object for each request
+        def is_plugin_running()
+          # Since @running is only available directly on the output plugin instance and we don't
+          # want to create a cyclic reference between output and state tracker instance we pass
+          # this method to the state tracker
+          @running
+        end
+
+        retry_state = RetryStateTracker.new(@config, method(:is_plugin_running))
+
         begin
           # For some reason a retry on the multi_receive may result in the request array containing `nil` elements, we
           # ignore these.
           if !multi_event_request.nil?
             @client_session.post_add_events(multi_event_request[:body], false, multi_event_request[:serialization_duration])
-
-            sleep_interval = @retry_initial_interval
             batch_num += 1
             result.push(multi_event_request)
           end
@@ -523,12 +556,11 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           log_retry_failure(multi_event_request, exc_data, 0, 0)
           next
         rescue Scalyr::Common::Client::ServerError, Scalyr::Common::Client::ClientError => e
-          sleep_interval = sleep_for(sleep_interval)
-          exc_sleep += sleep_interval
-          exc_retries += 1
+          updated_state = retry_state.sleep_for_error_and_update_state(e)
+
           @stats_lock.synchronize do
             @multi_receive_statistics[:total_retry_count] += 1
-            @multi_receive_statistics[:total_retry_duration_secs] += sleep_interval
+            @multi_receive_statistics[:total_retry_duration_secs] += updated_state[:sleep_interval]
           end
           message = "Error uploading to Scalyr (will backoff-retry)"
           exc_data = {
@@ -539,11 +571,14 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
               :total_batches => total_batches,
               :record_count => multi_event_request[:record_count],
               :payload_size => multi_event_request[:body].bytesize,
-              :will_retry_in_seconds => sleep_interval,
+              :max_retries => updated_state[:options][:max_retries],
+              :retry_backoff_factor => updated_state[:options][:retry_backoff_factor],
+              :retry_max_interval => updated_state[:options][:retry_max_interval],
+              :will_retry_in_seconds => updated_state[:sleep_interval],
               # to get actual value which excludes this next retry user needs to
               # add -1 to exc_retries and add -sleep_interval to exc_sleep
-              :total_retries_so_far => exc_retries,
-              :total_sleep_time_so_far => exc_sleep,
+              :total_retries_so_far => updated_state[:retries],
+              :total_sleep_time_so_far => updated_state[:sleep],
           }
           exc_data[:code] = e.code if e.code
           if @logger.debug? and defined?(e.body) and e.body
@@ -561,8 +596,14 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             @logger.warn(message, exc_data)
             exc_commonly_retried = false
           end
-          retry if @running and exc_retries < @max_retries
-          log_retry_failure(multi_event_request, exc_data, exc_retries, exc_sleep)
+
+          @stats_lock.synchronize do
+            @multi_receive_statistics[:total_retry_count] += 1
+            @multi_receive_statistics[:total_retry_duration_secs] += updated_state[:sleep_interval]
+          end
+
+          retry if @running and updated_state[:retries] < updated_state[:options][:max_retries]
+          log_retry_failure(multi_event_request, exc_data, updated_state[:retries], updated_state[:sleep])
           next
 
         rescue => e
@@ -574,21 +615,22 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
               :backtrace => e.backtrace
           )
           @logger.debug("Failed multi_event_request", :multi_event_request => multi_event_request)
-          sleep_interval = sleep_for(sleep_interval)
+
+          updated_state = retry_state.sleep_for_error_and_update_state(e)
           exc_data = {
             :error_message => e.message,
             :error_class => e.class.name,
             :backtrace => e.backtrace,
             :multi_event_request => multi_event_request
           }
-          exc_sleep += sleep_interval
-          exc_retries += 1
+
           @stats_lock.synchronize do
             @multi_receive_statistics[:total_retry_count] += 1
-            @multi_receive_statistics[:total_retry_duration_secs] += sleep_interval
+            @multi_receive_statistics[:total_retry_duration_secs] += updated_state[:sleep_interval]
           end
-          retry if @running and exc_retries < @max_retries
-          log_retry_failure(multi_event_request, exc_data, exc_retries, exc_sleep)
+
+          retry if @running and updated_state[:retries] < updated_state[:options][:max_retries]
+          log_retry_failure(multi_event_request, exc_data, updated_state[:retries], updated_state[:sleep])
           next
         end
 
@@ -600,9 +642,9 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         if !exc_data.nil?
           message = "Retry successful after error."
           if exc_commonly_retried
-            @logger.debug(message, :error_data => exc_data, :retries => exc_retries, :sleep_time => exc_sleep)
+            @logger.debug(message, :error_data => exc_data, :retries => updated_state[:retries], :sleep_time => updated_state[:sleep_interval])
           else
-            @logger.info(message, :error_data => exc_data, :retries => exc_retries, :sleep_time => exc_sleep)
+            @logger.info(message, :error_data => exc_data, :retries => updated_state[:retries], :sleep_time => updated_state[:sleep_interval])
           end
         end
       end
@@ -1233,26 +1275,89 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     end
   end
 
-
-  # Helper method that performs synchronous sleep for a certain time interval
-  def sleep_for(sleep_interval)
-    Stud.stoppable_sleep(sleep_interval) { !@running }
-    get_sleep_sec(sleep_interval)
-  end
-
-
-  # Helper method that gets the next sleep time for exponential backoff, capped at a defined maximum
-  def get_sleep_sec(current_interval)
-    doubled = current_interval * @retry_backoff_factor
-    doubled > @retry_max_interval ? @retry_max_interval : doubled
-  end
-
-
   # Helper method to check if the dead-letter queue is enabled
   def dlq_enabled?
     # echee TODO submit to DLQ
     respond_to?(:execution_context) && execution_context.respond_to?(:dlq_writer) &&
         !execution_context.dlq_writer.inner_writer.is_a?(::LogStash::Util::DummyDeadLetterQueueWriter)
+  end
+end
+
+# Class which allows us to track retry related settings and state for different type of errors for
+# which we use different retry settings (e.g. general errors vs errors during deploy windows vs
+# client throttled errors).
+class RetryStateTracker
+
+  def initialize(plugin_config, is_plugin_running_method)
+    @STATE = {
+      :deploy_errors => {
+        :sleep_interval => plugin_config["retry_initial_interval_deploy_errors"],
+        :retries => 0,
+        :sleep => 0,
+        :options => {
+          :retry_initial_interval => plugin_config["retry_initial_interval_deploy_errors"],
+          :max_retries => plugin_config["max_retries_deploy_errors"],
+          :retry_max_interval => plugin_config["retry_max_interval_deploy_errors"],
+          :retry_backoff_factor => plugin_config["retry_backoff_factor_deploy_errors"],
+        }
+      },
+      :throttling_errors => {
+        :sleep_interval => plugin_config["retry_initial_interval_throttling_errors"],
+        :retries => 0,
+        :sleep => 0,
+        :options => {
+          :retry_initial_interval => plugin_config["retry_initial_interval_throttling_errors"],
+          :max_retries => plugin_config["max_retries_throttling_errors"],
+          :retry_max_interval => plugin_config["retry_max_interval_throttling_errors"],
+          :retry_backoff_factor => plugin_config["retry_backoff_factor_throttling_errors"],
+        }
+      },
+      :other_errors => {
+        :sleep_interval => plugin_config["retry_initial_interval"],
+        :retries => 0,
+        :sleep => 0,
+        :options => {
+          :retry_initial_interval => plugin_config["retry_initial_interval"],
+          :max_retries => plugin_config["max_retries"],
+          :retry_max_interval => plugin_config["retry_max_interval"],
+          :retry_backoff_factor => plugin_config["retry_backoff_factor"],
+        }
+      },
+    }
+
+    @is_plugin_running_method = is_plugin_running_method
+  end
+
+  # Return state hash for a specific error
+  def get_state_for_error(error)
+    if error.instance_of?(Scalyr::Common::Client::ClientThrottledError)
+      return @STATE[:throttling_errors]
+    elsif error.instance_of?(Scalyr::Common::Client::DeployWindowError)
+      return @STATE[:deploy_errors]
+    else
+      return @STATE[:other_errors]
+    end
+  end
+
+  # Helper method that performs synchronous sleep for a certain time interval for a specific
+  # error and updates interal error specific state. It also returns updates internal state
+  # specific to that error.
+  def sleep_for_error_and_update_state(error)
+    # Sleep for a specific duration
+    state = get_state_for_error(error)
+
+    current_interval = state[:sleep_interval]
+
+    Stud.stoppable_sleep(current_interval) { !@is_plugin_running_method.call }
+
+    # Update internal state + sleep interval
+    updated_interval = current_interval * state[:options][:retry_backoff_factor]
+    updated_interval = updated_interval > state[:options][:retry_max_interval] ? state[:options][:retry_max_interval] : updated_interval
+
+    state[:retries] += 1
+    state[:sleep_interval] = updated_interval
+
+    state
   end
 end
 
