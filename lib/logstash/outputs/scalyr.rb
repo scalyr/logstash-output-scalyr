@@ -577,7 +577,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
               # to get actual value which excludes this next retry user needs to
               # add -1 to exc_retries and add -sleep_interval to exc_sleep
               :total_retries_so_far => updated_state[:retries],
-              :total_sleep_time_so_far => updated_state[:sleep],
+              :total_sleep_time_so_far => updated_state[:sleep_interval],
           }
           exc_data[:code] = e.code if e.code
           if @logger.debug? and defined?(e.body) and e.body
@@ -1283,11 +1283,12 @@ end
 class RetryStateTracker
 
   def initialize(plugin_config, is_plugin_running_method)
+    # :sleep_interval stores total amount (in seconds) we have slept / waited due to retries so far
+    # :retries stores number of times we have retried so far
     @STATE = {
       :deploy_errors => {
         :sleep_interval => plugin_config["retry_initial_interval_deploy_errors"],
         :retries => 0,
-        :sleep => 0,
         :options => {
           :retry_initial_interval => plugin_config["retry_initial_interval_deploy_errors"],
           :max_retries => plugin_config["max_retries_deploy_errors"],
@@ -1298,7 +1299,6 @@ class RetryStateTracker
       :throttling_errors => {
         :sleep_interval => plugin_config["retry_initial_interval_throttling_errors"],
         :retries => 0,
-        :sleep => 0,
         :options => {
           :retry_initial_interval => plugin_config["retry_initial_interval_throttling_errors"],
           :max_retries => plugin_config["max_retries_throttling_errors"],
@@ -1309,7 +1309,6 @@ class RetryStateTracker
       :other_errors => {
         :sleep_interval => plugin_config["retry_initial_interval"],
         :retries => 0,
-        :sleep => 0,
         :options => {
           :retry_initial_interval => plugin_config["retry_initial_interval"],
           :max_retries => plugin_config["max_retries"],

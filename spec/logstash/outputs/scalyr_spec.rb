@@ -1295,7 +1295,6 @@ describe LogStash::Outputs::Scalyr do
         expect(state[:other_errors]).to eq({
           :sleep_interval => 0.11,
           :retries => 0,
-          :sleep => 0,
           :options => {
             :retry_initial_interval => 0.11,
             :max_retries => 2,
@@ -1307,7 +1306,6 @@ describe LogStash::Outputs::Scalyr do
         expect(state[:deploy_errors]).to eq({
           :sleep_interval => 0.12,
           :retries => 0,
-          :sleep => 0,
           :options => {
             :retry_initial_interval => 0.12,
             :max_retries => 4,
@@ -1319,7 +1317,6 @@ describe LogStash::Outputs::Scalyr do
         expect(state[:throttling_errors]).to eq({
           :sleep_interval => 0.13,
           :retries => 0,
-          :sleep => 0,
           :options => {
             :retry_initial_interval => 0.13,
             :max_retries => 3,
@@ -1343,7 +1340,6 @@ describe LogStash::Outputs::Scalyr do
         expect(state[:other_errors]).to eq({
           :sleep_interval => 0.88,
           :retries => 3,
-          :sleep => 0,
           :options => {
             :retry_initial_interval => 0.11,
             :max_retries => 2,
@@ -1355,7 +1351,6 @@ describe LogStash::Outputs::Scalyr do
         expect(state[:deploy_errors]).to eq({
           :sleep_interval => 0.17279999999999998,
           :retries => 2,
-          :sleep => 0,
           :options => {
             :retry_initial_interval => 0.12,
             :max_retries => 4,
@@ -1367,7 +1362,6 @@ describe LogStash::Outputs::Scalyr do
         expect(state[:throttling_errors]).to eq({
           :sleep_interval => 0.15730000000000002,
           :retries => 2,
-          :sleep => 0,
           :options => {
             :retry_initial_interval => 0.13,
             :max_retries => 3,
