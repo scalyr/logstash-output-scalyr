@@ -1281,15 +1281,12 @@ describe LogStash::Outputs::Scalyr do
       }
 
       mock_other_error = Manticore::UnknownException.new
-      mock_deploy_error_1 = Scalyr::Common::Client::DeployWindowError.new(code=530)
-      mock_deploy_error_2 = Scalyr::Common::Client::DeployWindowError.new(code=500)
-      mock_client_throttled_error = Scalyr::Common::Client::ClientThrottledError.new(code=429)
+      mock_deploy_error_1 = Scalyr::Common::Client::DeployWindowError.new(nil, 530)
+      mock_deploy_error_2 = Scalyr::Common::Client::DeployWindowError.new(nil, 500)
+      mock_client_throttled_error = Scalyr::Common::Client::ClientThrottledError.new(nil, 429)
 
       it "correctly tracks state across different error types" do
-        def mock_is_plugin_running()
-          true
-        end
-
+        mock_is_plugin_running = lambda { true }
         state_tracker = RetryStateTracker.new(mock_config, mock_is_plugin_running)
 
         # Verify initial state

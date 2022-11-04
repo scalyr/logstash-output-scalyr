@@ -519,14 +519,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
         exc_commonly_retried = false
 
         # We use new and clean retry state object for each request
-        def is_plugin_running()
-          # Since @running is only available directly on the output plugin instance and we don't
-          # want to create a cyclic reference between output and state tracker instance we pass
-          # this method to the state tracker
-          @running
-        end
+        # Since @running is only available directly on the output plugin instance and we don't
+        # want to create a cyclic reference between output and state tracker instance we pass
+        # this lambda method to the state tracker
+        is_plugin_running = lambda { @running }
 
-        retry_state = RetryStateTracker.new(@config, method(:is_plugin_running))
+        retry_state = RetryStateTracker.new(@config, is_plugin_running)
 
         begin
           # For some reason a retry on the multi_receive may result in the request array containing `nil` elements, we
