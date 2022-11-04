@@ -562,6 +562,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             @multi_receive_statistics[:total_retry_count] += 1
             @multi_receive_statistics[:total_retry_duration_secs] += updated_state[:sleep_interval]
           end
+
           message = "Error uploading to Scalyr (will backoff-retry)"
           exc_data = {
               :error_class => e.e_class,
@@ -595,11 +596,6 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
             # all other failed uploads should be warning
             @logger.warn(message, exc_data)
             exc_commonly_retried = false
-          end
-
-          @stats_lock.synchronize do
-            @multi_receive_statistics[:total_retry_count] += 1
-            @multi_receive_statistics[:total_retry_duration_secs] += updated_state[:sleep_interval]
           end
 
           retry if @running and updated_state[:retries] < updated_state[:options][:max_retries]
