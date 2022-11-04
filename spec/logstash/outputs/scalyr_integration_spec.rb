@@ -64,8 +64,11 @@ describe LogStash::Outputs::Scalyr do
                   :record_count=>3,
                   :total_batches=>1,
                   :url=>"https://agent.scalyr.com/addEvents",
+                  :max_retries=>2,
+                  :retry_backoff_factor=>2,
+                  :retry_max_interval=>2,
                   :total_retries_so_far=>1,
-                  :total_sleep_time_so_far=>0.4,
+                  :total_sleep_time_so_far=>0.2,
                   :will_retry_in_seconds=>0.4,
                   :body=>"{\n  \"message\": \"Couldn't decode API token ...234.\",\n  \"status\": \"error/client/badParam\"\n}"
                 }
@@ -129,8 +132,11 @@ describe LogStash::Outputs::Scalyr do
                   :record_count=>3,
                   :total_batches=>1,
                   :url=>"https://agent.scalyr.com/addEvents",
+                  :max_retries=>2,
+                  :retry_backoff_factor=>2,
+                  :retry_max_interval=>2,
                   :total_retries_so_far=>1,
-                  :total_sleep_time_so_far=>0.4,
+                  :total_sleep_time_so_far=>0.2,
                   :will_retry_in_seconds=>0.4
                 }
               )
@@ -182,8 +188,11 @@ describe LogStash::Outputs::Scalyr do
                   :record_count=>3,
                   :total_batches=>1,
                   :url=>"https://invalid.mitm.should.fail.test.agent.scalyr.com/addEvents",
+                  :max_retries=>2,
+                  :retry_backoff_factor=>2,
+                  :retry_max_interval=>2,
                   :total_retries_so_far=>1,
-                  :total_sleep_time_so_far=>0.4,
+                  :total_sleep_time_so_far=>0.2,
                   :will_retry_in_seconds=>0.4
                 }
               )
@@ -231,7 +240,7 @@ describe LogStash::Outputs::Scalyr do
           'perform_connectivity_check' => false,
           'ssl_ca_bundle_path' => EXAMPLE_COME_CA_CERTS_PATH,
           'max_retries' => 2,
-          'retry_max_interval' => 0.2,
+          'retry_max_interval' => 2,
           'retry_initial_interval' => 0.1,
           'max_retries_throttling_errors' => 2,
           'retry_max_interval_throttling_errors' => 2,
@@ -255,8 +264,11 @@ describe LogStash::Outputs::Scalyr do
             :record_count=>3,
             :total_batches=>1,
             :url=>"https://agent.scalyr.com/addEvents",
+            :max_retries=>2,
+            :retry_backoff_factor=>2,
+            :retry_max_interval=>2,
             :total_retries_so_far=>1,
-            :total_sleep_time_so_far=>0.2,
+            :total_sleep_time_so_far=>0.1,
             :will_retry_in_seconds=>0.2,
             :body=>"stubbed response"
           }
@@ -279,9 +291,11 @@ describe LogStash::Outputs::Scalyr do
           'max_retries_throttling_errors' => 2,
           'retry_max_interval_throttling_errors' => 2,
           'retry_initial_interval_throttling_errors' => 0.2,
+          'retry_backoff_factor_throttling_errors' => 2,
           'max_retries_deploy_errors' => 2,
           'retry_max_interval_deploy_errors' => 2,
           'retry_initial_interval_deploy_errors' => 0.2,
+          'retry_backoff_factor_deploy_errors' => 2,
         })
         plugin.register
         plugin.instance_variable_set(:@running, false)
@@ -290,7 +304,7 @@ describe LogStash::Outputs::Scalyr do
         plugin.multi_receive(sample_events)
         expect(plugin.instance_variable_get(:@logger)).to have_received(:warn).with("Error uploading to Scalyr (will backoff-retry)",
           {
-            :error_class=>"Scalyr::Common::Client::ServerError",
+            :error_class=>"Scalyr::Common::Client::DeployWindowError",
             :batch_num=>1,
             :code=>500,
             :message=>"Invalid JSON response from server",
@@ -298,9 +312,12 @@ describe LogStash::Outputs::Scalyr do
             :record_count=>3,
             :total_batches=>1,
             :url=>"https://agent.scalyr.com/addEvents",
+            :max_retries=>2,
+            :retry_backoff_factor=>2,
+            :retry_max_interval=>2,
             :total_retries_so_far=>1,
             :total_sleep_time_so_far=>0.2,
-            :will_retry_in_seconds=>0.2,
+            :will_retry_in_seconds=>0.4,
             :body=>"stubbed response"
           }
         )
@@ -371,6 +388,7 @@ describe LogStash::Outputs::Scalyr do
             'max_retries_deploy_errors' => 2,
             'retry_max_interval_deploy_errors' => 2,
             'retry_initial_interval_deploy_errors' => 0.2,
+            'retry_backoff_factor_deploy_errors' => 2,
         })
         plugin.register
         plugin.instance_variable_set(:@running, false)
@@ -379,7 +397,7 @@ describe LogStash::Outputs::Scalyr do
         plugin.multi_receive(sample_events)
         expect(plugin.instance_variable_get(:@logger)).to have_received(:warn).with("Error uploading to Scalyr (will backoff-retry)",
           {
-            :error_class=>"Scalyr::Common::Client::ServerError",
+            :error_class=>"Scalyr::Common::Client::DeployWindowError",
             :batch_num=>1,
             :code=>500,
             :message=>"Invalid JSON response from server",
@@ -387,9 +405,12 @@ describe LogStash::Outputs::Scalyr do
             :record_count=>3,
             :total_batches=>1,
             :url=>"https://agent.scalyr.com/addEvents",
+            :max_retries=>2,
+            :retry_backoff_factor=>2,
+            :retry_max_interval=>2,
             :total_retries_so_far=>1,
             :total_sleep_time_so_far=>0.2,
-            :will_retry_in_seconds=>0.2,
+            :will_retry_in_seconds=>0.4,
             :body=>("0123456789" * 50) + "012345678..."
           }
         )

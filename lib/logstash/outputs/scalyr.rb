@@ -554,6 +554,7 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           log_retry_failure(multi_event_request, exc_data, 0, 0)
           next
         rescue Scalyr::Common::Client::ServerError, Scalyr::Common::Client::ClientError => e
+          previous_state = retry_state.get_state_for_error(e)
           updated_state = retry_state.sleep_for_error_and_update_state(e)
 
           @stats_lock.synchronize do
@@ -570,14 +571,15 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
               :total_batches => total_batches,
               :record_count => multi_event_request[:record_count],
               :payload_size => multi_event_request[:body].bytesize,
+              # retry related values
               :max_retries => updated_state[:options][:max_retries],
               :retry_backoff_factor => updated_state[:options][:retry_backoff_factor],
               :retry_max_interval => updated_state[:options][:retry_max_interval],
               :will_retry_in_seconds => updated_state[:sleep_interval],
-              # to get actual value which excludes this next retry user needs to
-              # add -1 to exc_retries and add -sleep_interval to exc_sleep
-              :total_retries_so_far => updated_state[:retries],
-              :total_sleep_time_so_far => updated_state[:sleep_interval],
+              # to get values which include this next retry, you need to add +1
+              # to :total_retries_so_far and +:sleep_interval to :total_sleep_time_so_far
+              :total_retries_so_far => previous_state[:retries],
+              :total_sleep_time_so_far => previous_state[:sleep],
           }
           exc_data[:code] = e.code if e.code
           if @logger.debug? and defined?(e.body) and e.body
@@ -1283,12 +1285,14 @@ end
 class RetryStateTracker
 
   def initialize(plugin_config, is_plugin_running_method)
-    # :sleep_interval stores total amount (in seconds) we have slept / waited due to retries so far
-    # :retries stores number of times we have retried so far
+    # :retries - stores number of times we have retried so far
+    # :sleep - stores total duration (in seconds) we have slept / waited so far
+    # :sleep_interval stores - sleep interval / delay (in seconds) for the next retry
     @STATE = {
       :deploy_errors => {
-        :sleep_interval => plugin_config["retry_initial_interval_deploy_errors"],
         :retries => 0,
+        :sleep => 0,
+        :sleep_interval => plugin_config["retry_initial_interval_deploy_errors"],
         :options => {
           :retry_initial_interval => plugin_config["retry_initial_interval_deploy_errors"],
           :max_retries => plugin_config["max_retries_deploy_errors"],
@@ -1297,8 +1301,9 @@ class RetryStateTracker
         }
       },
       :throttling_errors => {
-        :sleep_interval => plugin_config["retry_initial_interval_throttling_errors"],
         :retries => 0,
+        :sleep => 0,
+        :sleep_interval => plugin_config["retry_initial_interval_throttling_errors"],
         :options => {
           :retry_initial_interval => plugin_config["retry_initial_interval_throttling_errors"],
           :max_retries => plugin_config["max_retries_throttling_errors"],
@@ -1307,8 +1312,9 @@ class RetryStateTracker
         }
       },
       :other_errors => {
-        :sleep_interval => plugin_config["retry_initial_interval"],
         :retries => 0,
+        :sleep => 0,
+        :sleep_interval => plugin_config["retry_initial_interval"],
         :options => {
           :retry_initial_interval => plugin_config["retry_initial_interval"],
           :max_retries => plugin_config["max_retries"],
@@ -1347,11 +1353,12 @@ class RetryStateTracker
 
     Stud.stoppable_sleep(current_interval) { !@is_plugin_running_method.call }
 
-    # Update internal state + sleep interval
+    # Update internal state + sleep interval for the next retry
     updated_interval = current_interval * state[:options][:retry_backoff_factor]
     updated_interval = updated_interval > state[:options][:retry_max_interval] ? state[:options][:retry_max_interval] : updated_interval
 
     state[:retries] += 1
+    state[:sleep] += current_interval
     state[:sleep_interval] = updated_interval
 
     state
