@@ -1,6 +1,6 @@
 # Beta
 
-## 0.2.10.beta
+## 0.2.9.beta
 
 * Introduce new plugin config options which allows failed HTTP request retry options to be
   configured differently for a different set of errors.
@@ -9,14 +9,6 @@
 
 * Use longer retry delays where we don't want to retry as soon as possible (e.g. deploy related
   errors or client being throttled by the server).
-
-## 0.2.9.beta
-
-* Update context which is logged with errors which represent HTTP requests which are retried
-  to also include ``total_retries_so_far`` and ``total_sleep_time_so_far`` attribute.
-
-* Add new ``retry_backoff_factor`` config option with which user can change a default value of 2
-  for the retry backoff factor (exponential delay).
 
 ## 0.2.8.beta
 
