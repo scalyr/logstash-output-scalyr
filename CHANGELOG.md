@@ -1,5 +1,15 @@
 # Beta
 
+## 0.2.10.beta
+
+* Introduce new plugin config options which allows failed HTTP request retry options to be
+  configured differently for a different set of errors.
+
+  Those options should be left as-is, unless instructed differently by the DataSet support team.
+
+* Use longer retry delays where we don't want to retry as soon as possible (e.g. deploy related
+  errors or client being throttled by the server).
+
 ## 0.2.9.beta
 
 * Update context which is logged with errors which represent HTTP requests which are retried
