@@ -49,7 +49,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Ruby
-        uses: ruby/setup-ruby@ece82769428359c077b5a5eaff268902a303c101  # v1.120.0
+        uses: ruby/setup-ruby@ee26e27437bde475b19a6bf8cb73c9fa658876a2  # v1.134.0
         with:
           ruby-version: '${{ matrix.ruby_version.version }}'
           bundler-cache: ${{ matrix.ruby_version.bundle_cache }}  # runs 'bundle install' and caches installed gems automatically
