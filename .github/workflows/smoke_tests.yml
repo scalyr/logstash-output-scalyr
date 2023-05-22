@@ -58,7 +58,7 @@ jobs:
           python-version: 3.8
 
       - name: Setup jRuby
-        uses: ruby/setup-ruby@ece82769428359c077b5a5eaff268902a303c101  # v1.120.0
+        uses: ruby/setup-ruby@8a45918450651f5e4784b6031db26f4b9f76b251  # v1.150.0
         with:
           ruby-version: 'jruby'
           bundler-cache: true
@@ -110,7 +110,7 @@ jobs:
           python-version: 3.8
 
       - name: Setup jRuby
-        uses: ruby/setup-ruby@ece82769428359c077b5a5eaff268902a303c101  # v1.120.0
+        uses: ruby/setup-ruby@8a45918450651f5e4784b6031db26f4b9f76b251  # v1.150.0
         with:
           ruby-version: 'jruby'
           bundler-cache: true
