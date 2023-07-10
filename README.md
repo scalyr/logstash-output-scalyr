@@ -64,7 +64,7 @@ the logstash node where the output plugin is running.
 You can change that either by setting ``serverHost`` attribute in the ``server_attributes`` config
 option hash or by setting ``serverHost`` attribute on the event level via logstash record attribute.
 
-In both scenarios, you will be able to utilize this value for "Sources" functionality and filterin
+In both scenarios, you will be able to utilize this value for "Sources" functionality and filtering
 in the Scalyr UI.
 
 For example:
