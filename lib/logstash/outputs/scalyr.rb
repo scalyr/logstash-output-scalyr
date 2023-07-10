@@ -234,6 +234,13 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
   # for large batches, it may make sense to disable this option when logstash batch size is configured in a way that
   # Scalyr single request limit won't be reached.
   config :estimate_each_event_size, :validate => :boolean, :default => true
+  # The following settings tune event truncation, which will truncate the
+  # message field to below `max_field_size_bytes`, drop any other field that
+  # exceeds `max_field_size_bytes`, and drop enough fields to ensure the record
+  # does not exceed `max_record_size_bytes`. This feature is only active when
+  # `estimate_each_event_size` is enabled.
+  config :max_record_size_bytes, :validate => :number, :default => 200 * 1024
+  config :max_field_size_bytes, :validate => :number, :default => 50 * 1024
 
   # Library to use for JSON serialization. Valid values are "stdlib" and "jrjackson". The later may offer 2-4 performance
   # improvements on serialization.
@@ -1003,6 +1010,12 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
           end
         end
 
+        if event_json.bytesize > @max_record_size_bytes
+          @logger.warn("Event size exceeds max_record_size_bytes, and will be truncated")
+          truncate_event(scalyr_event)
+          event_json = self.json_encode(scalyr_event)
+        end
+
         # generate new request if json size of events in the array exceed maximum request buffer size
         append_event = true
         add_bytes = event_json.bytesize
@@ -1062,6 +1075,46 @@ class LogStash::Outputs::Scalyr < LogStash::Outputs::Base
     # echee TODO scalyr_agent code suggests this should be "client_time", not "client_timestamp"
     # however, I cannot find any documentation anywhere. Is it even used?
     body[:client_timestamp] = current_time_millis.to_s
+  end
+
+  # This should only be called on events that have already been determined to be too large
+  def truncate_event(event)
+    attrs = event[:attrs]
+    new_attrs = Hash.new
+    total_size = 0
+    priority_events = ["serverHost", "parser", "logfile", "severity", "message"]
+    priority_events.each do |key|
+      next unless attrs.has_key? key
+      total_size += key.bytesize
+      value = attrs.delete key
+      value_size = _get_size(value)
+      if value_size > @max_field_size_bytes
+        value.slice!(@max_field_size_bytes, value_size)
+        total_size += @max_field_size_bytes
+      else
+        total_size += value_size
+      end
+      new_attrs[key] = value
+    end
+    attrs.each do |key, value|
+      kv_size = key.bytesize + _get_size(value)
+      # skip field if the combined size of the key and value exceed the max field size.
+      # We do this so we don't have to deal with figuring out how to truncate complex types
+      next if kv_size > @max_field_size_bytes
+      # Stop copying fields over if we would exceed the max record size
+      break if kv_size + total_size > @max_record_size_bytes
+      total_size += kv_size
+      new_attrs[key] = value
+    end
+    event[:attrs] = new_attrs
+    return event
+  end
+
+  def _get_size(value)
+    if not value.kind_of? String
+      value = value.to_s
+    end
+    return value.bytesize
   end
 
 

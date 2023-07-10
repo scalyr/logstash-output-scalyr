@@ -1203,6 +1203,111 @@ describe LogStash::Outputs::Scalyr do
       end
     end
 
+    context "when an event exceeds the max record size" do
+      def setup_plugin
+        config = {
+            'api_write_token' => '1234',
+            'perform_connectivity_check' => false,
+            'estimate_each_event_size' => true,
+        }
+        plugin = LogStash::Outputs::Scalyr.new(config)
+
+        allow(plugin).to receive(:send_status).and_return(nil)
+        plugin.register
+        return plugin
+      end
+
+      it "truncates the message field if it exceeds the max field size" do
+        plugin = setup_plugin()
+        e = LogStash::Event.new
+        e.set('message', 'a' * (205 * 1024))
+
+        result = plugin.build_multi_event_request_array([e])
+        body = JSON.parse(result[0][:body])
+        events = body['events']
+        scalyr_event = events[0]
+        attrs = scalyr_event['attrs']
+        expect(attrs['message'].bytesize).to eq(50 * 1024)
+      end
+      it "doesn't copy fields that exceed the max field size" do
+        plugin = setup_plugin()
+        e = LogStash::Event.new
+        e.set('message', 'a' * (205 * 1024))
+        e.set('honk', 'b' * (65 * 1024))
+        e.set('blarg', 'honk')
+        e.set('rawr', 'blah')
+
+        result = plugin.build_multi_event_request_array([e])
+        body = JSON.parse(result[0][:body])
+        events = body['events']
+        scalyr_event = events[0]
+        attrs = scalyr_event['attrs']
+        expect(attrs.has_key? 'honk').to be false
+      end
+      it "takes field key size into account" do
+        plugin = setup_plugin()
+        e = LogStash::Event.new
+        e.set('b' * (20 * 1024), 'blarg')
+        e.set('c' * (20 * 1024), 'blarg')
+        e.set('d' * (20 * 1024), 'blarg')
+        e.set('e' * (20 * 1024), 'blarg')
+        e.set('q' * (20 * 1024), 'blarg')
+        e.set('w' * (20 * 1024), 'blarg')
+        e.set('r' * (20 * 1024), 'blarg')
+        e.set('z' * (20 * 1024), 'blarg')
+        e.set('x' * (20 * 1024), 'blarg')
+        e.set('c' * (20 * 1024), 'blarg')
+        e.set('v' * (20 * 1024), 'blarg')
+        e.set('t' * (20 * 1024), 'blarg')
+
+        result = plugin.build_multi_event_request_array([e])
+        body = JSON.parse(result[0][:body])
+        events = body['events']
+        scalyr_event = events[0]
+        attrs = scalyr_event['attrs']
+        expect(attrs.size).to eq(10)
+        expect(attrs.to_json.bytesize).to be <= 200*1024
+      end
+      it "stops copying fields when the record would exceed the max record size" do
+        plugin = setup_plugin()
+        e = LogStash::Event.new
+        e.set('b', 'a' * (20 * 1024))
+        e.set('c', 'a' * (20 * 1024))
+        e.set('d', 'a' * (20 * 1024))
+        e.set('e', 'a' * (20 * 1024))
+        e.set('q', 'a' * (20 * 1024))
+        e.set('w', 'a' * (20 * 1024))
+        e.set('r', 'a' * (20 * 1024))
+        e.set('z', 'a' * (20 * 1024))
+        e.set('x', 'a' * (20 * 1024))
+        e.set('c', 'a' * (20 * 1024))
+        e.set('v', 'a' * (20 * 1024))
+        e.set('t', 'a' * (20 * 1024))
+
+        result = plugin.build_multi_event_request_array([e])
+        body = JSON.parse(result[0][:body])
+        events = body['events']
+        scalyr_event = events[0]
+        attrs = scalyr_event['attrs']
+        expect(attrs.size).to eq(10)
+      end
+      it "can estimate the size of complex nested objects, and throw them away" do
+        plugin = setup_plugin()
+        e = LogStash::Event.new
+        e.set('message', 'a' * (205 * 1024))
+        e.set('honk', [['b' * (65 * 1024)]])
+        e.set('blarg', 'honk')
+        e.set('rawr', 'blah')
+
+        result = plugin.build_multi_event_request_array([e])
+        body = JSON.parse(result[0][:body])
+        events = body['events']
+        scalyr_event = events[0]
+        attrs = scalyr_event['attrs']
+        expect(attrs.has_key? 'honk').to be false
+      end
+    end
+
     context "scalyr_server config option handling and connectivity check" do
       it "doesn't throw an error on valid url" do
         config = {
